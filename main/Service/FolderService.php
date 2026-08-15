@@ -29,6 +29,9 @@ final class FolderService
     #[Autowired]
     private BucketService $buckets;
 
+    #[Autowired]
+    private FileService $files;
+
     public function getAll(string $bucketId, PageRequest $request): WrapResult
     {
         $where = [Qb::eq('bucket_id', $bucketId)];
@@ -145,14 +148,16 @@ final class FolderService
     }
 
     /**
-     * TODO (когда появятся файлы): удаление папки должно снести и файлы внутри
-     * через общий путь удаления файла — иначе CASCADE унесёт строки файлов, а
-     * ref_count блобов и квота бакета останутся завышенными.
+     * Файлы сносим сами, а не отдаём CASCADE: тот унёс бы только строки, оставив
+     * ref_count блобов и used_bytes бакета завышенными, а байты — на диске.
      */
-    public function delete(string $bucketId, string $name): void
+    public function delete(string $bucketId, string $name): int
     {
         $folder = $this->get($bucketId, $name);
+        $removed = $this->files->deleteByFolder($bucketId, $folder->id);
         $this->repo->delete(Qb::eq('id', $folder->id));
+
+        return $removed;
     }
 
     private function requireActiveBucket(string $bucketId): void

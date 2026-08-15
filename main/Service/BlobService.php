@@ -48,94 +48,105 @@ final class BlobService
         $size = (int) filesize($srcPath);
         $type = ContentType::detect($srcPath, $sourceName);
 
-        for ($attempt = 0; ; $attempt++) {
-            try {
-                return $this->attemptStore($bucketId, $srcPath, $hash, $size, $type);
-            } catch (\Throwable $e) {
-                if ($attempt === 0 && Db::isUniqueViolation($e)) {
-                    continue;
-                }
-                throw $e;
-            }
-        }
-    }
-
-    /**
-     * @param array{mime: string, extension: string} $type
-     */
-    private function attemptStore(
-        string $bucketId,
-        string $srcPath,
-        string $hash,
-        int $size,
-        array $type,
-    ): StoredBlob {
         $db = $this->repo->db();
-        $db->beginTransaction();
+        // Транзакцию открываем, только если её нет: загрузка файла оборачивает
+        // блоб и строку файла в одну свою, чтобы они появлялись вместе.
+        $owns = !$db->inTransaction();
+        if ($owns) {
+            $db->beginTransaction();
+        }
         $written = false;
 
         try {
-            // FOR UPDATE держит существующий блоб от параллельного release:
-            // иначе он мог бы обнулить ref_count и удалить файл ровно между
-            // нашим SELECT и нашим UPDATE.
-            $blob = $this->repo
-                ->where(Qb::and(Qb::eq('bucket_id', $bucketId), Qb::eq('hash', $hash)))
-                ->forBy('UPDATE')
-                ->find();
+            // Две попытки: на второй мы уже точно видим чужую строку (INSERT,
+            // получивший 23505, ждал коммита победителя — значит, она видна).
+            for ($attempt = 0; $attempt < 2; $attempt++) {
+                // FOR UPDATE держит существующий блоб от параллельного release:
+                // иначе он мог бы обнулить ref_count и удалить файл ровно между
+                // нашим SELECT и нашим UPDATE.
+                $blob = $this->repo
+                    ->where(Qb::and(Qb::eq('bucket_id', $bucketId), Qb::eq('hash', $hash)))
+                    ->forBy('UPDATE')
+                    ->find();
 
-            if ($blob !== null) {
-                $blob->ref_count++;
-                $this->repo->update(['ref_count' => $blob->ref_count], Qb::eq('id', $blob->id));
-                $db->commit();
+                if ($blob !== null) {
+                    $blob->ref_count++;
+                    $this->repo->update(['ref_count' => $blob->ref_count], Qb::eq('id', $blob->id));
+                    if ($owns) {
+                        $db->commit();
+                    }
+                    // Файл (если мы его успели записать на первой попытке) не
+                    // трогаем: путь content-addressed, там те же байты, и теперь
+                    // они принадлежат победившей строке.
+                    return new StoredBlob($blob, deduplicated: true);
+                }
 
-                return new StoredBlob($blob, deduplicated: true);
-            }
+                $bucket = $this->buckets->where(Qb::eq('id', $bucketId))->forBy('UPDATE')->find();
+                if ($bucket === null) {
+                    ClientError::throw('Bucket not found', HttpCode::NOT_FOUND);
+                }
 
-            $bucket = $this->buckets->where(Qb::eq('id', $bucketId))->forBy('UPDATE')->find();
-            if ($bucket === null) {
-                ClientError::throw('Bucket not found', HttpCode::NOT_FOUND);
-            }
+                if ($bucket->used_bytes + $size > $bucket->quota_bytes) {
+                    ClientError::throw(
+                        "Quota exceeded: {$bucket->used_bytes} + {$size} > {$bucket->quota_bytes}",
+                        HttpCode::REQUEST_ENTITY_TOO_LARGE,
+                    );
+                }
 
-            if ($bucket->used_bytes + $size > $bucket->quota_bytes) {
-                ClientError::throw(
-                    "Quota exceeded: {$bucket->used_bytes} + {$size} > {$bucket->quota_bytes}",
-                    HttpCode::REQUEST_ENTITY_TOO_LARGE,
+                // Байты пишем до коммита: файл без строки — мусор, который
+                // подберёт уборщик, а строка без файла — 500 на каждой отдаче.
+                if (!$written) {
+                    $this->store->blobWrite($bucketId, $hash, $srcPath);
+                    $written = true;
+                }
+
+                $blob = new Blob();
+                $blob->bucket_id = $bucketId;
+                $blob->hash = $hash;
+                $blob->size_bytes = $size;
+                $blob->mime_type = $type['mime'];
+                $blob->extension = $type['extension'];
+                $blob->ref_count = 1;
+                $blob->created_at = date('Y-m-d H:i:s P');
+
+                // Гонка двух одинаковых загрузок: FOR UPDATE не запирает ещё не
+                // существующую строку, поэтому обе доходят до INSERT и одна
+                // получает 23505. Savepoint нужен, чтобы этот отказ не убил всю
+                // транзакцию — в том числе внешнюю, чужую.
+                $db->exec('SAVEPOINT s5w_blob');
+                try {
+                    $blob->id = $this->repo->insert($blob);
+                    $db->exec('RELEASE SAVEPOINT s5w_blob');
+                } catch (\Throwable $e) {
+                    if (!Db::isUniqueViolation($e)) {
+                        throw $e;
+                    }
+                    $db->exec('ROLLBACK TO SAVEPOINT s5w_blob');
+                    continue;
+                }
+
+                $this->buckets->update(
+                    ['used_bytes' => $bucket->used_bytes + $size, 'updated_at' => date('Y-m-d H:i:s P')],
+                    Qb::eq('id', $bucketId),
                 );
+
+                if ($owns) {
+                    $db->commit();
+                }
+
+                return new StoredBlob($blob, deduplicated: false);
             }
 
-            // Байты пишем до коммита: файл без строки — мусор, который подберёт
-            // уборщик, а строка без файла — 500 на каждой отдаче.
-            $this->store->blobWrite($bucketId, $hash, $srcPath);
-            $written = true;
-
-            $blob = new Blob();
-            $blob->bucket_id = $bucketId;
-            $blob->hash = $hash;
-            $blob->size_bytes = $size;
-            $blob->mime_type = $type['mime'];
-            $blob->extension = $type['extension'];
-            $blob->ref_count = 1;
-            $blob->created_at = date('Y-m-d H:i:s P');
-            $blob->id = $this->repo->insert($blob);
-
-            $this->buckets->update(
-                ['used_bytes' => $bucket->used_bytes + $size, 'updated_at' => date('Y-m-d H:i:s P')],
-                Qb::eq('id', $bucketId),
-            );
-
-            $db->commit();
-
-            return new StoredBlob($blob, deduplicated: false);
+            throw new \RuntimeException("Blob store gave up after a dedup race on {$hash}");
         } catch (\Throwable $e) {
-            if ($db->inTransaction()) {
+            if ($owns && $db->inTransaction()) {
                 $db->rollBack();
+                if ($written) {
+                    $this->store->blobDelete($bucketId, $hash);
+                }
             }
-            // Файл удаляем, только если он остался ничей. При 23505 путь занят
-            // победившей транзакцией — там ровно те же байты, и стереть их
-            // значило бы оставить чужую строку без содержимого.
-            if ($written && !Db::isUniqueViolation($e)) {
-                $this->store->blobDelete($bucketId, $hash);
-            }
+            // Во внешней транзакции файл убирает тот, кто её откатывает: только
+            // он знает, дошло ли дело до коммита (см. StoredBlob::$written).
             throw $e;
         }
     }
@@ -147,11 +158,19 @@ final class BlobService
      * стоить нам файла, на который кто-то ещё ссылается. Обратная ошибка —
      * файл-сирота при падении между коммитом и unlink — стоит места, а не
      * данных, и подбирается уборщиком.
+     *
+     * @return Blob|null осиротевший блоб, если сняли последнюю ссылку и вызов
+     *   идёт внутри чужой транзакции: удалить его файл должен тот, кто её
+     *   коммитит. При собственной транзакции файл удаляется здесь и возвращается
+     *   null — вызывающему делать нечего.
      */
-    public function release(string $bucketId, int $blobId): void
+    public function release(string $bucketId, int $blobId): ?Blob
     {
         $db = $this->repo->db();
-        $db->beginTransaction();
+        $owns = !$db->inTransaction();
+        if ($owns) {
+            $db->beginTransaction();
+        }
         $orphan = null;
 
         try {
@@ -160,8 +179,10 @@ final class BlobService
                 ->forBy('UPDATE')
                 ->find();
             if ($blob === null) {
-                $db->commit();
-                return; // уже освобождён — release идемпотентен
+                if ($owns) {
+                    $db->commit();
+                }
+                return null; // уже освобождён — release идемпотентен
             }
 
             if ($blob->ref_count > 1) {
@@ -182,16 +203,23 @@ final class BlobService
                 $orphan = $blob;
             }
 
-            $db->commit();
+            if ($owns) {
+                $db->commit();
+            }
         } catch (\Throwable $e) {
-            if ($db->inTransaction()) {
+            if ($owns && $db->inTransaction()) {
                 $db->rollBack();
             }
             throw $e;
         }
 
-        if ($orphan !== null) {
+        // Внутри внешней транзакции файл ещё не наш, чтобы его удалять: она
+        // может откатиться, и строка блоба вернётся к жизни.
+        if ($orphan !== null && $owns) {
             $this->store->blobDelete($orphan->bucket_id, $orphan->hash);
+            return null;
         }
+
+        return $orphan;
     }
 }

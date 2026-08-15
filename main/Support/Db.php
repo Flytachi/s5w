@@ -15,11 +15,35 @@ final class Db
      */
     public static function isUniqueViolation(\Throwable $e): bool
     {
+        return self::pdoException($e) !== null;
+    }
+
+    /**
+     * Имя нарушенного UNIQUE-индекса — когда на таблице их несколько и реакция
+     * зависит от того, какой именно сработал.
+     *
+     * Postgres кладёт его в текст ошибки: `duplicate key value violates unique
+     * constraint "files_slug_udx"`. Текст — единственный источник: SQLSTATE
+     * одинаков для всех уникальных индексов таблицы.
+     */
+    public static function uniqueConstraint(\Throwable $e): ?string
+    {
+        $pdo = self::pdoException($e);
+        if ($pdo === null) {
+            return null;
+        }
+        return preg_match('/unique constraint "([^"]+)"/', $pdo->getMessage(), $m) === 1
+            ? $m[1]
+            : null;
+    }
+
+    private static function pdoException(\Throwable $e): ?\PDOException
+    {
         for ($cur = $e; $cur !== null; $cur = $cur->getPrevious()) {
             if ($cur instanceof \PDOException && (string) $cur->getCode() === '23505') {
-                return true;
+                return $cur;
             }
         }
-        return false;
+        return null;
     }
 }
