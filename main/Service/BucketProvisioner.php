@@ -13,17 +13,6 @@ use Main\Repository\BucketRepository;
 use Main\Storage\BlobStore;
 use Psr\Log\LoggerInterface;
 
-/**
- * Долгая часть жизненного цикла бакета: каталог в хранилище.
- *
- * Оба метода #[Async] — вызов возвращается сразу, тело уходит на исполнитель
- * (корутина под Swoole, отложенная задача в CLI). Отсюда требования к классу:
- * он не final, методы не final и не static, возвращают void — прокси
- * генерируется наследником, иначе перехватывать нечего.
- *
- * Обе операции идемпотентны: повторный запуск из любого статуса доводит
- * бакет до нужного состояния и ничего не ломает.
- */
 #[Singleton]
 class BucketProvisioner
 {
@@ -33,14 +22,9 @@ class BucketProvisioner
     #[Autowired]
     private BlobStore $store;
 
-    /** Контейнер отдаёт логгер, названный по классу-потребителю. */
     #[Autowired]
     private LoggerInterface $log;
 
-    /**
-     * CREATED → PENDING → ACTIVE. Сбой оставляет INACTIVE: бакет виден в панели,
-     * но не обслуживает загрузки — состояние, из которого можно повторить.
-     */
     #[Async]
     public function provision(string $bucketId): void
     {

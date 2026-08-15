@@ -17,6 +17,7 @@ use Main\Enum\BucketStatus;
 use Main\Repository\BucketRepository;
 use Main\Request\BucketRequest;
 use Main\Request\PageRequest;
+use Main\Support\Db;
 
 #[Singleton]
 final class BucketService
@@ -75,7 +76,7 @@ final class BucketService
         try {
             $bucket->id = $this->repo->insert($bucket);
         } catch (\Throwable $e) {
-            if ($this->isUniqueViolation($e)) {
+            if (Db::isUniqueViolation($e)) {
                 ClientError::throw('Bucket name already taken', HttpCode::CONFLICT);
             }
             throw $e;
@@ -114,7 +115,7 @@ final class BucketService
                 Qb::eq('id', $id),
             );
         } catch (\Throwable $e) {
-            if ($this->isUniqueViolation($e)) {
+            if (Db::isUniqueViolation($e)) {
                 ClientError::throw('Bucket name already taken', HttpCode::CONFLICT);
             }
             throw $e;
@@ -135,16 +136,5 @@ final class BucketService
             Qb::eq('id', $id),
         );
         $this->provisioner->purge($id);
-    }
-
-    /** UNIQUE-нарушение Postgres (SQLSTATE 23505) в обёртках репозитория. */
-    private function isUniqueViolation(\Throwable $e): bool
-    {
-        for ($cur = $e; $cur !== null; $cur = $cur->getPrevious()) {
-            if ($cur instanceof \PDOException && (string) $cur->getCode() === '23505') {
-                return true;
-            }
-        }
-        return false;
     }
 }
