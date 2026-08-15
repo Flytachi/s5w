@@ -1,0 +1,17 @@
+{
+    "name": "project/s5w",
+    "description": "My Project s5w",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "Main\\": "main/"
+        }
+    },
+    "require": {
+        "php": ">=8.4",
+        "flytachi/winter-kernel": "^4.0"
+    },
+    "require-dev": {
+        "monolog/monolog": "@stable"
+    }
+}
