@@ -10,7 +10,9 @@ use Flytachi\Winter\Kernel\Kernel;
 /**
  * Файловое хранилище: storage/chest/{bucketId}/{sha256}.
  *
- * Пока здесь только каталог бакета — работа с блобами приедет вместе с файлами.
+ * Имя файла — сам хеш содержимого, поэтому запись одного и того же контента
+ * дважды идёт в один и тот же путь. Учёт ссылок ведёт база (Blob.ref_count),
+ * здесь только байты.
  */
 #[Singleton]
 final class BlobStore
@@ -58,6 +60,55 @@ final class BlobStore
 
         if (!@rmdir($path) && is_dir($path)) {
             throw new \RuntimeException("Failed to remove bucket dir \"{$path}\"");
+        }
+    }
+
+    // ── Блобы ────────────────────────────────────────────────────────────────
+
+    public function blobPath(string $bucketId, string $hash): string
+    {
+        return $this->bucketPath($bucketId) . '/' . $hash;
+    }
+
+    public function blobExists(string $bucketId, string $hash): bool
+    {
+        return is_file($this->blobPath($bucketId, $hash));
+    }
+
+    public function blobSize(string $bucketId, string $hash): int
+    {
+        return (int) @filesize($this->blobPath($bucketId, $hash));
+    }
+
+    public function blobWrite(string $bucketId, string $hash, string $srcPath): void
+    {
+        $this->createBucketDir($bucketId);
+        $target = $this->blobPath($bucketId, $hash);
+
+        if (@rename($srcPath, $target)) {
+            @chmod($target, 0664);
+            return;
+        }
+
+        $staging = $target . '.' . bin2hex(random_bytes(4)) . '.part';
+        if (!@copy($srcPath, $staging)) {
+            @unlink($staging);
+            throw new \RuntimeException("Failed to copy blob to \"{$staging}\"");
+        }
+        if (!@rename($staging, $target)) {
+            @unlink($staging);
+            throw new \RuntimeException("Failed to store blob at \"{$target}\"");
+        }
+        @chmod($target, 0664);
+        @unlink($srcPath);
+    }
+
+    /** Идемпотентно: отсутствующий файл — не ошибка. */
+    public function blobDelete(string $bucketId, string $hash): void
+    {
+        $path = $this->blobPath($bucketId, $hash);
+        if (is_file($path)) {
+            @unlink($path);
         }
     }
 }
