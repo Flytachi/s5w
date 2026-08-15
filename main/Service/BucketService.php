@@ -24,6 +24,9 @@ final class BucketService
     #[Autowired]
     private BucketRepository $repo;
 
+    #[Autowired]
+    private BucketProvisioner $provisioner;
+
     public function getAll(PageRequest $request): WrapResult
     {
         if ($request->search !== null && $request->search !== '') {
@@ -78,6 +81,9 @@ final class BucketService
             throw $e;
         }
 
+        // Каталог создаётся фоном: ответ уходит сразу, статус доедет до ACTIVE сам.
+        $this->provisioner->provision($bucket->id);
+
         return BucketRes::from($bucket);
     }
 
@@ -117,10 +123,18 @@ final class BucketService
         return BucketRes::from($bucket);
     }
 
+    /**
+     * Запрос только помечает бакет; строку и каталог уносит фоновая задача.
+     * PENDING виден в списке и на нём же отсекаются загрузки в удаляемый бакет.
+     */
     public function delete(string $id): void
     {
         $this->get($id);
-        $this->repo->delete(Qb::eq('id', $id));
+        $this->repo->update(
+            ['status' => BucketStatus::PENDING->value, 'updated_at' => date('Y-m-d H:i:s P')],
+            Qb::eq('id', $id),
+        );
+        $this->provisioner->purge($id);
     }
 
     /** UNIQUE-нарушение Postgres (SQLSTATE 23505) в обёртках репозитория. */

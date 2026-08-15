@@ -8,10 +8,10 @@
         }
     },
     "require": {
-        "php": ">=8.4",
-        "flytachi/winter-kernel": "^4.0"
+        "php": ">=8.5",
+        "flytachi/winter-kernel": "^4.0",
+        "monolog/monolog": "@stable"
     },
     "require-dev": {
-        "monolog/monolog": "@stable"
     }
 }

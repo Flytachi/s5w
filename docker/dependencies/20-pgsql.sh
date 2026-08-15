@@ -9,7 +9,7 @@ if php -m | grep -qi '^pdo_pgsql$'; then
     echo "pdo_pgsql already present — skip"
 else
     apk add --no-cache libpq \
-        && apk add --no-cache --virtual .pg-deps postgresql-dev \
+        && apk add --no-cache --virtual .pg-deps libpq-dev build-base \
         && docker-php-ext-install -j"$(nproc)" pdo_pgsql pgsql \
         && apk del .pg-deps
 fi

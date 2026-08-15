@@ -38,7 +38,7 @@ final class BucketController extends Controller
     public function create(
         #[RequestJson, Valid] BucketRequest $request,
     ): ResponseEntity {
-        return ResponseEntity::created($this->service->create($request));
+        return ResponseEntity::accepted($this->service->create($request));
     }
 
     #[GetMapping('{id}')]
@@ -61,6 +61,6 @@ final class BucketController extends Controller
         #[PathVariable, Uuid] string $id,
     ): ResponseEntity {
         $this->service->delete($id);
-        return ResponseEntity::noContent();
+        return ResponseEntity::accepted();
     }
 }
