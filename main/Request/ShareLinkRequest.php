@@ -13,9 +13,14 @@ use Main\Enum\Disposition;
 final class ShareLinkRequest
 {
     public function __construct(
+        /**
+         * Потолок — 30 суток. Срок зашит в подпись и не продлевается: чем он
+         * длиннее, тем дольше живёт ссылка, которую без строки в базе можно
+         * закрыть только отзывом всех ссылок бакета сразу.
+         */
         #[Required]
         #[Positive]
-        #[Max(604800)]
+        #[Max(2592000)]
         public int $ttl = 3600,
 
         public Disposition $disposition = Disposition::INLINE,

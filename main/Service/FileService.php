@@ -129,7 +129,7 @@ final class FileService
         }
 
         $page = Wrapper::paginator(
-            $this->repo->where(Qb::and(...$where))->orderBy('created_at DESC'),
+            $this->repo->where(Qb::and(...$where))->orderBy($this->orderBy($request)),
             $request->limit,
             $request->page,
         );
@@ -155,6 +155,29 @@ final class FileService
                 $page->data,
             ),
         );
+    }
+
+    /**
+     * ORDER BY по выбору из закрытого списка — в SQL, а не в памяти: сортировка
+     * обязана быть сквозной по всему списку, а не по видимой странице.
+     *
+     * Вес лежит на блобе, не на файле, поэтому берётся подзапросом: join ради
+     * одной колонки заставил бы разбирать выдачу вручную.
+     */
+    private function orderBy(FileListRequest $request): string
+    {
+        $dir = $request->dir === 'asc' ? 'ASC' : 'DESC';
+
+        return match ($request->sort) {
+            'name' => "name {$dir}",
+            'type' => "mime_type {$dir}, name ASC",
+            'size' => sprintf(
+                '(SELECT b.size_bytes FROM %s b WHERE b.id = blob_id) %s, name ASC',
+                $this->blobRepo->originTable(),
+                $dir,
+            ),
+            default => "created_at {$dir}, id {$dir}",
+        };
     }
 
     public function getOne(string $bucketId, string $slug, string $baseUrl): FileRes

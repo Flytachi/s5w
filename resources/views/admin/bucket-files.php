@@ -1,244 +1,263 @@
 <?php
 
 use Main\Web\Fmt;
+use Main\Web\Query;
 
+$base = '/admin/ui/buckets/' . $bucket->id . '/files';
+$link = static fn(array $params) => Fmt::e(Query::url($base, $params + [
+    'search' => $query->search,
+    'sort' => $query->sort === 'created' ? null : $query->sort,
+    'dir' => $query->dir === 'desc' ? null : $query->dir,
+]));
+$current = $query->folderFilter();
+
+/** Тот же список, но с другим порядком: папка, поиск и страница сохраняются. */
+$order = static fn(array $params) => Fmt::e(Query::url($base, $params + $query->params(1)));
 ?>
 
-<?php wrImport('admin/_crumbs') ?>
-
-<div class="grid grid--3 mb-3">
-    <div class="card">
-        <div class="card__header"><div class="card__title">Содержимое</div></div>
-        <dl class="kv mt-2">
-            <dt>Файлов</dt><dd><?= Fmt::num($bucket['files']) ?></dd>
-            <dt>Блобов</dt><dd><?= Fmt::num($bucket['blobs']) ?></dd>
-            <dt>Свёрнуто дублей</dt><dd class="text-ok"><?= Fmt::num($bucket['files'] - $bucket['blobs']) ?></dd>
-        </dl>
-    </div>
-
-    <div class="card">
-        <div class="card__header"><div class="card__title">Адрес</div></div>
-        <p class="text-sm text-muted mt-2">Публичная отдача идёт по id бакета и slug файла.</p>
-        <div class="row mt-2">
-            <span class="copyable mono" data-copy="<?= Fmt::e($bucket['id']) ?>">
-                <?= Fmt::e(substr($bucket['id'], 0, 18)) ?>…
-                <svg class="icon"><use href="#i-copy"/></svg>
-            </span>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card__header">
-            <div class="card__title">Кэш по умолчанию</div>
-            <div class="card__spacer"></div>
-            <button class="icon-btn icon-btn--ghost icon-btn--sm" data-action="bucket:cache" aria-label="Изменить">
-                <svg class="icon icon--sm"><use href="#i-edit"/></svg>
+<div class="fm">
+    <!-- ─────────── папки ─────────── -->
+    <aside class="fm__side">
+        <div class="fm__head">
+            <span class="fm__title">Папки</span>
+            <button class="icon-btn icon-btn--ghost icon-btn--sm" data-modal-open="modal-folder" aria-label="Новая папка">
+                <svg class="icon icon--sm"><use href="#i-plus"/></svg>
             </button>
         </div>
 
-        <?php if ($bucket['cache']['visibility'] === null): ?>
-            <p class="text-sm text-muted mt-2">Не задано — берётся глобальный дефолт сервиса.</p>
-        <?php else: ?>
-            <dl class="kv mt-2">
-                <dt>Видимость</dt>
-                <dd><span class="tone tone--<?= $bucket['cache']['visibility']['name'] === 'PUBLIC' ? 'ok' : 'brand' ?>">
-                    <?= Fmt::e($bucket['cache']['visibility']['name']) ?>
-                </span></dd>
-                <dt>max-age</dt><dd><?= (int) $bucket['cache']['maxAge'] ?> с</dd>
-            </dl>
-        <?php endif ?>
-    </div>
-</div>
+        <div class="fm__scroll" data-rows="folders">
+            <a class="fm__folder<?= $current === null ? ' is-active' : '' ?>" href="<?= $link(['folder' => null]) ?>">
+                <svg class="icon"><use href="#i-layers"/></svg>
+                <span class="fm__folder-name">Все файлы</span>
+                <span class="fm__count"><?= Fmt::num($bucket->files) ?></span>
+            </a>
 
-<div class="grid grid--2 mb-3" style="grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr)">
-    <div class="card">
-        <div class="card__header">
-            <div>
-                <div class="card__title">Загрузка</div>
-                <div class="card__subtitle">обработка применяется до записи в хранилище</div>
-            </div>
-            <div class="card__spacer"></div>
-            <div class="field" style="min-width:150px">
-                <select class="select-native" name="folder" data-upload-folder>
-                    <option value="">корень бакета</option>
-                    <?php foreach ($folders as $folder): ?>
-                        <option value="<?= Fmt::e($folder['name']) ?>"><?= Fmt::e($folder['name']) ?></option>
-                    <?php endforeach ?>
-                </select>
-            </div>
-        </div>
+            <a class="fm__folder<?= $current === '' ? ' is-active' : '' ?>" href="<?= $link(['folder' => '/']) ?>">
+                <svg class="icon"><use href="#i-file"/></svg>
+                <span class="fm__folder-name">Корень</span>
+                <span class="fm__count"><?= Fmt::num(max(0, $bucket->files - array_sum(array_map(static fn($f) => $f->files, $folders)))) ?></span>
+            </a>
 
-        <label class="file-drop mt-2" data-upload-drop>
-            <svg class="icon"><use href="#i-upload"/></svg>
-            <div style="font-weight:600">Перетащите файлы сюда</div>
-            <div class="text-sm text-muted" data-upload-hint>или нажмите, чтобы выбрать</div>
-            <input type="file" multiple>
-        </label>
+            <div class="fm__divider"></div>
 
-        <div class="mt-2" data-upload-list></div>
-    </div>
+            <?php foreach ($folders as $folder): ?>
+                <div class="fm__folder-wrap" data-row="folder"
+                     data-name="<?= Fmt::e($folder->name) ?>"
+                     data-public="<?= $folder->public ? '1' : '' ?>"
+                     data-retention="<?= $folder->retentionId ?>"
+                     data-files="<?= $folder->files ?>"
+                     data-max-age="<?= $folder->cacheMaxAge ?? '' ?>"
+                     data-visibility="<?= Fmt::e($folder->cacheVisibility ?? '') ?>">
+                    <?php
+                    $marks = [];
+                    if (!$folder->public) {
+                        $marks[] = ['i-lock', 'brand', 'только по токену'];
+                    }
+                    if ($folder->hasRetention()) {
+                        $marks[] = ['i-clock', 'warn', 'срок хранения: ' . $folder->retentionLabel()];
+                    }
+                    if ($folder->hasCache()) {
+                        $marks[] = ['i-zap', 'temp', 'свой кэш: ' . $folder->cacheLabel()];
+                    }
+                    ?>
+                    <a class="fm__folder<?= $current === $folder->name ? ' is-active' : '' ?>"
+                       href="<?= $link(['folder' => $folder->name]) ?>"
+                       title="<?= Fmt::e($folder->name . ($marks === [] ? '' : ' — ' . implode(', ', array_column($marks, 2)))) ?>">
+                        <svg class="icon"><use href="#i-folder"/></svg>
+                        <span class="fm__folder-name" data-folder-name><?= Fmt::e($folder->name) ?></span>
+                        <span class="fm__badges">
+                            <?php foreach ($marks as [$icon, $tone, $hint]): ?>
+                                <svg class="icon icon--sm text-<?= $tone ?>" aria-label="<?= Fmt::e($hint) ?>"><use href="#<?= $icon ?>"/></svg>
+                            <?php endforeach ?>
+                        </span>
+                        <span class="fm__count"><?= Fmt::num($folder->files) ?></span>
+                    </a>
 
-    <div class="card" data-image-options>
-        <div class="card__header">
-            <div>
-                <div class="card__title">Картинки</div>
-                <div class="card__subtitle">применяется только к изображениям</div>
-            </div>
-        </div>
-
-        <div class="stack mt-2">
-            <div class="field">
-                <label class="field__label">Формат</label>
-                <select class="select-native" name="format">
-                    <option value="ORIGINAL">ORIGINAL — не менять контейнер</option>
-                    <option value="WEBP">WEBP</option>
-                    <option value="JPEG">JPEG</option>
-                    <option value="PNG">PNG</option>
-                    <option value="AVIF">AVIF</option>
-                </select>
-            </div>
-
-            <div class="field">
-                <label class="field__label">Качество · <b data-quality-value>82</b></label>
-                <input class="range" type="range" name="quality" min="1" max="100" value="82" data-default="82">
-                <span class="field__hint">Больше — лучше. У PNG это уровень zlib, а не потери.</span>
-            </div>
-
-            <div class="row" style="flex-wrap:nowrap; gap:10px">
-                <div class="field w-full">
-                    <label class="field__label">Ширина не больше</label>
-                    <input class="input" type="number" name="maxWidth" placeholder="2000">
-                </div>
-                <div class="field w-full">
-                    <label class="field__label">Высота не больше</label>
-                    <input class="input" type="number" name="maxHeight" placeholder="2000">
-                </div>
-            </div>
-
-            <div class="alert alert--glass">
-                <svg class="icon"><use href="#i-crop"/></svg>
-                <div class="alert__body">
-                    <div class="alert__title">Что произойдёт</div>
-                    <div class="alert__text" data-image-summary></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card__header">
-        <div class="card__title">Файлы</div>
-        <div class="card__spacer"></div>
-        <div class="search-pill">
-            <svg class="icon icon--sm"><use href="#i-search"/></svg>
-            <input type="search" placeholder="Поиск по имени" data-filter="files">
-        </div>
-    </div>
-
-    <div class="table-wrap">
-        <table class="table" data-sortable>
-            <thead>
-            <tr>
-                <th style="width:34px">
-                    <label class="check"><input type="checkbox" data-check-all="files">
-                        <span class="check__box"><svg class="icon"><use href="#i-check"/></svg></span>
-                    </label>
-                </th>
-                <th class="sortable">Файл</th>
-                <th>Папка</th>
-                <th>Обработка</th>
-                <th class="num sortable">Размер</th>
-                <th>Канал</th>
-                <th>Срок</th>
-                <th></th>
-            </tr>
-            </thead>
-            <tbody data-rows="files">
-            <?php foreach ($files as $file): ?>
-                <?php [$kind, $icon] = Fmt::kind($file['content']['mime']) ?>
-                <tr data-row="file" data-id="<?= Fmt::e($file['id']) ?>" data-name="<?= Fmt::e($file['name']) ?>">
-                    <td>
-                        <label class="check"><input type="checkbox" data-check="files">
-                            <span class="check__box"><svg class="icon"><use href="#i-check"/></svg></span>
-                        </label>
-                    </td>
-                    <td>
-                        <div class="fileline">
-                            <span class="ftype ftype--<?= $kind ?>"><svg class="icon"><use href="#<?= $icon ?>"/></svg></span>
-                            <span class="fileline__body">
-                                <span class="fileline__name"><?= Fmt::e($file['name']) ?></span>
-                                <span class="fileline__meta">
-                                    <span class="mono"><?= Fmt::e($file['id']) ?></span>
-                                    <span class="dot-sep"></span><?= Fmt::e($file['content']['mime']) ?>
-                                    <?php if ($file['deduplicated']): ?>
-                                        <span class="dot-sep"></span><span class="text-ok">дедуп</span>
-                                    <?php endif ?>
-                                </span>
-                            </span>
-                        </div>
-                    </td>
-                    <td>
-                        <?php if ($file['folder'] === null): ?>
-                            <span class="text-muted text-sm">корень</span>
-                        <?php else: ?>
-                            <span class="tone tone--mute">
-                                <svg class="icon"><use href="#i-folder"/></svg> <?= Fmt::e($file['folder']) ?>
-                            </span>
-                        <?php endif ?>
-                    </td>
-                    <td>
-                        <?php if ($file['processed']['applied'] ?? false): ?>
-                            <span class="tone tone--brand" title="<?= Fmt::e(implode(', ', $file['processed']['operations'])) ?>">
-                                <svg class="icon"><use href="#i-zap"/></svg>
-                                <?= Fmt::bytes($file['processed']['source']['size']) ?> → <?= Fmt::bytes($file['processed']['result']['size']) ?>
-                            </span>
-                        <?php else: ?>
-                            <span class="tone tone--mute"><?= Fmt::e($file['processed']['reason'] ?? '—') ?></span>
-                        <?php endif ?>
-                    </td>
-                    <td class="num nowrap"><?= Fmt::bytes($file['content']['size']) ?></td>
-                    <td>
-                        <span class="tone chan chan--<?= $file['public'] ? 'o' : 'p' ?>">/<?= $file['public'] ? 'o' : 'p' ?></span>
-                    </td>
-                    <td class="text-sm nowrap">
-                        <?php if ($file['expiresAt'] === null): ?>
-                            <span class="text-muted">бессрочно</span>
-                        <?php else: ?>
-                            <span class="text-warn"><?= Fmt::left($file['expiresAt']) ?></span>
-                        <?php endif ?>
-                    </td>
-                    <td>
-                        <div class="dropdown">
-                            <button class="icon-btn icon-btn--ghost icon-btn--sm" data-dropdown-toggle aria-label="Действия">
-                                <svg class="icon icon--sm"><use href="#i-more-h"/></svg>
+                    <div class="dropdown fm__folder-menu">
+                        <button class="icon-btn icon-btn--ghost icon-btn--sm" data-dropdown-toggle aria-label="Действия">
+                            <svg class="icon icon--sm"><use href="#i-more-v"/></svg>
+                        </button>
+                        <div class="dropdown__menu">
+                            <button class="dropdown__item" data-action="folder:edit" data-name="<?= Fmt::e($folder->name) ?>">
+                                Изменить <svg class="icon"><use href="#i-edit"/></svg>
                             </button>
-                            <div class="dropdown__menu">
-                                <button class="dropdown__item" data-copy="http://localhost:9090/o/<?= Fmt::e($bucket['id']) ?>/<?= Fmt::e($file['id']) ?>">
-                                    Копировать ссылку <svg class="icon"><use href="#i-copy"/></svg>
-                                </button>
-                                <button class="dropdown__item" data-action="link:open"
-                                        data-slug="<?= Fmt::e($file['id']) ?>" data-name="<?= Fmt::e($file['name']) ?>">
-                                    Временная ссылка <svg class="icon"><use href="#i-link"/></svg>
-                                </button>
-                                <button class="dropdown__item" data-action="file:delete"
-                                        data-id="<?= Fmt::e($file['id']) ?>" data-name="<?= Fmt::e($file['name']) ?>">
-                                    Удалить <svg class="icon"><use href="#i-trash"/></svg>
-                                </button>
-                            </div>
+                            <button class="dropdown__item" data-action="folder:cache" data-name="<?= Fmt::e($folder->name) ?>"
+                                    data-max-age="<?= $folder->cacheMaxAge ?? '' ?>"
+                                    data-visibility="<?= Fmt::e($folder->cacheVisibility ?? '') ?>">
+                                Политика кэша <svg class="icon"><use href="#i-clock"/></svg>
+                            </button>
+                            <button class="dropdown__item" data-action="folder:delete"
+                                    data-name="<?= Fmt::e($folder->name) ?>" data-files="<?= $folder->files ?>">
+                                Удалить <svg class="icon"><use href="#i-trash"/></svg>
+                            </button>
                         </div>
-                    </td>
-                </tr>
+                    </div>
+                </div>
             <?php endforeach ?>
-            </tbody>
-        </table>
-    </div>
 
-    <div class="empty" data-empty="files"<?= $files === [] ? '' : ' hidden' ?>>
-        <svg class="icon"><use href="#i-file"/></svg>
-        <div class="empty__title">Пока пусто</div>
-        <div class="text-sm">Загрузите первый файл — он появится здесь</div>
-    </div>
+            <?php if ($folders === []): ?>
+                <p class="text-sm text-muted" style="padding: 10px 8px">
+                    Папок нет — все файлы лежат в корне. Папка задаёт видимость, срок хранения и кэш.
+                </p>
+            <?php endif ?>
+        </div>
+
+        <button class="btn btn--ghost btn--sm fm__add" data-modal-open="modal-folder">
+            <svg class="icon icon--sm"><use href="#i-plus"/></svg> Новая папка
+        </button>
+    </aside>
+
+    <!-- ─────────── файлы ─────────── -->
+    <section class="fm__main">
+        <form class="fm__head" method="get" action="<?= $base ?>">
+            <?php if ($current !== null): ?>
+                <input type="hidden" name="folder" value="<?= $current === '' ? '/' : Fmt::e($current) ?>">
+            <?php endif ?>
+            <?php /* порядок задаётся отдельной кнопкой — при поиске его нельзя терять */ ?>
+            <input type="hidden" name="sort" value="<?= Fmt::e($query->sort) ?>">
+            <input type="hidden" name="dir" value="<?= Fmt::e($query->dir) ?>">
+
+            <div class="fm__where">
+                <svg class="icon"><use href="#<?= $current === null ? 'i-layers' : ($current === '' ? 'i-file' : 'i-folder') ?>"/></svg>
+                <b><?= $current === null ? 'Все файлы' : ($current === '' ? 'Корень бакета' : Fmt::e($current)) ?></b>
+                <span class="text-sm text-muted">
+                    <?= Fmt::num($meta->total) ?> <?= Fmt::plural($meta->total, 'файл', 'файла', 'файлов') ?>
+                </span>
+            </div>
+
+            <div class="search-pill">
+                <svg class="icon icon--sm"><use href="#i-search"/></svg>
+                <input type="search" name="search" placeholder="Поиск по имени" value="<?= Fmt::e($query->search ?? '') ?>">
+            </div>
+
+            <?php if (($query->search ?? '') !== ''): ?>
+                <a class="icon-btn icon-btn--ghost icon-btn--sm" href="<?= $link(['search' => null, 'folder' => $current === '' ? '/' : $current]) ?>"
+                   aria-label="Сбросить поиск">
+                    <svg class="icon icon--sm"><use href="#i-x"/></svg>
+                </a>
+            <?php endif ?>
+
+            <div class="dropdown">
+                <button type="button" class="btn btn--ghost btn--sm" data-dropdown-toggle>
+                    <svg class="icon icon--sm"><use href="#i-sort"/></svg>
+                    <?= Fmt::e($query->sortLabel()) ?><span class="text-muted"><?= $query->isDesc() ? '↓' : '↑' ?></span>
+                    <svg class="icon icon--sm"><use href="#i-chevron-down"/></svg>
+                </button>
+
+                <div class="dropdown__menu dropdown__menu--check">
+                    <?php foreach (['created' => 'по дате создания', 'name' => 'по имени', 'type' => 'по типу', 'size' => 'по весу'] as $key => $label): ?>
+                        <a class="dropdown__item<?= $query->sort === $key ? ' is-selected' : '' ?>"
+                           href="<?= $order(['sort' => $key === 'created' ? null : $key]) ?>">
+                            <?= $label ?>
+                            <?php if ($query->sort === $key): ?>
+                                <svg class="icon icon--sm"><use href="#i-check"/></svg>
+                            <?php endif ?>
+                        </a>
+                    <?php endforeach ?>
+
+                    <div class="dropdown__divider"></div>
+
+                    <a class="dropdown__item" href="<?= $order(['dir' => $query->isDesc() ? 'asc' : null]) ?>">
+                        <?= Fmt::e($query->dirToggleLabel()) ?>
+                        <svg class="icon icon--sm" style="transform: rotate(<?= $query->isDesc() ? 180 : 0 ?>deg)">
+                            <use href="#i-chevron-down"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn--dark btn--sm" data-modal-open="modal-upload">
+                <svg class="icon icon--sm"><use href="#i-upload"/></svg> Загрузить
+            </button>
+        </form>
+
+        <div class="fm__scroll" data-fm-files>
+            <table class="table">
+                <tbody data-rows="files">
+                <?php foreach ($items as $file): ?>
+                    <?php [$kind, $icon] = $file->kind() ?>
+                    <tr data-row="file"
+                        data-id="<?= Fmt::e($file->slug) ?>"
+                        data-name="<?= Fmt::e($file->name) ?>"
+                        data-mime="<?= Fmt::e($file->mime) ?>"
+                        data-size="<?= $file->size ?>"
+                        data-hash="<?= Fmt::e($file->hash) ?>"
+                        data-folder="<?= Fmt::e($file->folder ?? '') ?>"
+                        data-public="<?= $file->public ? '1' : '' ?>"
+                        data-created="<?= Fmt::e($file->createdAt) ?>"
+                        data-expires="<?= Fmt::e($file->expiresAt ?? '') ?>"
+                        data-private-url="<?= Fmt::e($file->privateUrl) ?>"
+                        data-public-url="<?= Fmt::e($file->publicUrl ?? '') ?>">
+                        <td>
+                            <button type="button" class="fileline fileline--button" data-action="file:info">
+                                <span class="ftype ftype--<?= $kind ?>"><svg class="icon"><use href="#<?= $icon ?>"/></svg></span>
+                                <span class="fileline__body">
+                                    <span class="fileline__name"><?= Fmt::e($file->name) ?></span>
+                                    <span class="fileline__meta">
+                                        <?= Fmt::bytes($file->size) ?><span class="dot-sep"></span><?= Fmt::e($file->mime) ?>
+                                        <?php if ($current === null && $file->folder !== null): ?>
+                                            <span class="dot-sep"></span><?= Fmt::e($file->folder) ?>
+                                        <?php endif ?>
+                                    </span>
+                                </span>
+                            </button>
+                        </td>
+                        <td>
+                            <span class="tone chan chan--<?= $file->channel() ?>">/<?= $file->channel() ?></span>
+                        </td>
+                        <td class="text-sm nowrap">
+                            <?php if ($file->expiresAt === null): ?>
+                                <span class="text-muted"><?= Fmt::ago($file->createdAt) ?></span>
+                            <?php else: ?>
+                                <span class="text-warn"><?= Fmt::left($file->expiresAt) ?></span>
+                            <?php endif ?>
+                        </td>
+                        <td style="width:60px">
+                            <div class="dropdown">
+                                <button class="icon-btn icon-btn--ghost icon-btn--sm" data-dropdown-toggle aria-label="Действия">
+                                    <svg class="icon icon--sm"><use href="#i-more-h"/></svg>
+                                </button>
+                                <div class="dropdown__menu">
+                                    <button class="dropdown__item" data-action="file:info">
+                                        Подробнее <svg class="icon"><use href="#i-eye"/></svg>
+                                    </button>
+                                    <button class="dropdown__item" data-copy="<?= Fmt::e($file->publicUrl ?? $file->privateUrl) ?>">
+                                        Копировать ссылку <svg class="icon"><use href="#i-copy"/></svg>
+                                    </button>
+                                    <button class="dropdown__item" data-action="link:open">
+                                        Временная ссылка <svg class="icon"><use href="#i-link"/></svg>
+                                    </button>
+                                    <button class="dropdown__item" data-action="file:rename">
+                                        Переименовать <svg class="icon"><use href="#i-edit"/></svg>
+                                    </button>
+                                    <button class="dropdown__item" data-action="file:move">
+                                        Переместить <svg class="icon"><use href="#i-folder"/></svg>
+                                    </button>
+                                    <button class="dropdown__item" data-action="file:delete">
+                                        Удалить <svg class="icon"><use href="#i-trash"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach ?>
+                </tbody>
+            </table>
+
+            <div class="empty" data-empty="files"<?= $items === [] ? '' : ' hidden' ?>>
+                <svg class="icon"><use href="#i-file"/></svg>
+                <?php if (($query->search ?? '') !== ''): ?>
+                    <div class="empty__title">Ничего не нашлось</div>
+                    <div class="text-sm">По запросу «<?= Fmt::e($query->search) ?>» здесь пусто</div>
+                <?php else: ?>
+                    <div class="empty__title">Пусто</div>
+                    <div class="text-sm">Перетащите файлы в окно загрузки — они появятся здесь</div>
+                <?php endif ?>
+            </div>
+        </div>
+
+        <?php wrImport('admin/_pagination') ?>
+    </section>
 </div>
 
 <?php wrImport('admin/_modals') ?>

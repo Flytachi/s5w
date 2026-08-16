@@ -16,13 +16,13 @@ final class Fmt
             $i++;
         }
 
-        return ($i === 0 ? (string) (int) $value : number_format($value, $precision, ',', ' '))
+        return ($i === 0 ? (string) (int) $value : number_format($value, $precision, '.', ' '))
             . ' ' . $units[$i];
     }
 
     public static function num(int $value): string
     {
-        return number_format($value, 0, ',', ' ');
+        return number_format($value, 0, '.', ' ');
     }
 
     /** «14 минут назад», «3 дня назад» — без сторонних библиотек. */
@@ -92,6 +92,42 @@ final class Fmt
         };
 
         return [$percent, $class];
+    }
+
+    /** «1 бакет / 2 бакета / 5 бакетов» — без внешних библиотек. */
+    public static function plural(int $count, string $one, string $few, string $many): string
+    {
+        $mod100 = $count % 100;
+        if ($mod100 >= 11 && $mod100 <= 14) {
+            return $many;
+        }
+
+        return match ($count % 10) {
+            1 => $one,
+            2, 3, 4 => $few,
+            default => $many,
+        };
+    }
+
+    /**
+     * Номера страниц с многоточиями: 1 … 4 [5] 6 … 20.
+     * null в списке — место разрыва.
+     *
+     * @return array<int, int|null>
+     */
+    public static function pages(int $current, int $total, int $around = 1): array
+    {
+        $numbers = [];
+        for ($i = 1; $i <= $total; $i++) {
+            $edge = $i === 1 || $i === $total;
+            if ($edge || abs($i - $current) <= $around) {
+                $numbers[] = $i;
+            } elseif (end($numbers) !== null) {
+                $numbers[] = null;
+            }
+        }
+
+        return $numbers;
     }
 
     public static function e(?string $value): string

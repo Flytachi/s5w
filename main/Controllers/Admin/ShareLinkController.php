@@ -19,6 +19,7 @@ use Flytachi\Winter\Kernel\Route\Annotation\DeleteMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
+use Main\Enum\LinkPurge;
 use Main\Request\PageRequest;
 use Main\Request\ShareLinkRequest;
 use Main\Service\ShareLinkService;
@@ -58,6 +59,16 @@ final class ShareLinkController extends Controller
         );
     }
 
+    /** Ссылки этого файла — то, что показывает его карточка в панели. */
+    #[GetMapping('files/{slug}/links')]
+    public function ofFile(
+        #[PathVariable, Uuid] string $bucketId,
+        #[PathVariable, Size(min: Slug::LENGTH, max: Slug::LENGTH)] string $slug,
+        HttpRequest $http,
+    ): ResponseEntity {
+        return ResponseEntity::ok($this->service->forFile($bucketId, $slug, $this->baseUrl($http)));
+    }
+
     /** Только ссылки со строкой: у остальных состояния нет. */
     #[GetMapping('links')]
     public function list(
@@ -68,6 +79,18 @@ final class ShareLinkController extends Controller
         return ResponseEntity::ok(
             $this->service->getAll($bucketId, $request, $this->baseUrl($http)),
         );
+    }
+
+    /**
+     * Уборка мёртвых строк. Состояние — сегментом, а не телом: DELETE с телом
+     * поддерживают не все клиенты, а фильтр здесь закрытый.
+     */
+    #[DeleteMapping('links/purge/{state}')]
+    public function purge(
+        #[PathVariable, Uuid] string $bucketId,
+        #[PathVariable] LinkPurge $state,
+    ): ResponseEntity {
+        return ResponseEntity::ok(['removed' => $this->service->purge($bucketId, $state)]);
     }
 
     #[DeleteMapping('links/{id}')]

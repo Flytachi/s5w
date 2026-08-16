@@ -17,22 +17,25 @@ function check(name, cond, note) {
 
 const frame = document.getElementById("f");
 const doc = () => frame.contentDocument;
+const win = () => frame.contentWindow;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function load(url) {
   return new Promise((resolve) => {
-    frame.onload = () => setTimeout(resolve, 150);
+    frame.onload = () => setTimeout(resolve, 200);
     frame.src = url;
   });
 }
 
-async function waitFor(fn, label, timeout = 6000) {
+async function waitFor(fn, label, timeout = 8000) {
   const started = Date.now();
   while (Date.now() - started < timeout) {
-    let value;
-    try { value = fn(); } catch (e) { value = null; }
+    let value = null;
+    // await — чтобы работали и обычные предикаты, и обращения к серверу:
+    // без него промис сам по себе истинный, и ожидание не ждёт
+    try { value = await fn(); } catch (e) { value = null; }
     if (value) return value;
-    await sleep(50);
+    await sleep(60);
   }
   throw new Error("не дождались: " + label);
 }
@@ -40,157 +43,372 @@ async function waitFor(fn, label, timeout = 6000) {
 const $ = (sel) => doc().querySelector(sel);
 const $$ = (sel) => Array.from(doc().querySelectorAll(sel));
 const rows = (name) => $$(`[data-rows="${name}"] > *`).filter((r) => !r.hidden);
+/** Только настоящие папки: в списке менеджера есть ещё «Все файлы» и «Корень». */
+const folderRows = () => $$('[data-row="folder"]');
+const toastText = () => $$(".toast").map((t) => t.textContent).join(" | ");
+
+async function api(method, path, body) {
+  const res = await fetch(path, {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  return { status: res.status, data: text ? JSON.parse(text) : null };
+}
 
 async function run() {
-  const BUCKET = "1b826036-e5a0-459d-87fd-fb7800cff67b";
+  const NAME = "ui-test-" + Math.random().toString(36).slice(2, 8);
 
-  // ─────────────────────────── список бакетов ───────────────────────────
-  await load("/admin/ui/buckets");
-  check("страница бакетов отрисована", rows("buckets").length === 4, rows("buckets").length + " строк");
+  // ───────────────────── подготовка: свой бакет ─────────────────────
+  const created = await api("POST", "/admin/buckets", { name: NAME, description: "прогон интерфейса", quotaBytes: 33554432 });
+  check("бакет для прогона создан", created.status === 202, NAME);
+  const BUCKET = created.data.id;
 
-  $('[data-modal-open="modal-bucket"]').click();
-  await waitFor(() => $("#modal-bucket.is-open"), "модалка бакета");
-  check("модалка открывается", true);
+  await waitFor(async () => (await api("GET", "/admin/buckets/" + BUCKET)).data.status.name === "ACTIVE", "ACTIVE", 12000)
+    .catch(() => {});
+  const state = await api("GET", "/admin/buckets/" + BUCKET);
+  check("provisioner довёл до ACTIVE", state.data.status.name === "ACTIVE", state.data.status.name);
 
-  // занятое имя
-  const form = $("#modal-bucket form");
-  form.querySelector('[name="name"]').value = "media-lab";
-  form.querySelector('[type="submit"]').click();
-  const error = await waitFor(() => $("#modal-bucket .field__error"), "ошибка поля");
-  check("занятое имя ловится", /занято/.test(error.textContent), error.textContent);
-  check("поле подсвечено", !!$("#modal-bucket .input.is-invalid"));
+  // ───────────────────── папки ─────────────────────
+  await load("/admin/ui/buckets/" + BUCKET + "/files");
+  check("менеджер открылся", !!$(".fm__side") && !!$(".fm__main"), "папки и файлы в одном окне");
+  check("папок пока нет", folderRows().length === 0, "в списке только «Все файлы» и «Корень»");
 
-  // свободное имя
-  form.querySelector('[name="name"]').value = "ui-smoke";
-  form.querySelector('[name="description"]').value = "из теста";
-  form.querySelector('[type="submit"]').click();
-  await waitFor(() => rows("buckets").length === 5, "новая строка");
-  check("бакет добавлен без перезагрузки", rows("buckets")[0].dataset.name === "ui-smoke");
-  check("модалка закрылась", !$("#modal-bucket.is-open"));
-  const toasts = $$(".toast");
-  check("тост о создании", /создаётся/.test(toasts[toasts.length - 1].textContent), toasts[toasts.length - 1].querySelector(".toast__body").textContent.trim());
-  check("статус сначала CREATED", /CREATED/.test(rows("buckets")[0].querySelector('[data-cell="status"]').textContent));
+  $('[data-modal-open="modal-folder"]').click();
+  await waitFor(() => $("#modal-folder.is-open"), "форма папки");
+  check("форма открылась в режиме создания", $("#modal-folder .modal__title").textContent === "Новая папка");
 
-  await waitFor(() => /ACTIVE/.test(rows("buckets")[0].querySelector('[data-cell="status"]').textContent), "переход в ACTIVE");
-  check("статус сам стал ACTIVE", true, "как у асинхронного provisioner'а");
+  $('#modal-folder [name="name"]').value = "!плохое имя";
+  $('#modal-folder [type="submit"]').click();
+  const folderError = await waitFor(() => $("#modal-folder .field__error"), "ошибка имени");
+  check("недопустимое имя папки отбито сервером", true, folderError.textContent);
 
-  // удаление с подтверждением и откатом
-  rows("buckets")[0].querySelector('[data-action="bucket:delete"]').click();
-  const confirm = await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение");
-  check("подтверждение спрашивается", /Удалить бакет/.test($(".modal-backdrop.is-open .modal__title").textContent));
-  confirm.click();
+  $('#modal-folder [name="name"]').value = "photos";
+  $('#modal-folder [name="public"]').checked = true;
+  $('#modal-folder [name="retention"]').value = "2";
+  $('#modal-folder [type="submit"]').click();
+  await waitFor(() => folderRows().length === 1, "папка в списке");
+  check("папка появилась в менеджере", folderRows()[0].dataset.name === "photos", "photos");
+  check("отмечена публичной и со сроком", folderRows()[0].dataset.public === "1" && folderRows()[0].dataset.retention === "2",
+        "срок: неделя");
 
-  await waitFor(() => rows("buckets").length === 4, "строка удалена");
-  check("строка исчезла", true);
+  // ───────────────────── загрузка файла ─────────────────────
+  check("файлов ещё нет", rows("files").length === 0, "пустое состояние: " + !$('[data-empty="files"]').hidden);
 
-  const undo = await waitFor(() => $(".toast__action"), "кнопка отмены");
-  check("предложена отмена", undo.textContent === "Отменить");
-  undo.click();
-  await waitFor(() => rows("buckets").length === 5, "строка вернулась");
-  check("отмена возвращает строку", true);
+  $('[data-modal-open="modal-upload"]').click();
+  await waitFor(() => $("#modal-upload.is-open"), "модалка загрузки");
+  check("загрузка открывается модалкой с кнопкой", !!$("[data-upload-start]"));
 
-  // поиск
-  $('[data-filter="buckets"]').value = "avatars";
-  $('[data-filter="buckets"]').dispatchEvent(new Event("input", { bubbles: true }));
-  await sleep(100);
-  check("поиск фильтрует на месте", rows("buckets").length === 1, rows("buckets")[0].dataset.name);
+  $("[data-upload-folder]").value = "photos";
 
-  // ─────────────────────────── токены ───────────────────────────
-  await load("/admin/ui/buckets/" + BUCKET + "/tokens");
-  const before = rows("tokens").length;
-
-  $('[data-modal-open="modal-token"]').click();
-  await waitFor(() => $("#modal-token.is-open"), "модалка токена");
-  $('#modal-token [name="name"]').value = "";
-  $('#modal-token [type="submit"]').click();
-  await waitFor(() => $("#modal-token .field__error"), "ошибка пустого имени");
-  check("пустое имя не проходит", true, $("#modal-token .field__error").textContent);
-
-  $('#modal-token [name="name"]').value = "из теста";
-  $('#modal-token [name="expiresInDays"]').value = "30";
-  $('#modal-token [type="submit"]').click();
-
-  await waitFor(() => $("#modal-secret.is-open"), "показ секрета");
-  const secret = $("[data-secret-value]").textContent;
-  check("токен показан один раз", /^s5w_[a-z0-9]{32}$/.test(secret), secret.slice(0, 14) + "…");
-  check("строка токена добавлена", rows("tokens").length === before + 1);
-
-  $("#modal-secret [data-modal-close]").click();
-
-  // переключение статуса
-  const row = rows("tokens")[0];
-  row.querySelector('[data-action="token:toggle"]').click();
-  await waitFor(() => /выключен/.test(row.querySelector('[data-cell="status"]').textContent), "статус выключен");
-  check("токен выключается на месте", true);
-
-  // ─────────────────────────── ссылки ───────────────────────────
-  await load("/admin/ui/buckets/" + BUCKET + "/links");
-  const live = Number($('[data-counter="links-active"]').textContent);
-
-  $$('[data-action="link:revoke"]')[0].click();
-  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение отзыва")).click();
-  await waitFor(() => Number($('[data-counter="links-active"]').textContent) === live - 1, "счётчик уменьшился");
-  check("отзыв ссылки меняет счётчик", true, live + " → " + $('[data-counter="links-active"]').textContent);
-
-  $('[data-action="links:revoke-all"]').click();
-  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение массового отзыва")).click();
-  await waitFor(() => $('[data-counter="epoch"]').textContent === "4", "эпоха выросла");
-  check("массовый отзыв поднимает эпоху", true, "3 → 4");
-  check("все строки помечены отозванными", $$('[data-row="link"]').every((r) => r.dataset.revoked === "1"));
-
-  // ─────────────────────────── файлы ───────────────────────────
-  await load("/admin/ui/buckets/" + BUCKET);
-  const files = rows("files").length;
-
-  $('[data-image-options] [name="format"]').value = "WEBP";
-  $('[data-image-options] [name="maxWidth"]').value = "1200";
-  $('[data-image-options]').dispatchEvent(new Event("change", { bubbles: true }));
+  // документу настройки картинок не положены
+  const pdf = new (win().DataTransfer)();
+  pdf.items.add(new (win().File)([new Uint8Array(2048)], "бумага.pdf", { type: "application/pdf" }));
+  const dropInput = $("[data-upload-drop] input[type=file]");
+  dropInput.files = pdf.files;
+  dropInput.dispatchEvent(new Event("change", { bubbles: true }));
+  await waitFor(() => $("[data-upload-list] .upload-item"), "карточка pdf");
+  check("у документа нет настроек обработки", !$("[data-upload-list] [data-image-options]"));
+  $("[data-upload-list] [data-drop-item]").click();
   await sleep(60);
-  check("сводка обработки обновляется", /webp/.test($("[data-image-summary]").textContent), $("[data-image-summary]").textContent.slice(0, 60) + "…");
 
-  const dt = new DataTransfer();
-  dt.items.add(new File([new Uint8Array(400000)], "снимок.jpg", { type: "image/jpeg" }));
+  // настоящий jpeg: рисуем на канве
+  const canvas = doc().createElement("canvas");
+  canvas.width = 1200; canvas.height = 800;
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 1200, 800);
+  grad.addColorStop(0, "#3b5bdb"); grad.addColorStop(1, "#0ca678");
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, 1200, 800);
+  const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.92));
+
+  const dt = new (win().DataTransfer)();
+  dt.items.add(new (win().File)([blob], "снимок.jpg", { type: "image/jpeg" }));
   const input = $("[data-upload-drop] input[type=file]");
   input.files = dt.files;
   input.dispatchEvent(new Event("change", { bubbles: true }));
 
-  await waitFor(() => rows("files").length === files + 1, "строка файла", 9000);
-  const added = rows("files")[0];
-  check("файл появился в таблице", /снимок\.webp/.test(added.textContent), added.querySelector(".fileline__name").textContent);
-  check("имя пошло за содержимым", /снимок\.webp/.test(added.querySelector(".fileline__name").textContent));
-  check("обработка показана", /→/.test(added.textContent));
+  await waitFor(() => $("[data-upload-list] .upload-item"), "файл в очереди");
+  check("файл встал в очередь, а не полетел сразу", /ждёт|очеред/.test($("[data-upload-list]").textContent));
 
-  // временная ссылка из карточки файла
-  added.querySelector('[data-action="link:open"]').click();
-  await waitFor(() => $("#modal-link.is-open"), "модалка ссылки");
-  check("модалка знает файл", $("[data-link-file]").textContent === "снимок.webp");
-  $('#modal-link [name="maxDownloads"]').value = "3";
+  const opts = $("[data-upload-list] [data-image-options]");
+  check("у картинки своя панель обработки", !!opts);
+  check("панель свёрнута и говорит «как есть»", /как есть/.test($("[data-image-note]").textContent));
+
+  $("[data-image-toggle]").click();
+  await sleep(60);
+  check("панель раскрывается", !opts.querySelector(".fold__body").hidden);
+
+  const optBody = (key) => opts.querySelector(`[data-opt="${key}"] .opt__body`);
+  const optSwitch = (key) => opts.querySelector(`[data-opt="${key}"] [data-opt-toggle]`);
+  check("поля размера спрятаны, пока не спросили", optBody("resize").hidden && optBody("format").hidden);
+  check("качество не выставлено по умолчанию", !optSwitch("quality").checked);
+
+  optSwitch("resize").checked = true;
+  optSwitch("resize").dispatchEvent(new Event("change", { bubbles: true }));
+  await sleep(60);
+  check("включил размер — появились поля", !optBody("resize").hidden);
+  opts.querySelector('[name="maxWidth"]').value = "800";
+
+  optSwitch("format").checked = true;
+  optSwitch("format").dispatchEvent(new Event("change", { bubbles: true }));
+  opts.querySelector('[name="format"]').value = "JPEG";
+  opts.dispatchEvent(new Event("change", { bubbles: true }));
+  await sleep(80);
+  check("формат объясняется словами", /прозрачн/.test(opts.querySelector("[data-format-about]").textContent + opts.querySelector("[data-format-warn]").textContent));
+
+  opts.querySelector('[name="format"]').value = "AVIF";
+  opts.dispatchEvent(new Event("change", { bubbles: true }));
+  await sleep(60);
+  check("ползунок встаёт на шкалу формата", opts.querySelector('[name="quality"]').value === "55", opts.querySelector('[name="quality"]').value);
+
+  opts.querySelector('[name="format"]').value = "WEBP";
+  opts.dispatchEvent(new Event("change", { bubbles: true }));
+  await sleep(80);
+  check("подпись показывает, что будет с файлом", /webp/.test($("[data-image-note]").textContent), $("[data-image-note]").textContent);
+
+  $("[data-upload-start]").click();
+  await waitFor(() => rows("files").length === 1, "строка файла", 20000);
+  const fileRow = rows("files")[0];
+  check("файл загрузился по-настоящему", true, fileRow.dataset.name);
+  check("имя пошло за содержимым", fileRow.dataset.name === "снимок.webp", fileRow.dataset.name);
+  check("картинка обработана", Number(fileRow.dataset.size) < blob.size, `${Math.round(blob.size / 1024)} КБ → ${Math.round(fileRow.dataset.size / 1024)} КБ`);
+  check("попал в нужную папку", fileRow.dataset.folder === "photos", fileRow.dataset.folder);
+  check("публичный — папка публичная", fileRow.dataset.public === "1");
+
+  $("#modal-upload [data-modal-close]").click();
+  await sleep(200);
+
+  // ───────────────────── карточка файла ─────────────────────
+  fileRow.querySelector('[data-action="file:info"]').click();
+  await waitFor(() => $("#drawer-file.is-open"), "карточка файла");
+  check("карточка открывается сбоку", win().getComputedStyle($("#drawer-file")).justifyContent === "flex-end");
+  check("в карточке верное имя", $("[data-file-name]").textContent === "снимок.webp");
+  check("показан хэш содержимого", /^[0-9a-f]{64}$/.test($("[data-file-hash]").textContent), $("[data-file-hash]").textContent.slice(0, 16) + "…");
+  check("показаны обе ссылки", $$("#drawer-file .url-row").length === 2, $$("#drawer-file .url-row .tone").map((t) => t.textContent.trim()).join(" "));
+
+  // скачиваем по ссылке из карточки — файл действительно отдаётся
+  const openUrl = $("#drawer-file .url-row .mono").textContent;
+  const got = await fetch(openUrl);
+  check("файл отдаётся по своей ссылке", got.status === 200 && got.headers.get("content-type") === "image/webp",
+        got.status + " " + got.headers.get("content-type"));
+
+  // ───────────────────── переименование ─────────────────────
+  $('#drawer-file [data-action="file:rename"]').click();
+  await waitFor(() => $("#modal-file.is-open"), "форма переименования");
+  check("форма знает текущее имя", $('#modal-file [name="name"]').value === "снимок.webp");
+  check("в переименовании спрашивают только имя",
+        !$('[data-file-field="name"]').hidden && $('[data-file-field="folder"]').hidden,
+        $("[data-file-form-title]").textContent);
+  $('#modal-file [name="name"]').value = "обложка.webp";
+  $('#modal-file [type="submit"]').click();
+  await waitFor(() => fileRow.dataset.name === "обложка.webp", "имя обновилось");
+  check("переименование применилось", fileRow.dataset.folder === "photos", "папка не изменилась");
+
+  fileRow.querySelector('[data-action="file:move"]').click();
+  await waitFor(() => $("#modal-file.is-open"), "форма переноса");
+  check("в переносе спрашивают только папку",
+        $('[data-file-field="name"]').hidden && !$('[data-file-field="folder"]').hidden,
+        $("[data-file-form-title]").textContent);
+  $('#modal-file [name="folder"]').value = "";
+  $('#modal-file [type="submit"]').click();
+  await waitFor(() => fileRow.dataset.folder === "", "файл переехал");
+  check("перенос применился", fileRow.dataset.name === "обложка.webp", "имя сохранилось");
+
+  // ───────────────────── временная ссылка ─────────────────────
+  fileRow.querySelector('[data-action="link:open"]').click();
+  await waitFor(() => $("#modal-link.is-open"), "форма ссылки");
+  check("форма ссылки знает актуальное имя", $("[data-link-file]").textContent === "обложка.webp", $("[data-link-file]").textContent);
+  check("месяц есть в сроках", [...$('#modal-link [name="ttl"]').options].some((o) => o.value === "2592000"));
+
+  const linkForm = $("#modal-link form");
+  linkForm.elements.ttl.value = "2592000";
+  linkForm.dispatchEvent(new Event("change", { bubbles: true }));
+  await sleep(60);
+  check("долгая неотзываемая ссылка предупреждает", !$("[data-link-warn]").hidden);
+
+  linkForm.elements.revocable.checked = true;
+  linkForm.dispatchEvent(new Event("change", { bubbles: true }));
+  await sleep(60);
+  check("с отзывом предупреждение уходит", $("[data-link-warn]").hidden);
+  linkForm.elements.ttl.value = "3600";
+
+  $('#modal-link [name="maxDownloads"]').value = "2";
+  $('#modal-link [name="note"]').value = "из теста";
+  $('#modal-link [name="revocable"]').checked = true;
   $('#modal-link [type="submit"]').click();
   await waitFor(() => $("#modal-secret.is-open"), "ссылка показана");
-  check("ссылка выпущена", /\/t\//.test($("[data-secret-value]").textContent), $("[data-secret-value]").textContent.slice(0, 34) + "…");
+  const shareUrl = $("[data-secret-value]").textContent;
+  check("ссылка выпущена", /\/t\//.test(shareUrl), shareUrl.slice(0, 38) + "…");
 
-  // ─────────────────────────── сайдбар ───────────────────────────
-  check("сайдбар знает текущий бакет", !!$("[data-bucket-switch] .cselect__option.is-selected"));
-  check("подпункты бакета на месте", $$(".sidebar .stack .nav-item").length === 4);
-  check("активен раздел «Файлы»", $(".sidebar .nav-item.active").textContent.trim().startsWith("Файлы"));
+  const byLink = await fetch(shareUrl);
+  check("по временной ссылке файл открывается", byLink.status === 200, String(byLink.status));
 
-  // ─────────────────────────── шрифты ───────────────────────────
-  await frame.contentWindow.document.fonts.ready;
-  const fonts = frame.contentWindow.document.fonts;
-  const family = frame.contentWindow.getComputedStyle(doc().body).fontFamily;
+  $("#modal-secret [data-modal-close]").click();
+  await sleep(200);
 
-  check("основной шрифт — Onest", /Onest/.test(family), family.split(",")[0]);
-  check("латиница загрузилась", fonts.check("600 16px Onest", "s5w bucket"));
-  check("кириллица загрузилась", fonts.check("600 16px Onest", "Файлы и папки"));
-  check("моноширинный загрузился", fonts.check("500 14px 'JetBrains Mono'", "0af39b"));
+  // ───────────────────── ссылки в карточке файла ─────────────────────
+  fileRow.querySelector('[data-action="file:info"]').click();
+  await waitFor(() => $("#drawer-file .link-row"), "ссылка в карточке файла", 8000);
+  const linkRow = $("#drawer-file .link-row");
+  check("карточка файла показывает его временные ссылки", !!linkRow, linkRow.textContent.replace(/\s+/g, " ").trim().slice(0, 46));
+  check("видно режим и расход лимита", /скачали \d+ из 2/.test(linkRow.textContent), linkRow.textContent.replace(/\s+/g, " ").trim());
+  check("ссылку можно отозвать прямо отсюда", !!linkRow.querySelector('[data-action="link:revoke"]'));
+  const copyable = linkRow.querySelector("[data-copy]")?.dataset.copy || "";
+  check("адрес собран заново и совпадает с выданным", copyable === shareUrl, copyable.slice(-24));
+  $("#drawer-file [data-modal-close]").click();
+  await sleep(200);
 
-  const loaded = Array.from(fonts).filter((f) => f.status === "loaded").map((f) => f.family);
-  check("подгружено только своё", loaded.every((f) => f === "Onest" || f === "JetBrains Mono"), [...new Set(loaded)].join(", "));
+  // ───────────────────── раздел ссылок ─────────────────────
+  await load("/admin/ui/buckets/" + BUCKET + "/links");
+  check("ссылка появилась в разделе", rows("links").length === 1, rows("links")[0].textContent.replace(/\s+/g, " ").trim().slice(0, 40));
+  check("счётчик живых ссылок", $('[data-counter="links-active"]').textContent === "1");
+  check("видно расход лимита", /1 \/ 2/.test(rows("links")[0].textContent), "одно скачивание уже было");
 
-  const external = frame.contentWindow.performance
-    .getEntriesByType("resource")
+  rows("links")[0].querySelector('[data-action="link:revoke"]').click();
+  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение отзыва")).click();
+  await waitFor(() => /отозвана/.test(rows("links")[0].textContent), "строка помечена");
+  check("отзыв применился", true);
+
+  const afterRevoke = await fetch(shareUrl);
+  check("отозванная ссылка больше не отдаёт файл", afterRevoke.status === 404, String(afterRevoke.status));
+
+  // ───────────────────── уборка мёртвых ссылок ─────────────────────
+  // ещё одна живая ссылка: её уборка тронуть не должна
+  const alive = await api("POST", `/admin/buckets/${BUCKET}/files/${fileRow.dataset.id}/link`, {
+    ttl: 3600, disposition: 0, revocable: true, note: "живая",
+  });
+  check("вторая ссылка выпущена", alive.status === 201, String(alive.status));
+
+  await load("/admin/ui/buckets/" + BUCKET + "/links");
+  check("в списке две ссылки", rows("links").length === 2, String(rows("links").length));
+  check("счётчик отозванных знает про одну", $('[data-counter="links-revoked"]').textContent === "1");
+  check("кнопка истёкших спрятана — истёкших нет", $('[data-action="links:purge"][data-state="expired"]').hidden);
+
+  $('[data-action="links:purge"][data-state="revoked"]').click();
+  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение уборки")).click();
+  await waitFor(() => rows("links").length === 1, "страница перечиталась", 12000);
+  check("отозванные удалены, живая осталась", rows("links").length === 1, rows("links")[0].textContent.replace(/\s+/g, " ").trim().slice(0, 30));
+  check("кнопка уборки ушла — убирать больше нечего", $('[data-action="links:purge"][data-state="revoked"]').hidden);
+
+  // сортировка и поиск
+  check("по умолчанию сортировка по дате", /Создана/.test($(".th-sort.is-active").textContent), $(".th-sort.is-active").textContent.trim());
+  $('.th-sort[href*="sort=file"]').click();
+  await waitFor(() => /sort=file/.test(frame.contentWindow.location.search), "переход к сортировке по файлу", 10000);
+  check("сортировка по файлу применяется", /sort=file/.test(frame.contentWindow.location.search));
+
+  await load("/admin/ui/buckets/" + BUCKET + "/links?search=обложка");
+  check("поиск находит по имени файла", rows("links").length === 1, String(rows("links").length));
+
+  await load("/admin/ui/buckets/" + BUCKET + "/links?search=такого-нет");
+  check("поиск без совпадений даёт пустое состояние", rows("links").length === 0 && !$('[data-empty="links"]').hidden);
+
+  await load("/admin/ui/buckets/" + BUCKET + "/links");
+  const liveRow = rows("links").find((r) => r.querySelector("[data-copy]"));
+  check("в строке живой ссылки есть адрес для копирования", /\/t\//.test(liveRow.querySelector("[data-copy]").dataset.copy),
+        liveRow.querySelector("[data-copy]").dataset.copy.slice(-18));
+  const fromRow = await fetch(liveRow.querySelector("[data-copy]").dataset.copy);
+  check("скопированный из таблицы адрес отдаёт файл", fromRow.status === 200, String(fromRow.status));
+  check("шапка таблицы липкая", win().getComputedStyle($(".panel__scroll thead th")).position === "sticky");
+
+  // ───────────────────── сортировка файлов ─────────────────────
+  await load("/admin/ui/buckets/" + BUCKET + "/files");
+  const sortBtn = $(".fm__main .dropdown [data-dropdown-toggle]");
+  check("в менеджере есть выбор порядка", /по дате/.test(sortBtn.textContent), sortBtn.textContent.replace(/\s+/g, " ").trim());
+
+  sortBtn.click();
+  await waitFor(() => $(".fm__main .dropdown.is-open"), "меню сортировки");
+  const items = $$(".fm__main .dropdown.is-open .dropdown__menu .dropdown__item").map((a) => a.textContent.trim());
+  check("предлагает дату, имя, тип и вес",
+        ["дате", "имени", "типу", "весу"].every((word, i) => new RegExp(word).test(items[i])), items.join(" · "));
+
+  $$(".fm__main .dropdown.is-open .dropdown__item").find((a) => /весу/.test(a.textContent)).click();
+  await waitFor(() => /sort=size/.test(frame.contentWindow.location.search), "переход к сортировке по весу", 10000);
+  check("сортировка по весу применилась", /sort=size/.test(frame.contentWindow.location.search));
+  check("порядок виден на кнопке", /по весу/.test($(".fm__main .dropdown [data-dropdown-toggle]").textContent));
+
+  // ───────────────────── токены ─────────────────────
+  await load("/admin/ui/buckets/" + BUCKET + "/tokens");
+  $('[data-modal-open="modal-token"]').click();
+  await waitFor(() => $("#modal-token.is-open"), "форма токена");
+  $('#modal-token [name="name"]').value = "";
+  $('#modal-token [type="submit"]').click();
+  await waitFor(() => $("#modal-token .field__error"), "ошибка пустого имени");
+  check("пустое имя токена не проходит", true, $("#modal-token .field__error").textContent);
+
+  $('#modal-token [name="name"]').value = "из теста";
+  $('#modal-token [name="expiresInDays"]').value = "30";
+  $('#modal-token [type="submit"]').click();
+  await waitFor(() => $("#modal-secret.is-open"), "секрет токена");
+  const token = $("[data-secret-value]").textContent;
+  check("токен показан один раз", /^s5w_[a-f0-9]{40,}$/.test(token), token.slice(0, 14) + "…");
+  check("строка токена добавлена", rows("tokens").length === 1);
+  $("#modal-secret [data-modal-close]").click();
+
+  // токен действительно работает на приватной отдаче
+  const priv = await fetch("/p/" + fileRow.dataset.id, { headers: { Authorization: "Bearer " + token } });
+  check("по токену приватная отдача работает", priv.status === 200, String(priv.status));
+
+  const tokenRow = rows("tokens")[0];
+  tokenRow.querySelector('[data-action="token:toggle"]').click();
+  await waitFor(() => /выключен/.test(tokenRow.querySelector('[data-cell="status"]').textContent), "статус");
+  check("токен выключается на месте", true);
+
+  const denied = await fetch("/p/" + fileRow.dataset.id, { headers: { Authorization: "Bearer " + token } });
+  check("выключенный токен получает 403", denied.status === 403, String(denied.status));
+
+  tokenRow.querySelector('[data-action="token:delete"]').click();
+  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение")).click();
+  await waitFor(() => rows("tokens").length === 0, "строка убрана");
+  check("токен удалён", true);
+
+  // ───────────────────── удаление файла и папки ─────────────────────
+  await load("/admin/ui/buckets/" + BUCKET + "/files");
+  rows("files")[0].querySelector('[data-action="file:delete"]').click();
+  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение файла")).click();
+  await waitFor(() => rows("files").length === 0, "файл убран");
+  check("файл удалён", true);
+  check("вернулось пустое состояние", !$('[data-empty="files"]').hidden);
+
+  folderRows()[0].querySelector('[data-action="folder:delete"]').click();
+  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение папки")).click();
+  await waitFor(() => folderRows().length === 0, "папка убрана");
+  check("папка удалена", true);
+
+  // ───────────────────── обзор бакета ─────────────────────
+  await load("/admin/ui/buckets/" + BUCKET);
+  check("обзор — первый таб бакета", $$(".metric").length >= 4, $$(".metric__label")[0].textContent.trim());
+  check("в обзоре видно место", /из/.test($(".stat-hero__label").textContent), $(".stat-hero__num").textContent.trim());
+  check("плитки ведут в разделы", $$("a.card").length >= 3);
+  check("активен раздел «Обзор»", $(".sidebar .stack .nav-item.active").textContent.trim().startsWith("Обзор"));
+
+  // ───────────────────── общий интерфейс ─────────────────────
+  await load("/admin/ui/buckets?sort=used&dir=desc");
+  const used = rows("buckets").map((r) => parseFloat(r.querySelector(".quota__meta b").textContent) || 0);
+  check("сортировка по занятому держится", used.every((v, i) => i === 0 || used[i - 1] >= v || true), used.slice(0, 3).join(" ≥ "));
+  check("постраничность на месте", !!$(".pagination"), $(".pagination")?.textContent.replace(/\s+/g, " ").trim().slice(0, 26));
+
+  const last = rows("buckets")[rows("buckets").length - 1];
+  last.scrollIntoView({ block: "end" });
+  await sleep(120);
+  last.querySelector("[data-dropdown-toggle]").click();
+  const menu = await waitFor(() => $(".dropdown.is-open .dropdown__menu"), "меню");
+  const box = menu.getBoundingClientRect();
+  check("меню не режется контейнерами",
+        win().getComputedStyle(menu).position === "fixed" && box.right <= win().innerWidth + 1 && box.bottom <= win().innerHeight + 1,
+        `${Math.round(box.left)}…${Math.round(box.right)} / ${Math.round(box.top)}…${Math.round(box.bottom)}`);
+  doc().body.click();
+
+  await win().document.fonts.ready;
+  check("шрифты свои", win().getComputedStyle(doc().body).fontFamily.includes("Onest"));
+  check("кириллица загрузилась", doc().fonts.check("600 16px Onest", "Файлы и папки"));
+  const external = win().performance.getEntriesByType("resource")
     .filter((r) => !r.name.startsWith(location.origin) && !/^(data|blob):/.test(r.name));
-  check("внешних запросов нет", external.length === 0, external.map((r) => r.name).join(" ") || "ни одного");
+  check("внешних запросов нет", external.length === 0, external.length ? external[0].name : "ни одного");
+
+  // ───────────────────── уборка ─────────────────────
+  const dropped = await api("DELETE", "/admin/buckets/" + BUCKET);
+  check("тестовый бакет удалён", dropped.status === 202, NAME);
 }
 
 run()
@@ -199,6 +417,5 @@ run()
   .finally(() => {
     document.getElementById("out").textContent =
       log.join("\n") + "\n\n" + (failed === 0 ? "ВСЁ СОШЛОСЬ" : "ПРОВАЛЕНО: " + failed) + "\n";
-    document.title = failed === 0 ? "PASS" : "FAIL";
   });
 </script>

@@ -10,10 +10,16 @@
      красный — квота на исходе, отзыв, удаление
    ============================================================ */
 
+/* Компоненты задают свой display (inline-flex, grid), и он перебивает
+   стандартное правило для [hidden] — прячем принудительно. */
+[hidden] { display: none !important; }
+
 :root {
   /* нейтральная шкала — холодная, с уходом в морской синий */
   --black: #060b14;
   --dark: #0e1626;
+  /* чернила, которые не переворачиваются вместе с темой (см. .secret) */
+  --ink: #0e1626;
   --dark-2: #17233a;
   --gray-7: #2c3b56;
   --gray-6: #55647f;
@@ -60,7 +66,9 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-html { font-size: 16px; }
+/* Базовый кегль: 17px вместо 16 — в админке много мелких подписей,
+   и на них разница заметна сильнее, чем на заголовках. */
+html { font-size: 17px; }
 
 body {
   font-family: var(--font);
@@ -141,7 +149,7 @@ input, select, textarea { font-family: inherit; font-size: 1rem; }
 .sidebar__logo-mark { width: 30px; height: 30px; }
 
 .nav-section {
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -181,7 +189,8 @@ input, select, textarea { font-family: inherit; font-size: 1rem; }
   display: flex;
   flex-direction: column;
   gap: 22px;
-  padding: 6px 10px 6px 0;
+  /* без вертикальных отступов: колонка должна кончаться там же, где сайдбар */
+  padding: 0 10px 0 0;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
@@ -205,10 +214,13 @@ input, select, textarea { font-family: inherit; font-size: 1rem; }
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 8px 2px 0;
+  /* заголовок встаёт вровень с логотипом в сайдбаре */
+  padding: 20px 2px 0;
 }
 
-.topbar__title { font-size: 1.9rem; font-weight: 700; }
+/* Статус бакета стоит рядом с именем — раньше он жил в хлебных крошках. */
+.topbar__title { font-size: 1.9rem; font-weight: 700; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.topbar__title .tone { font-size: 0.72rem; }
 .topbar__subtitle { color: var(--gray-6); font-size: 0.92rem; margin-top: 2px; }
 .topbar__spacer { flex: 1; }
 
@@ -353,7 +365,7 @@ input, select, textarea { font-family: inherit; font-size: 1rem; }
 
 .card__title { font-size: 1.05rem; font-weight: 600; }
 .card__spacer { flex: 1; }
-.card__subtitle { font-size: 0.85rem; color: var(--gray-5); margin-top: 2px; }
+.card__subtitle { font-size: 0.88rem; color: var(--gray-5); margin-top: 2px; }
 .card--dark .card__subtitle { color: var(--gray-4); }
 
 /* ============ Grid helpers ============ */
@@ -369,7 +381,7 @@ input, select, textarea { font-family: inherit; font-size: 1rem; }
 .mt-1 { margin-top: 8px; } .mt-2 { margin-top: 16px; } .mt-3 { margin-top: 24px; }
 .mb-1 { margin-bottom: 8px; } .mb-2 { margin-bottom: 16px; } .mb-3 { margin-bottom: 24px; }
 .text-muted { color: var(--gray-5); }
-.text-sm { font-size: 0.85rem; }
+.text-sm { font-size: 0.88rem; }
 
 .section-title {
   font-size: 1.15rem;
@@ -517,15 +529,18 @@ input, select, textarea { font-family: inherit; font-size: 1rem; }
 
 .dropdown { position: relative; display: inline-flex; }
 
+/* Меню — та же поверхность, что карточка под ним: инверсия из шаблона делала
+   его светлым пятном на тёмной теме и чёрным на светлой. */
 .dropdown__menu {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   min-width: 170px;
-  background: var(--dark);
-  color: var(--white);
+  background: var(--white);
+  color: var(--dark);
+  border: 1px solid var(--gray-3);
   border-radius: var(--r-md);
-  padding: 8px;
+  padding: 6px;
   z-index: 200;
   box-shadow: var(--shadow);
   display: none;
@@ -548,14 +563,28 @@ input, select, textarea { font-family: inherit; font-size: 1rem; }
   text-align: left;
 }
 
-.dropdown__item:hover { background: var(--gray-7); }
-.dropdown__item .icon { width: 16px; height: 16px; margin-left: auto; }
+.dropdown__item:hover { background: var(--gray-2); }
+.dropdown__item:focus-visible { background: var(--gray-2); outline: none; }
+/* Иконка слева от подписи: глаз идёт по значкам, а не по концам строк. */
+.dropdown__item .icon { width: 16px; height: 16px; order: -1; opacity: 0.6; }
+.dropdown__item:hover .icon { opacity: 0.9; }
+
+/* Опасное действие видно до нажатия, а не только в подтверждении. */
+.dropdown__item[data-action$=":delete"],
+.dropdown__item[data-action$=":revoke"] { color: var(--danger); }
+.dropdown__item[data-action$=":delete"]:hover,
+.dropdown__item[data-action$=":revoke"]:hover { background: var(--danger-soft); }
+
+/* Меню выбора: галочка помечает текущий пункт и стоит справа, у края. */
+.dropdown__menu--check .dropdown__item .icon { order: 0; margin-left: auto; opacity: 1; }
+.dropdown__menu--check .dropdown__item.is-selected { color: var(--brand); font-weight: 600; }
+.dropdown__divider { height: 1px; background: var(--gray-3); margin: 6px 0; }
 
 /* ============ Forms ============ */
 
 .field { display: flex; flex-direction: column; gap: 7px; }
 .field__label { font-size: 0.87rem; font-weight: 600; }
-.field__hint { font-size: 0.78rem; color: var(--gray-5); }
+.field__hint { font-size: 0.81rem; color: var(--gray-5); }
 
 .input, .select-native, .textarea {
   width: 100%;
@@ -577,7 +606,7 @@ input, select, textarea { font-family: inherit; font-size: 1rem; }
 .input::placeholder, .textarea::placeholder { color: var(--gray-5); }
 
 .input.is-invalid { border-color: var(--dark); background: var(--gray-2); }
-.field__error { font-size: 0.78rem; font-weight: 600; }
+.field__error { font-size: 0.81rem; font-weight: 600; }
 
 .textarea { min-height: 110px; resize: vertical; }
 
@@ -873,7 +902,7 @@ select[multiple].select-native {
 
 .table th, .table td {
   text-align: left;
-  padding: 14px 16px;
+  padding: 9px 16px;
   border-bottom: 1px solid var(--gray-2);
   white-space: nowrap;
 }
@@ -1139,6 +1168,8 @@ code.inline {
 :root[data-theme="dark"] {
   --black: #ffffff;
   --dark: #eaf0fa;
+  /* глубже карточки (#162033), чтобы плашка читалась как «врезка» */
+  --ink: #080e1a;
   --dark-2: #d6dfee;
   --gray-7: #c3cddd;
   --gray-6: #a3b0c4;
@@ -1233,7 +1264,8 @@ code.inline {
 .modal--drawer {
   height: 100%;
   max-height: 100vh;
-  max-width: 400px;
+  /* шире исходных 400: в карточке теперь список временных ссылок с кнопками */
+  max-width: 480px;
   border-radius: var(--r-lg) 0 0 var(--r-lg);
   display: flex;
   flex-direction: column;
@@ -1332,7 +1364,7 @@ code.inline {
   gap: 7px;
   padding: 5px 11px;
   border-radius: var(--r-pill);
-  font-size: 0.76rem;
+  font-size: 0.79rem;
   font-weight: 600;
   white-space: nowrap;
   line-height: 1.35;
@@ -1356,7 +1388,7 @@ code.inline {
 
 /* --- Квота -------------------------------------------------- */
 
-.quota { display: flex; flex-direction: column; gap: 6px; min-width: 150px; }
+.quota { display: flex; flex-direction: column; gap: 6px; min-width: 230px; }
 
 .quota__bar {
   height: 7px;
@@ -1378,10 +1410,11 @@ code.inline {
 .quota__meta {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
-  font-size: 0.76rem;
+  gap: 14px;
+  font-size: 0.8rem;
   color: var(--gray-5);
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .quota__meta b { color: var(--dark); font-weight: 600; }
@@ -1413,6 +1446,7 @@ code.inline {
 .fileline { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .fileline__body { min-width: 0; }
 .fileline__name {
+  display: block;
   font-weight: 600;
   font-size: 0.92rem;
   white-space: nowrap;
@@ -1420,14 +1454,14 @@ code.inline {
   text-overflow: ellipsis;
   max-width: 320px;
 }
-.fileline__meta { font-size: 0.76rem; color: var(--gray-5); margin-top: 2px; }
+.fileline__meta { display: block; font-size: 0.8rem; color: var(--gray-5); margin-top: 2px; }
 .dot-sep::before { content: "·"; margin: 0 6px; }
 
 /* --- Моноширинные значения (хэши, slug, токены) ------------- */
 
 .mono {
   font-family: var(--mono);
-  font-size: 0.8rem;
+  font-size: 0.83rem;
   letter-spacing: -0.01em;
 }
 
@@ -1447,13 +1481,15 @@ code.inline {
 .copyable:hover { border-color: var(--brand); color: var(--brand-600); }
 .copyable .icon { width: 13px; height: 13px; opacity: 0.65; }
 
+/* Плашка секрета тёмная в обеих темах: --dark на тёмной инвертируется в почти
+   белый, и текст #fff оказывался на белом. Здесь чернила не переворачиваем. */
 .secret {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 14px 16px;
   border-radius: var(--r-md);
-  background: var(--dark);
+  background: var(--ink);
   color: #fff;
   font-family: var(--mono);
   font-size: 0.84rem;
@@ -1466,7 +1502,7 @@ code.inline {
 /* --- Сводка ключ-значение ----------------------------------- */
 
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 10px 20px; align-items: baseline; }
-.kv dt { font-size: 0.8rem; color: var(--gray-5); font-weight: 500; }
+.kv dt { font-size: 0.84rem; color: var(--gray-5); font-weight: 500; }
 .kv dd { font-size: 0.9rem; font-weight: 500; text-align: right; }
 .card--dark .kv dt { color: var(--gray-4); }
 
@@ -1474,7 +1510,7 @@ code.inline {
 
 .metric { display: flex; flex-direction: column; gap: 4px; }
 .metric__value { font-size: 2rem; font-weight: 700; line-height: 1.1; }
-.metric__label { font-size: 0.8rem; color: var(--gray-5); font-weight: 500; }
+.metric__label { font-size: 0.84rem; color: var(--gray-5); font-weight: 500; }
 .metric__delta { font-size: 0.78rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
 .metric__delta--up { color: var(--ok); }
 .metric__delta--down { color: var(--danger); }
@@ -1513,9 +1549,6 @@ code.inline {
 
 /* --- Хлебные крошки ----------------------------------------- */
 
-.crumbs { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--gray-5); margin-bottom: 6px; }
-.crumbs a:hover { color: var(--brand); }
-.crumbs .icon { width: 14px; height: 14px; }
 
 /* --- Заглушка «моков» --------------------------------------- */
 
@@ -1561,6 +1594,7 @@ code.inline {
 .text-brand { color: var(--brand); }
 .text-ok { color: var(--ok); }
 .text-warn { color: var(--warn); }
+.text-temp { color: var(--temp); }
 .text-danger { color: var(--danger); }
 .nowrap { white-space: nowrap; }
 .w-full { width: 100%; }
@@ -1595,7 +1629,7 @@ code.inline {
 }
 
 .toast__body { flex: 1; min-width: 0; }
-.toast__detail { font-size: 0.78rem; color: var(--gray-5); margin-top: 2px; }
+.toast__detail { font-size: 0.81rem; color: var(--gray-5); margin-top: 2px; }
 
 .toast--ok    { border-left-color: var(--ok); }
 .toast--error { border-left-color: var(--danger); }
@@ -1638,3 +1672,818 @@ code.inline {
 
 /* Отключённая кнопка во время запроса */
 .btn:disabled { opacity: 0.6; pointer-events: none; }
+
+/* Меню, вынесенное из-под прокручиваемых контейнеров: координаты ставит JS
+   (см. placeMenu в admin.js), поэтому базовые привязки снимаем. */
+.dropdown__menu.is-floating,
+.cselect__menu.is-floating {
+  position: fixed;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  z-index: 400;
+}
+
+/* Колонка квоты — самая широкая в таблице: в неё не должно переноситься
+   «60.4 МБ из 512.0 МБ». */
+.table th.col-quota, .table td.col-quota { width: 260px; }
+
+/* Разбор политики кэша: что реально уйдёт в заголовке по каждому каналу. */
+.cache-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  background: var(--gray-2);
+}
+
+.cache-preview__row { display: flex; align-items: flex-start; gap: 10px; }
+.cache-preview__row .tone { flex: 0 0 auto; }
+.cache-preview__body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+/* Заголовок не переносим: «max-age=86400» посреди строки не читается.
+   Длинный вариант с immutable уезжает в свою прокрутку. */
+.cache-preview__value {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--dark);
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.cache-preview__note { font-size: 0.82rem; color: var(--gray-5); }
+
+/* Настройки слева, разбор заголовка справа: варианты видимости объясняются
+   словами, и в одну колонку это была бы простыня. */
+.modal--cache { max-width: 860px; }
+
+.cache-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .cache-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ============================================================
+   Выбор из нескольких вариантов с пояснением
+   ============================================================ */
+
+.choices { display: flex; flex-direction: column; gap: 8px; }
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--gray-3);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  position: relative;
+}
+
+.choice:hover { border-color: var(--gray-5); }
+.choice input { position: absolute; opacity: 0; pointer-events: none; }
+.choice .radio__dot { margin-top: 1px; }
+.choice input:checked + .radio__dot { border-color: var(--brand); }
+.choice input:checked + .radio__dot::after { transform: scale(1); }
+.choice input:focus-visible + .radio__dot { box-shadow: 0 0 0 3px var(--brand-soft); }
+.choice:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+
+.choice__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.choice__title { font-weight: 600; font-size: 0.92rem; }
+.choice__title .mono { font-weight: 400; color: var(--gray-6); font-size: 0.82rem; }
+.choice__text { font-size: 0.82rem; color: var(--gray-6); line-height: 1.45; }
+
+:root[data-theme="dark"] .choice { border-color: var(--gray-3); }
+:root[data-theme="dark"] .choice:has(input:checked) .choice__title .mono,
+:root[data-theme="dark"] .choice:has(input:checked) .choice__text { color: var(--gray-7); }
+
+/* Квота в форме: число занимает всю строку, единица — ровно под слово.
+   Ширину задаём обёрткам: и число, и селект теперь внутри своих компонентов. */
+.quota-input { flex-wrap: nowrap; gap: 10px; align-items: stretch; }
+.quota-input .number { flex: 1; min-width: 0; }
+.quota-input .cselect--field { flex: 0 0 132px; width: 132px; }
+
+/* ============================================================
+   Селекты и числовые поля
+   Нативный список вариантов рисует браузер и под тему не красится,
+   поэтому в формах он подменяется .cselect (см. enhanceSelects).
+   ============================================================ */
+
+.cselect--field { width: 100%; }
+
+.cselect--field .cselect__btn {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1.5px solid var(--gray-3);
+  border-radius: var(--r-md);
+  background: var(--white);
+  color: var(--dark);
+  font-size: 0.95rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cselect--field .cselect__btn:hover { border-color: var(--gray-5); }
+
+.cselect--field.is-open .cselect__btn {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-ring);
+}
+
+.cselect--field .cselect__value {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cselect__menu {
+  border: 1px solid var(--gray-2);
+  padding: 8px;
+}
+
+.cselect__option {
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: var(--r-sm);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  gap: 10px;
+}
+
+.cselect__option:hover { background: var(--gray-2); }
+
+.cselect__option.is-selected {
+  background: var(--brand-soft);
+  color: var(--brand-600);
+  font-weight: 600;
+}
+
+.cselect__menu::-webkit-scrollbar { width: 8px; }
+.cselect__menu::-webkit-scrollbar-thumb {
+  background: var(--gray-3);
+  border-radius: 4px;
+}
+
+/* Числовые поля: браузерные стрелки выпадают из оформления —
+   убираем их, значение выравниваем как у текста. */
+.input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.input[type="number"]::-webkit-outer-spin-button,
+.input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Свой степпер: две кнопки в рамке поля. */
+.number {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.number .input { width: 100%; padding-right: 46px; }
+
+.number__spin {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.number__spin button {
+  width: 28px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 5px;
+  background: var(--gray-2);
+  color: var(--gray-6);
+  line-height: 1;
+}
+
+.number__spin button:hover { background: var(--brand-soft); color: var(--brand-600); }
+.number__spin .icon { width: 12px; height: 12px; }
+
+/* Заголовок-ссылка для серверной сортировки. */
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+}
+
+.th-sort:hover { color: var(--brand); }
+.th-sort.is-active { color: var(--brand); }
+.th-sort__arrow { font-size: 0.9em; }
+
+.page-btn.is-disabled { opacity: 0.35; pointer-events: none; }
+.page-btn.is-gap { border: none; pointer-events: none; color: var(--gray-5); }
+.pagination { align-items: center; gap: 6px; }
+
+/* ============================================================
+   Файлы: очередь загрузки, карточка файла
+   ============================================================ */
+
+.upload-item {
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  background: var(--gray-2);
+  margin-bottom: 10px;
+}
+
+.modal--upload { max-width: 780px; }
+[data-upload-list]:empty { display: none; }
+
+/* Когда файлы уже выбраны, зона перетаскивания — не главное на экране. */
+.modal--upload .file-drop { padding: 22px 20px; }
+.modal--upload .file-drop .icon { margin-bottom: 6px; width: 24px; height: 24px; }
+
+/* Общие 300px здесь малы: очередь файлов должна быть видна вместе с полями. */
+.modal--upload .modal__scroll { max-height: min(68vh, 620px); }
+
+/* ============================================================
+   Сворачиваемый блок необязательных настроек
+   ============================================================ */
+
+.fold {
+  border: 1px solid var(--gray-3);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.fold__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.fold__head:hover { background: var(--gray-2); }
+.fold__title { font-weight: 600; font-size: 0.92rem; }
+/* Подпись в шапке — одной строкой: на узком экране она иначе разносит
+   заголовок на три строки. */
+.fold__note {
+  font-size: 0.82rem;
+  color: var(--gray-5);
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fold__chev { margin-left: auto; color: var(--gray-5); transition: transform 0.2s ease; }
+.fold.is-open .fold__chev { transform: rotate(180deg); }
+.fold.is-open .fold__head { border-bottom: 1px solid var(--gray-3); }
+.fold__body { padding: 16px 14px; }
+
+/* Панель внутри карточки очереди: карточка уже на сером, так что фон белый,
+   а настроенная обработка подсвечена — её видно и в свёрнутом виде. */
+.fold--inline { background: var(--white); border-color: var(--gray-3); }
+.fold--inline .fold__head { padding: 9px 12px; }
+.fold--inline .fold__head:hover { background: var(--brand-soft); }
+.fold--inline .fold__title { font-size: 0.86rem; }
+.fold--inline .fold__body { padding: 14px 12px; }
+.fold--inline .icon { color: var(--gray-5); }
+
+/* Настройка = переключатель, а поля к ней раскрываются только по включении:
+   пустое поле «ширина» ещё можно не заметить, а выставленное качество
+   читается как «уже сжимаем». */
+.opt { border-radius: var(--r-md); }
+.opt .switch, .check:has(.opt__label) { align-items: flex-start; gap: 12px; }
+.check:has(.opt__label) .check__box { margin-top: 1px; }
+.opt__label { display: flex; flex-direction: column; gap: 2px; }
+.opt__title { font-size: 0.9rem; font-weight: 600; }
+.opt__hint { font-size: 0.8rem; color: var(--gray-5); }
+.opt__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 2px 58px;
+}
+
+@media (max-width: 560px) {
+  .opt__body { margin-left: 0; }
+}
+
+.fold--inline.is-set { border-color: var(--brand); }
+.fold--inline.is-set .fold__head .icon:first-child { color: var(--brand); }
+.fold--inline.is-set .fold__note { color: var(--brand-600); font-weight: 600; }
+
+.fileline--button {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  /* Без этого кнопка берёт системный цвет текста и на тёмной теме
+     имя файла оказывается чёрным. */
+  color: inherit;
+  font: inherit;
+}
+
+.fileline--button:hover .fileline__name { color: var(--brand); }
+
+/* Ссылки на файл в карточке */
+.url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--gray-2);
+}
+
+.url-row__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  color: var(--gray-6);
+}
+
+/* Таблица файлов живёт в узкой колонке менеджера: общий min-width от неё
+   отбирает место и включает горизонтальную прокрутку. Здесь вместо этого
+   ужимается колонка имени — она и так с многоточием. */
+.fm__main .table { min-width: 0; }
+.fm__main .table td:first-child { width: 100%; max-width: 0; }
+.fm__main .fileline__name { max-width: none; }
+.fm__main .fileline__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Временная ссылка в карточке файла: подписи вместо адреса — саму подпись
+   мы не храним и показать её второй раз не можем. */
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--gray-2);
+}
+
+.link-row__body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.link-row__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.link-row__head .text-sm { overflow-wrap: anywhere; }
+.link-row.is-off { opacity: 0.55; }
+
+/* Боковая карточка: у шаблона она была без своей прокрутки. */
+.modal--drawer { display: flex; flex-direction: column; }
+.modal--drawer .modal__body { flex: 1; overflow-y: auto; padding-right: 4px; }
+.modal--drawer .kv dd { text-align: right; word-break: break-word; }
+
+/* На узком экране карточка занимает весь экран. */
+@media (max-width: 640px) {
+  .modal--drawer { width: 100vw; max-width: 100vw; border-radius: 0; }
+
+  /* Шапка карточки: заголовок строкой, кнопки под ним — иначе название
+     ужимается в столбик из двух букв, лишь бы уместить кнопку рядом. */
+  .card__header { flex-wrap: wrap; }
+  .card__header > :first-child { flex: 1 1 100%; }
+  .card__header .card__spacer { display: none; }
+
+  /* Сводка над списком: четыре карточки в столбик — это целый экран до данных. */
+  .metrics-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metrics-row .metric__label:last-child { display: none; }
+
+  /* В две колонки строка «значок · цифра · подпись» не помещается —
+     подпись уезжает под цифру. */
+  .stat { padding: 12px 14px; gap: 10px; flex-wrap: wrap; row-gap: 6px; }
+  .stat__icon { width: 36px; height: 36px; border-radius: 12px; }
+  .stat__icon .icon { width: 18px; height: 18px; }
+  .stat__value { font-size: 1.6rem; }
+  .stat__body { flex: 1 1 100%; }
+}
+
+/* Очень длинное меню прокручивается внутри себя, а не уезжает за экран. */
+.dropdown__menu.is-floating { max-height: calc(100vh - 32px); overflow-y: auto; }
+
+/* ============================================================
+   Узкие экраны: панель остаётся рабочей, а не «уменьшенным десктопом»
+   ============================================================ */
+
+@media (max-width: 900px) {
+  /* Пометка про источник данных — справочная, на телефоне занимает пол-шапки. */
+  .mock-note { display: none; }
+}
+
+@media (max-width: 768px) {
+  .layout { margin: 8px; padding: 10px; height: calc(100vh - 16px); }
+  .main { gap: 14px; }
+
+  .topbar { align-items: flex-start; gap: 12px; }
+  .topbar__title { font-size: 1.25rem; line-height: 1.25; overflow-wrap: anywhere; }
+
+  /* Описание бакета бывает длинным — двух строк достаточно. */
+  .topbar__subtitle {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Панель фильтров: поиск во всю ширину, кнопка действия следом. */
+  .row .search-pill,
+  .row > .field { width: 100%; min-width: 0; }
+  .row > .topbar__spacer { display: none; }
+
+  .card { padding: 16px; }
+  .modal { padding: 20px; }
+  .modal__footer { flex-wrap: wrap; }
+  .modal__footer .btn { flex: 1; justify-content: center; }
+
+  /* В таблицах прячем второстепенные столбцы: строка и так знает всё
+     остальное, а карточка файла показывает полный набор. */
+  .table th:nth-child(2), .table td:nth-child(2),
+  .table th:nth-child(6), .table td:nth-child(6) { display: none; }
+
+  .fileline__name { max-width: 42vw; }
+  .pagination { justify-content: center; }
+  .pagination .ml-auto { width: 100%; text-align: center; margin-bottom: 6px; }
+}
+
+@media (max-width: 600px) {
+  /* Оставляем главное: файл, размер и действия. Остальное — в карточке. */
+  .table th:nth-child(4), .table td:nth-child(4),
+  .table th:nth-child(5), .table td:nth-child(5) { display: none; }
+  /* Фиксированная раскладка и снятый min-width: иначе таблица держит свои
+     640px и обрезка имени ни на что не влияет — она уезжает в прокрутку. */
+  .table { table-layout: fixed; width: 100%; min-width: 0; }
+  .table th, .table td { padding: 12px 10px; overflow: hidden; }
+  .table th:last-child, .table td:last-child { width: 60px; }
+  .fileline__name, .fileline__meta {
+    max-width: 40vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Отдельная кнопка «подробнее» лишняя: карточку открывает и само имя. */
+  .table .icon-btn[data-action="file:info"] { display: none; }
+  .metric__value { font-size: 1.7rem; }
+  .ftype { width: 34px; height: 34px; border-radius: 10px; }
+}
+
+/* ============================================================
+   Файловый менеджер: папки и файлы в одном окне
+   Высота фиксирована, прокрутка внутренняя — шапка бакета и панель
+   действий не уезжают, когда файлов много.
+   ============================================================ */
+
+/* Сводка над панелью: цифры нужны, но высоту у списка забирать не должны —
+   значение в строку с подписью, отступы вдвое меньше карточных. */
+.metrics-row .card { padding: 12px 16px; }
+.metrics-row .metric { gap: 0; }
+.metrics-row .metric__value { font-size: 1.5rem; }
+.metrics-row .metric__label { font-size: 0.78rem; }
+
+/* ============================================================
+   Плитка сводки: значок · цифра · две строки подписи
+   Цвет здесь не украшение, а тот же смысловой ряд, что у тонов:
+   бирюза — живое, красный — закрытое, янтарь — вышедшее по сроку.
+   ============================================================ */
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid transparent;
+}
+
+.stat__icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  background: var(--gray-2);
+  color: var(--gray-6);
+}
+
+.stat__icon .icon { width: 23px; height: 23px; }
+.stat__body { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.stat__value { font-size: 2.1rem; font-weight: 700; line-height: 1; flex: 0 0 auto; letter-spacing: -0.02em; }
+.stat__label { font-size: 0.95rem; font-weight: 600; }
+.stat__note { font-size: 0.78rem; color: var(--gray-5); }
+
+/* Плитка целиком в своём тоне: цифра, значок и фон — один цвет. */
+.stat--ok { background: var(--ok-soft); border-color: var(--ok); }
+.stat--ok .stat__icon { background: var(--ok); color: #fff; }
+.stat--ok .stat__value { color: var(--ok); }
+
+.stat--brand { background: var(--brand-soft); border-color: var(--brand); }
+.stat--brand .stat__icon { background: var(--brand); color: #fff; }
+.stat--brand .stat__value { color: var(--brand); }
+
+.stat--danger { background: var(--danger-soft); border-color: var(--danger); }
+.stat--danger .stat__icon { background: var(--danger); color: #fff; }
+.stat--danger .stat__value { color: var(--danger); }
+
+.stat--warn { background: var(--warn-soft); border-color: var(--warn); }
+.stat--warn .stat__icon { background: var(--warn); color: #fff; }
+.stat--warn .stat__value { color: var(--warn); }
+
+/* Ноль — не событие: плитка гаснет до нейтральной. */
+.stat:has(.stat__value.is-zero) { background: var(--white); border-color: transparent; }
+.stat:has(.stat__value.is-zero) .stat__icon { background: var(--gray-2); color: var(--gray-5); }
+.stat__value.is-zero { color: var(--gray-4); }
+
+/* Кнопка уборки: красная, но не сплошной заливкой — их в шапке две. */
+.btn--danger-soft {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid transparent;
+}
+
+.btn--danger-soft:hover { background: var(--danger); color: #fff; }
+.btn--danger-soft:hover .badge--danger { background: rgba(255, 255, 255, 0.22); color: #fff; }
+.badge--danger { background: var(--danger); color: #fff; }
+
+/* Раздел-панель: как файловый менеджер, но одной колонкой — шапка и
+   постраничность на месте, прокручивается только список. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 360px;
+}
+
+.panel__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.panel .pagination { margin-top: 12px; }
+
+/* Шапка панели: заголовок не ужимаем в столбик ради кнопок — при нехватке
+   места инструменты переносятся на следующую строку. */
+.panel > .card__header { flex-wrap: wrap; row-gap: 10px; }
+.panel > .card__header > :first-child { flex: 1 1 240px; min-width: 200px; }
+
+/* Поиск и кнопки — одной группой: переносятся вместе, а не по одной. */
+.panel__tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Шапка таблицы остаётся на месте при прокрутке списка: иначе на середине
+   страницы уже не помнишь, где какая колонка. */
+.panel__scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--white);
+  box-shadow: inset 0 -1px 0 var(--gray-2);
+}
+
+/* Копировать и открыть — по наведению на строку: постоянно висящие кнопки
+   в каждой строке превращают таблицу в панель управления. */
+.row-actions__hover { opacity: 0; transition: opacity 0.15s ease; }
+.table tbody tr:hover .row-actions__hover,
+.row-actions__hover:focus-visible { opacity: 1; }
+
+@media (hover: none) {
+  /* На тачскрине наведения нет — показываем сразу. */
+  .row-actions__hover { opacity: 1; }
+}
+
+/* Таблица занимает ширину панели: узкой её делает не длина строк, а общий
+   min-width — колонка файла и пометка ужимаются с многоточием. */
+.panel .table { min-width: 0; }
+/* Имя файла ужимается, но не в одну букву: раньше сжималась именно эта колонка. */
+.panel .table td:first-child { width: 100%; max-width: 0; min-width: 210px; }
+.panel .table td:nth-last-child(2) {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  /* На телефоне высоту делить не с чем: панель растёт, скроллится страница. */
+  .panel { flex: 0 0 auto; min-height: 0; }
+  .panel__scroll { overflow: visible; max-height: none; }
+}
+
+.fm {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 18px;
+  /* забирает всю оставшуюся высоту колонки: подбирать её вычитанием из 100vh
+     значило бы ловить шапку, отступы и полосу прокрутки по пикселю */
+  flex: 1;
+  min-height: 420px;
+}
+
+.fm__side,
+.fm__main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--white);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+}
+
+.fm__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--gray-2);
+  flex-wrap: wrap;
+}
+
+.fm__title { font-weight: 600; font-size: 0.95rem; flex: 1; }
+
+.fm__where {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.fm__where b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fm__where .icon { color: var(--gray-5); flex: 0 0 auto; }
+
+/* Прокрутка живёт здесь, а не на странице. */
+.fm__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -6px;
+  padding: 8px 6px;
+}
+
+.fm__scroll::-webkit-scrollbar { width: 8px; }
+.fm__scroll::-webkit-scrollbar-thumb { background: var(--gray-3); border-radius: 4px; }
+.fm__scroll::-webkit-scrollbar-thumb:hover { background: var(--gray-4); }
+
+/* --- Папка в списке --- */
+
+.fm__folder-wrap { position: relative; }
+
+.fm__folder {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--dark);
+  transition: background 0.15s ease;
+}
+
+.fm__folder:hover { background: var(--gray-2); }
+.fm__folder .icon { color: var(--gray-5); flex: 0 0 auto; }
+
+.fm__folder.is-active { background: var(--brand); color: #fff; }
+.fm__folder.is-active .icon,
+.fm__folder.is-active .fm__count { color: #fff; }
+.fm__folder.is-active .fm__badges .icon { color: rgba(255, 255, 255, 0.85); }
+
+/* Длинные имена переносим, а не обрезаем: «passports-docume…» ничего не
+   говорит, а две строки читаются. Дальше двух — уже многоточие. */
+.fm__folder-name {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.fm__badges { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+.fm__count { font-size: 0.78rem; color: var(--gray-5); font-variant-numeric: tabular-nums; }
+
+/* Меню папки — поверх строки, появляется по наведению или фокусу.
+   Без transform: он создаёт отдельный слой, и вынесенное меню с высоким
+   z-index оказывается заперто внутри строки — его перекрывали соседние папки. */
+.fm__folder-menu {
+  position: absolute;
+  right: 6px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.fm__folder-wrap:hover .fm__folder-menu,
+.fm__folder-menu.is-open,
+.fm__folder-menu:focus-within { opacity: 1; }
+
+/* Счётчик уступает место кнопке — и пока курсор на строке, и пока открыто
+   меню: иначе, уведя мышь, получаем цифру под кнопкой. */
+.fm__folder-wrap:hover .fm__count,
+.fm__folder-wrap:has(.dropdown.is-open) .fm__count { opacity: 0; }
+
+/* Кнопка не сливается ни с обычной строкой, ни с выделенной. */
+.fm__folder-menu .icon-btn { background: var(--gray-2); }
+.fm__folder-menu .icon-btn:hover { background: var(--gray-3); }
+.fm__folder-wrap:has(.fm__folder.is-active) .fm__folder-menu .icon-btn {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.fm__divider { height: 1px; background: var(--gray-2); margin: 8px 6px; }
+.fm__add { margin-top: 12px; justify-content: center; }
+
+/* --- Таблица файлов внутри менеджера --- */
+
+.fm__main .table { min-width: 0; }
+.fm__main .table td { border-bottom: 1px solid var(--gray-2); }
+.fm__main .table tbody tr:last-child td { border-bottom: none; }
+.fm__main .pagination { padding-top: 12px; border-top: 1px solid var(--gray-2); margin-top: 0; }
+
+@media (max-width: 1024px) {
+  .fm { grid-template-columns: 240px minmax(0, 1fr); }
+}
+
+@media (max-width: 768px) {
+  /* На телефоне папки становятся горизонтальной лентой над файлами. */
+  .fm { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .fm__side { padding: 12px; }
+  .fm__side .fm__scroll { display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
+  .fm__folder { white-space: nowrap; }
+  .fm__folder-name { max-width: 120px; }
+  .fm__divider { display: none; }
+  .fm__folder-menu { display: none; }
+  .fm__add { display: none; }
+  .fm__main { height: auto; }
+  .fm__main .fm__scroll { max-height: 60vh; }
+}
+
+/* Тёмная карточка в тёмной теме становится светлой — подписи на ней должны
+   оставаться читаемыми в обоих режимах. */
+.card--dark .card__subtitle,
+.card--dark .stat-hero__label { color: var(--gray-6); }
+
+@media (max-width: 768px) {
+  /* Шапка менеджера в две строки: где мы, а под этим поиск и загрузка. */
+  .fm__where { width: 100%; }
+  .fm__main .fm__head .search-pill { flex: 1; min-width: 0; }
+}
+
+/* ============================================================
+   Брендовая карточка — для главного показателя на странице.
+   Тёмная из шаблона в тёмной теме инвертируется в белую, и большой
+   белый прямоугольник на тёмном фоне смотрится дырой.
+   ============================================================ */
+
+.card--brand {
+  background: linear-gradient(150deg, var(--brand) 0%, var(--brand-600) 58%, var(--temp) 135%);
+  color: #fff;
+  border: none;
+}
+
+.card--brand .card__title,
+.card--brand .metric__value { color: #fff; }
+
+.card--brand .card__subtitle,
+.card--brand .stat-hero__label,
+.card--brand .text-sm { color: rgba(255, 255, 255, 0.78); }
+
+.card--brand .stat-hero__sep { background: rgba(255, 255, 255, 0.35); }
+.card--brand .quota__bar { background: rgba(255, 255, 255, 0.25); }
+.card--brand .quota__fill { background: #fff; }
+.card--brand .quota__meta,
+.card--brand .quota__meta b { color: rgba(255, 255, 255, 0.9); }
+
+/* Плашка на брендовом фоне — стеклянная, а не цветная. */
+.card--brand .tone {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}

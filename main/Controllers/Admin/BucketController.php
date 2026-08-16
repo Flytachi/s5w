@@ -14,10 +14,12 @@ use Flytachi\Winter\Kernel\Http\Response\ResponseEntity;
 use Flytachi\Winter\Kernel\Http\Stereotype\Controller;
 use Flytachi\Winter\Kernel\Route\Annotation\DeleteMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
+use Flytachi\Winter\Kernel\Route\Annotation\PatchMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PutMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Request\BucketRequest;
+use Main\Request\CachePolicyRequest;
 use Main\Request\PageRequest;
 use Main\Service\BucketService;
 
@@ -54,6 +56,18 @@ final class BucketController extends Controller
         #[RequestJson, Valid] BucketRequest $request,
     ): ResponseEntity {
         return ResponseEntity::ok($this->service->update($id, $request));
+    }
+
+    /**
+     * Кэш по умолчанию для файлов бакета — та же ручка, что у папки, уровнем выше.
+     * Папка переопределяет бакет, бакет — глобальный дефолт (docs/plan.md §6).
+     */
+    #[PatchMapping('{id}/cache')]
+    public function setCachePolicy(
+        #[PathVariable, Uuid] string $id,
+        #[RequestJson, Valid] CachePolicyRequest $request,
+    ): ResponseEntity {
+        return ResponseEntity::ok($this->service->setCachePolicy($id, $request));
     }
 
     #[DeleteMapping('{id}')]

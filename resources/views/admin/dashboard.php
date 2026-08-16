@@ -154,27 +154,26 @@ $area = "0,30 {$line} 100,30";
         </div>
 
         <div class="stack mt-2">
-            <?php foreach ($buckets as $bucket): ?>
-                <?php [$percent, $state] = Fmt::quotaState($bucket['bytes']['used'], $bucket['bytes']['quota']) ?>
-                <a class="card card--tile" href="/admin/ui/buckets/<?= Fmt::e($bucket['id']) ?>" style="padding:14px 16px">
+            <?php foreach ($cards as $bucket): ?>
+                <a class="card card--tile" href="/admin/ui/buckets/<?= Fmt::e($bucket->id) ?>" style="padding:14px 16px">
                     <div class="row" style="justify-content:space-between; flex-wrap:nowrap">
                         <div class="fileline">
-                            <div class="ftype ftype--<?= $bucket['status']['name'] === 'ACTIVE' ? 'image' : 'doc' ?>">
+                            <div class="ftype ftype--<?= $bucket->isActive() ? 'image' : 'doc' ?>">
                                 <svg class="icon"><use href="#i-database"/></svg>
                             </div>
                             <div class="fileline__body">
-                                <div class="fileline__name"><?= Fmt::e($bucket['name']) ?></div>
+                                <div class="fileline__name"><?= Fmt::e($bucket->name) ?></div>
                                 <div class="fileline__meta">
-                                    <?= Fmt::num($bucket['files']) ?> файлов<span class="dot-sep"></span><?= $bucket['folders'] ?> папки
+                                    <?= Fmt::num($bucket->files) ?> файлов<span class="dot-sep"></span><?= $bucket->folders ?> папок
                                 </div>
                             </div>
                         </div>
 
-                        <div class="quota <?= $state ?>">
-                            <div class="quota__bar"><div class="quota__fill" style="width: <?= $percent ?>%"></div></div>
+                        <div class="quota <?= $bucket->quotaState() ?>">
+                            <div class="quota__bar"><div class="quota__fill" style="width: <?= $bucket->percent() ?>%"></div></div>
                             <div class="quota__meta">
-                                <span><b><?= Fmt::bytes($bucket['bytes']['used']) ?></b> из <?= Fmt::bytes($bucket['bytes']['quota']) ?></span>
-                                <span><?= round($percent) ?>%</span>
+                                <span><b><?= Fmt::bytes($bucket->used) ?></b> из <?= Fmt::bytes($bucket->quota) ?></span>
+                                <span><?= round($bucket->percent()) ?>%</span>
                             </div>
                         </div>
                     </div>

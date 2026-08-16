@@ -1,10 +1,8 @@
 /* Единственная точка обращения к серверу.
-   Пока за ней мок (mock-api.js) — когда появится бэкенд, здесь останется
-   только fetch, а mock-api.js удаляется целиком. Ни один вызывающий код
-   об этом не узнает: сигнатура и формат ошибок одинаковые. */
+   Ошибки приходят в одном виде: статус, сообщение и разбор по полям формы,
+   если сервер его прислал. */
 
 (function () {
-  const MOCK = true;
 
   class ApiError extends Error {
     constructor(status, message, errors) {
@@ -20,8 +18,6 @@
   }
 
   async function request(method, path, body) {
-    if (MOCK) return window.MockApi.handle(method, path, body);
-
     const init = { method, headers: { Accept: "application/json" } };
     if (body instanceof FormData) {
       init.body = body;
@@ -32,7 +28,13 @@
 
     const res = await fetch(path, init);
     const text = await res.text();
-    const json = text ? JSON.parse(text) : null;
+    let json = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch (e) {
+      // сервер ответил не JSON — покажем то, что есть
+      json = { message: text.slice(0, 200) };
+    }
 
     if (!res.ok) {
       throw new ApiError(res.status, (json && json.message) || "Запрос не прошёл", json && json.errors);
@@ -42,7 +44,6 @@
 
   window.Api = {
     ApiError,
-    isMock: () => MOCK,
     get: (path) => request("GET", path),
     post: (path, body) => request("POST", path, body),
     put: (path, body) => request("PUT", path, body),

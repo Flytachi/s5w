@@ -11,9 +11,11 @@ use Flytachi\Winter\DI\Attribute\Singleton;
 use Flytachi\Winter\Kernel\Exception\ClientError;
 use Flytachi\Winter\Kernel\Unit\Pagination\WrapResult;
 use Flytachi\Winter\Kernel\Unit\Wrapper;
+use Main\Dto\FolderCount;
 use Main\Dto\FolderRes;
 use Main\Entity\Folder;
 use Main\Enum\BucketStatus;
+use Main\Repository\FileEntryRepository;
 use Main\Repository\FolderRepository;
 use Main\Request\CachePolicyRequest;
 use Main\Request\FolderRequest;
@@ -25,6 +27,9 @@ final class FolderService
 {
     #[Autowired]
     private FolderRepository $repo;
+
+    #[Autowired]
+    private FileEntryRepository $fileRepo;
 
     #[Autowired]
     private BucketService $buckets;
@@ -44,6 +49,41 @@ final class FolderService
             $request->limit,
             $request->page,
             mapper: fn(Folder $folder) => FolderRes::from($folder),
+        );
+    }
+
+    /**
+     * Папки бакета для панели вместе с числом файлов в каждой.
+     *
+     * Объём папки не показываем: блоб, на который ссылаются файлы из разных
+     * папок, пришлось бы засчитать каждой, и сумма перестала бы сходиться с
+     * занятым местом бакета.
+     *
+     * @return array<int, array{folder: Folder, files: int}>
+     */
+    public function panelList(string $bucketId): array
+    {
+        $folders = $this->repo
+            ->where(Qb::eq('bucket_id', $bucketId))
+            ->orderBy('name')
+            ->findAll();
+
+        if ($folders === []) {
+            return [];
+        }
+
+        $counts = [];
+        $rows = $this->fileRepo
+            ->select('folder_id, count(*) AS total')
+            ->groupBy('folder_id')
+            ->findAllBy(Qb::in('folder_id', array_column($folders, 'id')), FolderCount::class);
+        foreach ($rows as $row) {
+            $counts[$row->folder_id] = $row->total;
+        }
+
+        return array_map(
+            static fn(Folder $folder) => ['folder' => $folder, 'files' => $counts[$folder->id] ?? 0],
+            $folders,
         );
     }
 
