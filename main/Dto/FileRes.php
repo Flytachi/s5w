@@ -6,6 +6,7 @@ namespace Main\Dto;
 
 use Main\Entity\Blob;
 use Main\Entity\FileEntry;
+use Main\Image\ProcessedImage;
 
 final class FileRes
 {
@@ -19,6 +20,7 @@ final class FileRes
         public array $content,
         public bool $public,
         public bool $deduplicated,
+        public ?array $processed,
         public ?string $expiresAt,
         public string $privateUrl,
         public ?string $publicUrl,
@@ -33,6 +35,7 @@ final class FileRes
         ?string $folderName,
         string $baseUrl,
         bool $deduplicated = false,
+        ?ProcessedImage $processed = null,
     ): self {
         $base = rtrim($baseUrl, '/');
 
@@ -41,13 +44,15 @@ final class FileRes
             name: $file->name,
             folder: $folderName,
             content: [
+                // размер и хэш — от блоба, тип — от файла (docs/plan.md §2.4)
                 'size' => $blob->size_bytes,
-                'mime' => $blob->mime_type,
-                'extension' => $blob->extension,
+                'mime' => $file->mime_type,
+                'extension' => $file->extension,
                 'hash' => $blob->hash,
             ],
             public: $file->public,
             deduplicated: $deduplicated,
+            processed: $processed?->toArray(),
             expiresAt: $file->expires_at,
             privateUrl: $base . '/p/' . $file->slug,
             publicUrl: $file->public ? $base . '/o/' . $file->bucket_id . '/' . $file->slug : null,

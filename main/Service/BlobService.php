@@ -78,7 +78,7 @@ final class BlobService
                     // Файл (если мы его успели записать на первой попытке) не
                     // трогаем: путь content-addressed, там те же байты, и теперь
                     // они принадлежат победившей строке.
-                    return new StoredBlob($blob, deduplicated: true);
+                    return new StoredBlob($blob, true, $type['mime'], $type['extension']);
                 }
 
                 $bucket = $this->buckets->where(Qb::eq('id', $bucketId))->forBy('UPDATE')->find();
@@ -104,8 +104,6 @@ final class BlobService
                 $blob->bucket_id = $bucketId;
                 $blob->hash = $hash;
                 $blob->size_bytes = $size;
-                $blob->mime_type = $type['mime'];
-                $blob->extension = $type['extension'];
                 $blob->ref_count = 1;
                 $blob->created_at = date('Y-m-d H:i:s P');
 
@@ -134,7 +132,7 @@ final class BlobService
                     $db->commit();
                 }
 
-                return new StoredBlob($blob, deduplicated: false);
+                return new StoredBlob($blob, false, $type['mime'], $type['extension']);
             }
 
             throw new \RuntimeException("Blob store gave up after a dedup race on {$hash}");

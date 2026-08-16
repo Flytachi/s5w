@@ -16,6 +16,7 @@ use Main\Entity\Blob;
 use Main\Entity\FileEntry;
 use Main\Entity\Folder;
 use Main\Enum\Retention;
+use Main\Image\ImageProcessor;
 use Main\Repository\BlobRepository;
 use Main\Repository\FileEntryRepository;
 use Main\Repository\FolderRepository;
@@ -45,6 +46,9 @@ final class FileService
     private BlobService $blobs;
 
     #[Autowired]
+    private ImageProcessor $images;
+
+    #[Autowired]
     private BlobStore $store;
 
     public function upload(
@@ -61,19 +65,25 @@ final class FileService
         $folder = $this->resolveFolder($bucketId, $request->folder);
         $sourceName = (string) ($upload['name'] ?? '');
 
+        // До транзакции и до блоба: в хранилище уходят уже обработанные байты,
+        // значит и хэш, и квота считаются по ним (docs/plan.md §10.2).
+        $processed = $this->images->process($tmpPath, $request);
+
         $db = $this->repo->db();
         $db->beginTransaction();
         $stored = null;
 
         try {
-            $stored = $this->blobs->store($bucketId, $tmpPath, $sourceName);
+            $stored = $this->blobs->store($bucketId, $processed->path, $sourceName);
             $blob = $stored->blob;
 
             $file = new FileEntry();
             $file->bucket_id = $bucketId;
             $file->folder_id = $folder?->id;
             $file->blob_id = $blob->id;
-            $file->name = $this->finalName($request->name, $sourceName, $blob->extension);
+            $file->mime_type = $stored->mimeType;
+            $file->extension = $stored->extension;
+            $file->name = $this->finalName($request->name, $sourceName, $stored->extension);
             $file->public = $folder === null ? true : $folder->public;
             $file->expires_at = $this->expiryFor($folder);
             $file->created_at = date('Y-m-d H:i:s P');
@@ -83,7 +93,7 @@ final class FileService
 
             $db->commit();
 
-            return FileRes::from($file, $blob, $folder?->name, $baseUrl, $stored->deduplicated);
+            return FileRes::from($file, $blob, $folder?->name, $baseUrl, $stored->deduplicated, $processed);
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
                 $db->rollBack();
@@ -95,6 +105,12 @@ final class FileService
                 $this->store->blobDelete($bucketId, $stored->blob->hash);
             }
             throw $e;
+        } finally {
+            // Результат обработки — наш временный файл рядом с загруженным;
+            // за исходником уберёт рантайм, за этим убирать некому.
+            if ($processed->temporary) {
+                @unlink($processed->path);
+            }
         }
     }
 
@@ -319,9 +335,22 @@ final class FileService
         if ($extension === '') {
             return $name;
         }
-        return strtolower(ContentType::extensionOf($name)) === strtolower($extension)
-            ? $name
-            : $name . '.' . $extension;
+
+        $current = ContentType::extensionOf($name);
+        if (ContentType::sameExtension($current, $extension)) {
+            return $name;
+        }
+
+        // Расширение противоречит содержимому: photo.jpg после перекодирования
+        // в webp, mislabeled.png с jpeg внутри. Заменяем его, но только если
+        // это действительно указание типа — «отчёт v1.2» тоже кончается точкой
+        // с хвостом, и его резать нельзя.
+        $dot = strrpos($name, '.');
+        if ($dot > 0 && ContentType::isKnownExtension($current)) {
+            $name = substr($name, 0, $dot);
+        }
+
+        return $name . '.' . $extension;
     }
 
     /** null/'' — корень бакета; иначе папка обязана существовать. */

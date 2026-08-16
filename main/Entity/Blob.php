@@ -12,7 +12,6 @@ use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\BigInteger;
 use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\Char;
 use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\Timestamp;
 use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\Uuid;
-use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\Varchar;
 use Flytachi\Winter\Kernel\Ppa\Mapping\Constants\FKAction;
 use Main\Repository\BucketRepository;
 
@@ -36,12 +35,6 @@ class Blob
 
     #[BigInteger]
     public int $size_bytes;
-
-    #[Varchar(127)]
-    public string $mime_type;
-
-    #[Varchar(32)]
-    public string $extension;
 
     #[BigInteger]
     public int $ref_count = 0;

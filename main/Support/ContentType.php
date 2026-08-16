@@ -15,6 +15,18 @@ final class ContentType
 {
     public const string FALLBACK = 'application/octet-stream';
 
+    /** Написания уже приведены к каноничным (см. canonical()). */
+    private const array KNOWN = [
+        'jpg', 'png', 'gif', 'webp', 'avif', 'bmp', 'tiff', 'svg', 'ico', 'heic',
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'rtf', 'epub',
+        'txt', 'csv', 'tsv', 'json', 'xml', 'md', 'html', 'yaml', 'css', 'js', 'mjs',
+        'sql', 'log', 'ini', 'conf', 'env',
+        'zip', 'gz', 'tar', 'bz2', 'xz', 'rar', '7z', 'iso',
+        'mp3', 'ogg', 'wav', 'flac', 'aac', 'm4a', 'opus', 'midi',
+        'mp4', 'webm', 'mkv', 'mov', 'avi', 'mpeg', 'wmv',
+        'ttf', 'otf', 'woff', 'woff2', 'exe', 'apk', 'dmg', 'deb', 'rpm',
+    ];
+
     /**
      * @return array{mime: string, extension: string}
      */
@@ -59,6 +71,41 @@ final class ContentType
             return '';
         }
         return substr($name, $dot + 1);
+    }
+
+    /**
+     * Одно и то же расширение с точностью до общепринятых написаний: иначе
+     * загруженный photo.jpeg получил бы имя photo.jpeg.jpg.
+     */
+    public static function sameExtension(string $a, string $b): bool
+    {
+        return self::canonical($a) === self::canonical($b);
+    }
+
+    /**
+     * Похоже ли на указание типа. Нужно, чтобы отличить противоречащее
+     * содержимому расширение (его заменяем) от хвоста имени вроде «отчёт v1.2»
+     * (к нему просто дописываем).
+     */
+    public static function isKnownExtension(string $extension): bool
+    {
+        return in_array(self::canonical($extension), self::KNOWN, true);
+    }
+
+    private static function canonical(string $extension): string
+    {
+        $extension = strtolower($extension);
+
+        return match ($extension) {
+            'jpeg' => 'jpg',
+            'tif' => 'tiff',
+            'htm' => 'html',
+            'yml' => 'yaml',
+            'mpg' => 'mpeg',
+            'mid' => 'midi',
+            'markdown' => 'md',
+            default => $extension,
+        };
     }
 
     private static function extensionFor(string $mime): string
