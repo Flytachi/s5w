@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Main\Config;
+namespace Main\Configuration;
 
 use Flytachi\Winter\Cdo\Config\PgDbConfig;
 use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Config\Migratable;

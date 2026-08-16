@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Main\Repository;
 
 use Flytachi\Winter\Kernel\Ppa\Stereotype\Repository;
-use Main\Config\MainDbConfig;
+use Main\Configuration\MainDbConfig;
 use Main\Entity\AccessToken;
 
 /**
