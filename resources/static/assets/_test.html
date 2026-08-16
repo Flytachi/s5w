@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>ui smoke</title>
+<style>iframe { width: 1400px; height: 900px; border: 0 }</style>
+<pre id="out">…</pre>
+<iframe id="f"></iframe>
+
+<script>
+const log = [];
+let failed = 0;
+
+function check(name, cond, note) {
+  if (!cond) failed++;
+  log.push((cond ? "ok   " : "FAIL ") + name + (note ? "  — " + note : ""));
+  document.getElementById("out").textContent = log.join("\n") + "\n";
+}
+
+const frame = document.getElementById("f");
+const doc = () => frame.contentDocument;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function load(url) {
+  return new Promise((resolve) => {
+    frame.onload = () => setTimeout(resolve, 150);
+    frame.src = url;
+  });
+}
+
+async function waitFor(fn, label, timeout = 6000) {
+  const started = Date.now();
+  while (Date.now() - started < timeout) {
+    let value;
+    try { value = fn(); } catch (e) { value = null; }
+    if (value) return value;
+    await sleep(50);
+  }
+  throw new Error("не дождались: " + label);
+}
+
+const $ = (sel) => doc().querySelector(sel);
+const $$ = (sel) => Array.from(doc().querySelectorAll(sel));
+const rows = (name) => $$(`[data-rows="${name}"] > *`).filter((r) => !r.hidden);
+
+async function run() {
+  const BUCKET = "1b826036-e5a0-459d-87fd-fb7800cff67b";
+
+  // ─────────────────────────── список бакетов ───────────────────────────
+  await load("/admin/ui/buckets");
+  check("страница бакетов отрисована", rows("buckets").length === 4, rows("buckets").length + " строк");
+
+  $('[data-modal-open="modal-bucket"]').click();
+  await waitFor(() => $("#modal-bucket.is-open"), "модалка бакета");
+  check("модалка открывается", true);
+
+  // занятое имя
+  const form = $("#modal-bucket form");
+  form.querySelector('[name="name"]').value = "media-lab";
+  form.querySelector('[type="submit"]').click();
+  const error = await waitFor(() => $("#modal-bucket .field__error"), "ошибка поля");
+  check("занятое имя ловится", /занято/.test(error.textContent), error.textContent);
+  check("поле подсвечено", !!$("#modal-bucket .input.is-invalid"));
+
+  // свободное имя
+  form.querySelector('[name="name"]').value = "ui-smoke";
+  form.querySelector('[name="description"]').value = "из теста";
+  form.querySelector('[type="submit"]').click();
+  await waitFor(() => rows("buckets").length === 5, "новая строка");
+  check("бакет добавлен без перезагрузки", rows("buckets")[0].dataset.name === "ui-smoke");
+  check("модалка закрылась", !$("#modal-bucket.is-open"));
+  const toasts = $$(".toast");
+  check("тост о создании", /создаётся/.test(toasts[toasts.length - 1].textContent), toasts[toasts.length - 1].querySelector(".toast__body").textContent.trim());
+  check("статус сначала CREATED", /CREATED/.test(rows("buckets")[0].querySelector('[data-cell="status"]').textContent));
+
+  await waitFor(() => /ACTIVE/.test(rows("buckets")[0].querySelector('[data-cell="status"]').textContent), "переход в ACTIVE");
+  check("статус сам стал ACTIVE", true, "как у асинхронного provisioner'а");
+
+  // удаление с подтверждением и откатом
+  rows("buckets")[0].querySelector('[data-action="bucket:delete"]').click();
+  const confirm = await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение");
+  check("подтверждение спрашивается", /Удалить бакет/.test($(".modal-backdrop.is-open .modal__title").textContent));
+  confirm.click();
+
+  await waitFor(() => rows("buckets").length === 4, "строка удалена");
+  check("строка исчезла", true);
+
+  const undo = await waitFor(() => $(".toast__action"), "кнопка отмены");
+  check("предложена отмена", undo.textContent === "Отменить");
+  undo.click();
+  await waitFor(() => rows("buckets").length === 5, "строка вернулась");
+  check("отмена возвращает строку", true);
+
+  // поиск
+  $('[data-filter="buckets"]').value = "avatars";
+  $('[data-filter="buckets"]').dispatchEvent(new Event("input", { bubbles: true }));
+  await sleep(100);
+  check("поиск фильтрует на месте", rows("buckets").length === 1, rows("buckets")[0].dataset.name);
+
+  // ─────────────────────────── токены ───────────────────────────
+  await load("/admin/ui/buckets/" + BUCKET + "/tokens");
+  const before = rows("tokens").length;
+
+  $('[data-modal-open="modal-token"]').click();
+  await waitFor(() => $("#modal-token.is-open"), "модалка токена");
+  $('#modal-token [name="name"]').value = "";
+  $('#modal-token [type="submit"]').click();
+  await waitFor(() => $("#modal-token .field__error"), "ошибка пустого имени");
+  check("пустое имя не проходит", true, $("#modal-token .field__error").textContent);
+
+  $('#modal-token [name="name"]').value = "из теста";
+  $('#modal-token [name="expiresInDays"]').value = "30";
+  $('#modal-token [type="submit"]').click();
+
+  await waitFor(() => $("#modal-secret.is-open"), "показ секрета");
+  const secret = $("[data-secret-value]").textContent;
+  check("токен показан один раз", /^s5w_[a-z0-9]{32}$/.test(secret), secret.slice(0, 14) + "…");
+  check("строка токена добавлена", rows("tokens").length === before + 1);
+
+  $("#modal-secret [data-modal-close]").click();
+
+  // переключение статуса
+  const row = rows("tokens")[0];
+  row.querySelector('[data-action="token:toggle"]').click();
+  await waitFor(() => /выключен/.test(row.querySelector('[data-cell="status"]').textContent), "статус выключен");
+  check("токен выключается на месте", true);
+
+  // ─────────────────────────── ссылки ───────────────────────────
+  await load("/admin/ui/buckets/" + BUCKET + "/links");
+  const live = Number($('[data-counter="links-active"]').textContent);
+
+  $$('[data-action="link:revoke"]')[0].click();
+  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение отзыва")).click();
+  await waitFor(() => Number($('[data-counter="links-active"]').textContent) === live - 1, "счётчик уменьшился");
+  check("отзыв ссылки меняет счётчик", true, live + " → " + $('[data-counter="links-active"]').textContent);
+
+  $('[data-action="links:revoke-all"]').click();
+  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение массового отзыва")).click();
+  await waitFor(() => $('[data-counter="epoch"]').textContent === "4", "эпоха выросла");
+  check("массовый отзыв поднимает эпоху", true, "3 → 4");
+  check("все строки помечены отозванными", $$('[data-row="link"]').every((r) => r.dataset.revoked === "1"));
+
+  // ─────────────────────────── файлы ───────────────────────────
+  await load("/admin/ui/buckets/" + BUCKET);
+  const files = rows("files").length;
+
+  $('[data-image-options] [name="format"]').value = "WEBP";
+  $('[data-image-options] [name="maxWidth"]').value = "1200";
+  $('[data-image-options]').dispatchEvent(new Event("change", { bubbles: true }));
+  await sleep(60);
+  check("сводка обработки обновляется", /webp/.test($("[data-image-summary]").textContent), $("[data-image-summary]").textContent.slice(0, 60) + "…");
+
+  const dt = new DataTransfer();
+  dt.items.add(new File([new Uint8Array(400000)], "снимок.jpg", { type: "image/jpeg" }));
+  const input = $("[data-upload-drop] input[type=file]");
+  input.files = dt.files;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+
+  await waitFor(() => rows("files").length === files + 1, "строка файла", 9000);
+  const added = rows("files")[0];
+  check("файл появился в таблице", /снимок\.webp/.test(added.textContent), added.querySelector(".fileline__name").textContent);
+  check("имя пошло за содержимым", /снимок\.webp/.test(added.querySelector(".fileline__name").textContent));
+  check("обработка показана", /→/.test(added.textContent));
+
+  // временная ссылка из карточки файла
+  added.querySelector('[data-action="link:open"]').click();
+  await waitFor(() => $("#modal-link.is-open"), "модалка ссылки");
+  check("модалка знает файл", $("[data-link-file]").textContent === "снимок.webp");
+  $('#modal-link [name="maxDownloads"]').value = "3";
+  $('#modal-link [type="submit"]').click();
+  await waitFor(() => $("#modal-secret.is-open"), "ссылка показана");
+  check("ссылка выпущена", /\/t\//.test($("[data-secret-value]").textContent), $("[data-secret-value]").textContent.slice(0, 34) + "…");
+
+  // ─────────────────────────── сайдбар ───────────────────────────
+  check("сайдбар знает текущий бакет", !!$("[data-bucket-switch] .cselect__option.is-selected"));
+  check("подпункты бакета на месте", $$(".sidebar .stack .nav-item").length === 4);
+  check("активен раздел «Файлы»", $(".sidebar .nav-item.active").textContent.trim().startsWith("Файлы"));
+
+  // ─────────────────────────── шрифты ───────────────────────────
+  await frame.contentWindow.document.fonts.ready;
+  const fonts = frame.contentWindow.document.fonts;
+  const family = frame.contentWindow.getComputedStyle(doc().body).fontFamily;
+
+  check("основной шрифт — Onest", /Onest/.test(family), family.split(",")[0]);
+  check("латиница загрузилась", fonts.check("600 16px Onest", "s5w bucket"));
+  check("кириллица загрузилась", fonts.check("600 16px Onest", "Файлы и папки"));
+  check("моноширинный загрузился", fonts.check("500 14px 'JetBrains Mono'", "0af39b"));
+
+  const loaded = Array.from(fonts).filter((f) => f.status === "loaded").map((f) => f.family);
+  check("подгружено только своё", loaded.every((f) => f === "Onest" || f === "JetBrains Mono"), [...new Set(loaded)].join(", "));
+
+  const external = frame.contentWindow.performance
+    .getEntriesByType("resource")
+    .filter((r) => !r.name.startsWith(location.origin) && !/^(data|blob):/.test(r.name));
+  check("внешних запросов нет", external.length === 0, external.map((r) => r.name).join(" ") || "ни одного");
+}
+
+run()
+  .then(() => check("сценарий дошёл до конца", true))
+  .catch((e) => check("сценарий упал", false, e.message))
+  .finally(() => {
+    document.getElementById("out").textContent =
+      log.join("\n") + "\n\n" + (failed === 0 ? "ВСЁ СОШЛОСЬ" : "ПРОВАЛЕНО: " + failed) + "\n";
+    document.title = failed === 0 ? "PASS" : "FAIL";
+  });
+</script>

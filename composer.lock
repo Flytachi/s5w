@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1f5d1bbabedb9df9c5e5789060048134",
+    "content-hash": "d627dbbe8094b4c21a77069660a0862a",
     "packages": [
         {
             "name": "flytachi/file-store",
@@ -270,16 +270,16 @@
         },
         {
             "name": "flytachi/winter-kernel",
-            "version": "v4.0.6",
+            "version": "v4.0.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Flytachi/winter-kernel.git",
-                "reference": "3a10629434ac3bbf0b0baa88a9b1b2997c7bc47b"
+                "reference": "a8cdb9a5bf44613e74e42ab55af5da7c98e2030e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Flytachi/winter-kernel/zipball/3a10629434ac3bbf0b0baa88a9b1b2997c7bc47b",
-                "reference": "3a10629434ac3bbf0b0baa88a9b1b2997c7bc47b",
+                "url": "https://api.github.com/repos/Flytachi/winter-kernel/zipball/a8cdb9a5bf44613e74e42ab55af5da7c98e2030e",
+                "reference": "a8cdb9a5bf44613e74e42ab55af5da7c98e2030e",
                 "shasum": ""
             },
             "require": {
@@ -345,7 +345,7 @@
                 "issues": "https://github.com/flytachi/winter-kernel/issues",
                 "source": "https://github.com/flytachi/winter-kernel"
             },
-            "time": "2026-08-14T14:35:40+00:00"
+            "time": "2026-08-16T13:10:28+00:00"
         },
         {
             "name": "flytachi/winter-logger",
@@ -1235,7 +1235,8 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=8.5"
+        "php": ">=8.5",
+        "ext-fileinfo": "*"
     },
     "platform-dev": {},
     "plugin-api-version": "2.9.0"
