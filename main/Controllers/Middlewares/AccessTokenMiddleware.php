@@ -12,24 +12,15 @@ use Flytachi\Winter\Kernel\Http\Contracts\HttpResponse;
 use Flytachi\Winter\Kernel\Http\Header;
 use Flytachi\Winter\Kernel\Http\Middleware\MiddlewareException;
 use Flytachi\Winter\Kernel\Http\Stereotype\Middleware;
+use Main\Enum\TokenAccess;
 use Main\Enum\TokenStatus;
 use Main\Http\BucketContext;
 use Main\Repository\AccessTokenRepository;
 use Main\Support\TokenGenerator;
 
-/**
- * Аутентификация арендатора по Bearer-токену бакета.
- *
- * Токен в базе не хранится — ищем по его sha256, поэтому поиск идёт по
- * уникальному индексу, а утечка дампа не даёт доступа.
- *
- * TODO: кэшировать пару «хеш → бакет» (winter-cache), иначе каждая отдача по
- * /p стоит запроса к базе. Тогда же сбрасывать запись при ротации и отзыве.
- */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
-final class AccessTokenMiddleware extends Middleware
+class AccessTokenMiddleware extends Middleware
 {
-    /** Как часто обновляем last_used_at: чаще — лишняя запись на каждый запрос. */
     private const int TOUCH_INTERVAL = 300;
 
     #[Autowired]
@@ -50,8 +41,6 @@ final class AccessTokenMiddleware extends Middleware
             MiddlewareException::throw('Invalid token', HttpCode::UNAUTHORIZED);
         }
 
-        // Выключенный или просроченный токен — это 403, а не 401: повторная
-        // аутентификация тем же секретом ничего не изменит.
         if ($model->status !== TokenStatus::ACTIVE->value) {
             MiddlewareException::throw('Token is inactive', HttpCode::FORBIDDEN);
         }
@@ -59,8 +48,21 @@ final class AccessTokenMiddleware extends Middleware
             MiddlewareException::throw('Token expired', HttpCode::FORBIDDEN);
         }
 
+        $required = $this->required();
+        if (!TokenAccess::from($model->access)->allows($required)) {
+            MiddlewareException::throw(
+                sprintf('Token access "%s" required', strtolower($required->name)),
+                HttpCode::FORBIDDEN,
+            );
+        }
+
         $this->touch($model->id, $model->last_used_at);
-        $this->context->set($model->bucket_id);
+        $this->context->setToken($model);
+    }
+
+    protected function required(): TokenAccess
+    {
+        return TokenAccess::BASIC;
     }
 
     private function touch(int $id, ?string $lastUsedAt): void

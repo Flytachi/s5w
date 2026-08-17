@@ -16,7 +16,6 @@ final class FilePlacementRequest
         #[Size(min: 1, max: 255)]
         public string $name,
 
-        // null или '' — корень бакета.
         #[Size(min: 0, max: 100)]
         public ?string $folder = null,
     ) {

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Main\Web;
 
-/** Форматирование для вьюх админки. */
 final class Fmt
 {
     public static function bytes(int|float $value, int $precision = 1): string
@@ -25,7 +24,6 @@ final class Fmt
         return number_format($value, 0, '.', ' ');
     }
 
-    /** «14 минут назад», «3 дня назад» — без сторонних библиотек. */
     public static function ago(string $datetime): string
     {
         $diff = time() - strtotime($datetime);
@@ -42,7 +40,6 @@ final class Fmt
         return 'только что';
     }
 
-    /** Сколько осталось: для сроков хранения и временных ссылок. */
     public static function left(?string $datetime): string
     {
         if ($datetime === null) {
@@ -68,7 +65,6 @@ final class Fmt
         return date('d.m.Y H:i', strtotime($datetime));
     }
 
-    /** Класс и иконка плитки по mime — по нему же красится строка файла. */
     public static function kind(string $mime): array
     {
         return match (true) {
@@ -81,7 +77,6 @@ final class Fmt
         };
     }
 
-    /** Насколько заполнена квота и каким цветом это показывать. */
     public static function quotaState(int $used, int $quota): array
     {
         $percent = $quota > 0 ? min(100, $used / $quota * 100) : 0;
@@ -94,7 +89,6 @@ final class Fmt
         return [$percent, $class];
     }
 
-    /** «1 бакет / 2 бакета / 5 бакетов» — без внешних библиотек. */
     public static function plural(int $count, string $one, string $few, string $many): string
     {
         $mod100 = $count % 100;
@@ -110,9 +104,6 @@ final class Fmt
     }
 
     /**
-     * Номера страниц с многоточиями: 1 … 4 [5] 6 … 20.
-     * null в списке — место разрыва.
-     *
      * @return array<int, int|null>
      */
     public static function pages(int $current, int $total, int $around = 1): array
@@ -133,5 +124,13 @@ final class Fmt
     public static function e(?string $value): string
     {
         return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    public static function asset(string $path): string
+    {
+        $file = dirname(__DIR__, 2) . '/resources/static' . $path;
+        $stamp = @filemtime($file);
+
+        return self::e($path . ($stamp === false ? '' : '?v=' . $stamp));
     }
 }

@@ -150,16 +150,16 @@
         },
         {
             "name": "flytachi/winter-cdo",
-            "version": "v4.0.0",
+            "version": "v4.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Flytachi/winter-cdo.git",
-                "reference": "c7b0f022064fc23073ec845015ce9fab5e8b0df4"
+                "reference": "6cfdbd4471d7938c5650b047d1f48f7cddb93a02"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Flytachi/winter-cdo/zipball/c7b0f022064fc23073ec845015ce9fab5e8b0df4",
-                "reference": "c7b0f022064fc23073ec845015ce9fab5e8b0df4",
+                "url": "https://api.github.com/repos/Flytachi/winter-cdo/zipball/6cfdbd4471d7938c5650b047d1f48f7cddb93a02",
+                "reference": "6cfdbd4471d7938c5650b047d1f48f7cddb93a02",
                 "shasum": ""
             },
             "require": {
@@ -208,20 +208,20 @@
                 "issues": "https://github.com/flytachi/winter-cdo/issues",
                 "source": "https://github.com/flytachi/winter-cdo"
             },
-            "time": "2026-08-04T22:15:14+00:00"
+            "time": "2026-08-17T14:00:10+00:00"
         },
         {
             "name": "flytachi/winter-di",
-            "version": "v2.0.0",
+            "version": "v2.1.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Flytachi/winter-di.git",
-                "reference": "f4b1c9aacc4dd647aac70b7daa341122a377ddfe"
+                "reference": "031131ba3b3d5b39f63b11e4d20592cf16251342"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Flytachi/winter-di/zipball/f4b1c9aacc4dd647aac70b7daa341122a377ddfe",
-                "reference": "f4b1c9aacc4dd647aac70b7daa341122a377ddfe",
+                "url": "https://api.github.com/repos/Flytachi/winter-di/zipball/031131ba3b3d5b39f63b11e4d20592cf16251342",
+                "reference": "031131ba3b3d5b39f63b11e4d20592cf16251342",
                 "shasum": ""
             },
             "require": {
@@ -266,20 +266,20 @@
                 "issues": "https://github.com/flytachi/winter-di/issues",
                 "source": "https://github.com/flytachi/winter-di"
             },
-            "time": "2026-08-03T13:24:47+00:00"
+            "time": "2026-08-17T11:48:26+00:00"
         },
         {
             "name": "flytachi/winter-kernel",
-            "version": "v4.0.7",
+            "version": "v4.0.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Flytachi/winter-kernel.git",
-                "reference": "a8cdb9a5bf44613e74e42ab55af5da7c98e2030e"
+                "reference": "2eac2317825a78378d328ae063dad41616734adb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Flytachi/winter-kernel/zipball/a8cdb9a5bf44613e74e42ab55af5da7c98e2030e",
-                "reference": "a8cdb9a5bf44613e74e42ab55af5da7c98e2030e",
+                "url": "https://api.github.com/repos/Flytachi/winter-kernel/zipball/2eac2317825a78378d328ae063dad41616734adb",
+                "reference": "2eac2317825a78378d328ae063dad41616734adb",
                 "shasum": ""
             },
             "require": {
@@ -345,20 +345,20 @@
                 "issues": "https://github.com/flytachi/winter-kernel/issues",
                 "source": "https://github.com/flytachi/winter-kernel"
             },
-            "time": "2026-08-16T13:10:28+00:00"
+            "time": "2026-08-16T13:20:12+00:00"
         },
         {
             "name": "flytachi/winter-logger",
-            "version": "v1.1.1",
+            "version": "v1.1.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Flytachi/winter-logger.git",
-                "reference": "b5dfe9e0301d07ff705492a5b3a994fc4deb4eee"
+                "reference": "b16d229ce5ca63b17eea84206ac78aee423d079b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Flytachi/winter-logger/zipball/b5dfe9e0301d07ff705492a5b3a994fc4deb4eee",
-                "reference": "b5dfe9e0301d07ff705492a5b3a994fc4deb4eee",
+                "url": "https://api.github.com/repos/Flytachi/winter-logger/zipball/b16d229ce5ca63b17eea84206ac78aee423d079b",
+                "reference": "b16d229ce5ca63b17eea84206ac78aee423d079b",
                 "shasum": ""
             },
             "require": {
@@ -406,20 +406,20 @@
                 "issues": "https://github.com/flytachi/winter-logger/issues",
                 "source": "https://github.com/flytachi/winter-logger"
             },
-            "time": "2026-07-31T10:41:59+00:00"
+            "time": "2026-08-17T15:17:19+00:00"
         },
         {
             "name": "flytachi/winter-thread",
-            "version": "v3.1.0",
+            "version": "v3.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Flytachi/winter-thread.git",
-                "reference": "a49f426ebcc58281fcfff9e7856d78857f87eb22"
+                "reference": "319cef9147ef7831b452705413631ac3985165a7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Flytachi/winter-thread/zipball/a49f426ebcc58281fcfff9e7856d78857f87eb22",
-                "reference": "a49f426ebcc58281fcfff9e7856d78857f87eb22",
+                "url": "https://api.github.com/repos/Flytachi/winter-thread/zipball/319cef9147ef7831b452705413631ac3985165a7",
+                "reference": "319cef9147ef7831b452705413631ac3985165a7",
                 "shasum": ""
             },
             "require": {
@@ -479,7 +479,7 @@
                 "issues": "https://github.com/flytachi/winter-thread/issues",
                 "source": "https://github.com/flytachi/winter-thread"
             },
-            "time": "2026-07-23T17:21:55+00:00"
+            "time": "2026-08-17T18:12:50+00:00"
         },
         {
             "name": "graham-campbell/result-type",

@@ -30,7 +30,7 @@ class Bucket
     public string $description = '';
 
     #[BigInteger]
-    public int $quota_bytes = 104857600; // 100 MiB
+    public int $quota_bytes = 104857600;
 
     #[BigInteger]
     public int $used_bytes = 0;

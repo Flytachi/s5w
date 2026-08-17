@@ -9,19 +9,10 @@ use Flytachi\Winter\Kernel\Http\Request\Validation\Max;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Min;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Size;
 
-/**
- * Список бакетов для панели: страница, поиск и сортировка.
- *
- * Сортировка серверная, потому что она обязана быть сквозной: если сортировать
- * на клиенте, «самые заполненные» окажутся самыми заполненными только на
- * текущей странице, а это неправда.
- */
 final class BucketListRequest
 {
-    /** Разрешённые поля: только реальные колонки таблицы. */
     public const array SORTS = ['name', 'used', 'quota', 'created'];
 
-    /** Строк на странице по умолчанию — размер не тащим в адрес. */
     public const int PER_PAGE = 10;
 
     public function __construct(
@@ -43,7 +34,6 @@ final class BucketListRequest
     ) {
     }
 
-    /** Фрагмент ORDER BY — имена колонок, а не то, что пришло от клиента. */
     public function orderBy(): string
     {
         $column = match ($this->sort) {
@@ -56,7 +46,6 @@ final class BucketListRequest
         return $column . ' ' . ($this->dir === 'asc' ? 'ASC' : 'DESC');
     }
 
-    /** Ссылка на ту же страницу с изменёнными параметрами. */
     public function url(array $override = []): string
     {
         $params = array_filter(
@@ -75,7 +64,6 @@ final class BucketListRequest
         return '/admin/ui/buckets?' . http_build_query($params);
     }
 
-    /** Куда ведёт клик по заголовку колонки: тот же столбец — переворот. */
     public function sortUrl(string $sort): string
     {
         return $this->url([
@@ -85,7 +73,6 @@ final class BucketListRequest
         ]);
     }
 
-    /** Стрелка у заголовка: null — по этой колонке не сортируем. */
     public function sortArrow(string $sort): ?string
     {
         return $this->sort === $sort ? ($this->dir === 'asc' ? '↑' : '↓') : null;

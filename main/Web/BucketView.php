@@ -8,13 +8,6 @@ use Main\Entity\Bucket;
 use Main\Enum\BucketStatus;
 use Main\Enum\CacheVisibility;
 
-/**
- * Бакет глазами панели.
- *
- * Отдельно от {@see \Main\Dto\BucketRes}: у API свой контракт, и тащить в него
- * счётчики ради одной таблицы неправильно — их приходится считать отдельными
- * запросами, а клиенту они не нужны.
- */
 final readonly class BucketView
 {
     public function __construct(
@@ -63,13 +56,11 @@ final readonly class BucketView
         return $this->status === BucketStatus::ACTIVE->name;
     }
 
-    /** Сколько квоты занято, в процентах. */
     public function percent(): float
     {
         return $this->quota > 0 ? min(100, $this->used / $this->quota * 100) : 0.0;
     }
 
-    /** Класс полоски квоты: жёлтая с 70%, красная с 90%. */
     public function quotaState(): string
     {
         return match (true) {

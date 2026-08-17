@@ -44,7 +44,6 @@ final class FileRes
             name: $file->name,
             folder: $folderName,
             content: [
-                // размер и хэш — от блоба, тип — от файла (docs/plan.md §2.4)
                 'size' => $blob->size_bytes,
                 'mime' => $file->mime_type,
                 'extension' => $file->extension,

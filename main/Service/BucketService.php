@@ -68,10 +68,6 @@ final class BucketService
     }
 
     /**
-     * Все бакеты для панели — список и переключатель в боковом меню.
-     * Возвращает сущности, а не DTO: панели нужны ещё и счётчики, которых в
-     * ответе API нет и быть не должно.
-     *
      * @return Bucket[]
      */
     public function all(int $limit = 200): array
@@ -79,12 +75,6 @@ final class BucketService
         return $this->repo->orderBy('created_at DESC')->limit($limit)->findAll();
     }
 
-    /**
-     * Страница бакетов для панели: поиск, сортировка и счётчики.
-     *
-     * Счётчики считаются только для строк этой страницы — по ним не сортируем,
-     * поэтому и знать их для всей таблицы незачем.
-     */
     public function panelPage(BucketListRequest $request): WrapResult
     {
         if ($request->search !== null && $request->search !== '') {
@@ -113,11 +103,6 @@ final class BucketService
     }
 
     /**
-     * Счётчики содержимого по бакетам: файлы, блобы, папки.
-     *
-     * Три сгруппированных запроса вместо трёх на каждую строку списка —
-     * иначе страница из двадцати бакетов стоила бы шестьдесят обращений.
-     *
      * @param string[] $bucketIds
      * @return array<string, array{files: int, blobs: int, folders: int}>
      */
@@ -145,10 +130,6 @@ final class BucketService
         return $stats;
     }
 
-    /**
-     * Политика кэша по умолчанию для файлов бакета.
-     * Папка может её переопределить, файл — нет (docs/plan.md §6).
-     */
     public function setCachePolicy(string $id, CachePolicyRequest $request): BucketRes
     {
         $bucket = $this->get($id);
@@ -167,7 +148,6 @@ final class BucketService
 
         return BucketRes::from($bucket);
     }
-
 
     public function get(string $id): Bucket
     {
@@ -199,7 +179,6 @@ final class BucketService
             throw $e;
         }
 
-        // Каталог создаётся фоном: ответ уходит сразу, статус доедет до ACTIVE сам.
         $this->provisioner->provision($bucket->id);
 
         return BucketRes::from($bucket);
@@ -241,10 +220,6 @@ final class BucketService
         return BucketRes::from($bucket);
     }
 
-    /**
-     * Запрос только помечает бакет; строку и каталог уносит фоновая задача.
-     * PENDING виден в списке и на нём же отсекаются загрузки в удаляемый бакет.
-     */
     public function delete(string $id): void
     {
         $this->get($id);

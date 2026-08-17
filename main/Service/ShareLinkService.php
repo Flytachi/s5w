@@ -9,9 +9,9 @@ use Flytachi\Winter\Cdo\Qb;
 use Flytachi\Winter\DI\Attribute\Autowired;
 use Flytachi\Winter\DI\Attribute\Singleton;
 use Flytachi\Winter\Kernel\Exception\ClientError;
-use Flytachi\Winter\Kernel\Unit\Pagination\WrapMeta;
 use Flytachi\Winter\Kernel\Unit\Pagination\WrapResult;
 use Flytachi\Winter\Kernel\Unit\Wrapper;
+use Main\Dto\LinkCounts;
 use Main\Dto\ShareLinkRes;
 use Main\Entity\FileEntry;
 use Main\Entity\ShareLink;
@@ -29,6 +29,11 @@ use Main\Support\LinkSigner;
 #[Singleton]
 final class ShareLinkService
 {
+    private const string STATE_RANK = 'CASE WHEN revoked THEN 0'
+        . ' WHEN expires_at <= now() THEN 1'
+        . ' WHEN max_downloads IS NOT NULL AND downloads >= max_downloads THEN 2'
+        . ' ELSE 3 END';
+
     #[Autowired]
     private ShareLinkRepository $repo;
 
@@ -140,20 +145,35 @@ final class ShareLinkService
     }
 
     /**
-     * Ссылки бакета для панели — вместе с файлом, на который выданы.
-     *
-     * Поиск и сортировка идут по всему бакету, а не по видимой странице, и
-     * считаются здесь, а не в SQL: сортировать надо по имени файла (другая
-     * таблица) и по состоянию (его в колонках нет — это отзыв, срок и остаток
-     * лимита вместе). Пока строк сотни, честная выборка в память дешевле
-     * коррелированных подзапросов; когда пойдут тысячи — здесь понадобится
-     * join и вычисляемая колонка состояния.
-     *
      * @return array{meta: \Flytachi\Winter\Kernel\Unit\Pagination\WrapMeta, items: array<int, array{link: ShareLink, file: ?FileEntry, url: string}>}
      */
     public function panelPage(string $bucketId, LinkListRequest $request, string $baseUrl = ''): array
     {
-        $links = $this->repo->findAllBy(Qb::eq('bucket_id', $bucketId));
+        $where = [Qb::eq('bucket_id', $bucketId)];
+
+        $search = trim((string) $request->search);
+        if ($search !== '') {
+            $needle = '%' . $search . '%';
+            $where[] = Qb::or(
+                Qb::like('note', $needle, true),
+                Qb::raw(
+                    sprintf(
+                        'EXISTS (SELECT 1 FROM %s f WHERE f.id = file_id AND f.name ILIKE :search)',
+                        $this->fileRepo->originTable(),
+                    ),
+                    ['search' => $needle],
+                ),
+            );
+        }
+
+        $page = Wrapper::paginator(
+            $this->repo->where(Qb::and(...$where))->orderBy($this->orderBy($request)),
+            $request->limit,
+            $request->page,
+        );
+
+        /** @var ShareLink[] $links */
+        $links = $page->data;
         $epoch = $this->buckets->findById($bucketId)?->link_epoch ?? 0;
 
         $files = [];
@@ -163,9 +183,7 @@ final class ShareLinkService
             }
         }
 
-        // Адрес собираем той же подписью, что и при выпуске: она детерминирована,
-        // так что скопировать ссылку можно и потом (см. forFile()).
-        $rows = array_map(
+        $items = array_map(
             fn(ShareLink $link) => [
                 'link' => $link,
                 'file' => $files[$link->file_id] ?? null,
@@ -180,74 +198,28 @@ final class ShareLinkService
             $links,
         );
 
-        $search = trim((string) $request->search);
-        if ($search !== '') {
-            $needle = mb_strtolower($search);
-            $rows = array_values(array_filter($rows, static function (array $row) use ($needle): bool {
-                $haystack = mb_strtolower(($row['file']?->name ?? '') . ' ' . $row['link']->note);
+        return ['meta' => $page->meta, 'items' => $items];
+    }
 
-                return str_contains($haystack, $needle);
-            }));
-        }
+    private function orderBy(LinkListRequest $request): string
+    {
+        $dir = $request->dir === 'asc' ? 'ASC' : 'DESC';
+        $tail = "created_at {$dir}, id {$dir}";
 
-        usort($rows, fn(array $a, array $b) => $this->compare($a, $b, $request->sort) * ($request->dir === 'asc' ? 1 : -1));
-
-        $total = count($rows);
-        $pages = (int) ceil($total / $request->limit);
-        $current = max(1, min($request->page, max(1, $pages)));
-
-        return [
-            'meta' => new WrapMeta(
-                current: $current,
-                size: $request->limit,
-                total: $total,
-                pages: $pages,
-                previous: $current > 1 ? $current - 1 : null,
-                next: $current < $pages ? $current + 1 : null,
+        return match ($request->sort) {
+            'file' => sprintf(
+                '(SELECT f.name FROM %s f WHERE f.id = file_id) %s, %s',
+                $this->fileRepo->originTable(),
+                $dir,
+                $tail,
             ),
-            'items' => array_slice($rows, ($current - 1) * $request->limit, $request->limit),
-        ];
-    }
-
-    /**
-     * Порядок в убывании: сначала самые свежие, самые «живые», а среди равных —
-     * снова по дате, чтобы страницы не перемешивались между запросами.
-     */
-    private function compare(array $a, array $b, string $sort): int
-    {
-        $byDate = static fn(array $x, array $y): int => [$x['link']->created_at, $x['link']->id]
-            <=> [$y['link']->created_at, $y['link']->id];
-
-        return match ($sort) {
-            'file' => [mb_strtolower($a['file']?->name ?? '')] <=> [mb_strtolower($b['file']?->name ?? '')]
-                ?: $byDate($a, $b),
-            'mode' => $a['link']->disposition <=> $b['link']->disposition ?: $byDate($a, $b),
-            'state' => $this->stateRank($a['link']) <=> $this->stateRank($b['link']) ?: $byDate($a, $b),
-            default => $byDate($a, $b),
-        };
-    }
-
-    /** Чем больше, тем «живее»: так убывание ставит рабочие ссылки первыми. */
-    private function stateRank(ShareLink $link): int
-    {
-        return match (true) {
-            $link->revoked => 0,
-            strtotime($link->expires_at) <= time() => 1,
-            $link->max_downloads !== null && $link->downloads >= $link->max_downloads => 2,
-            default => 3,
+            'mode' => "disposition {$dir}, {$tail}",
+            'state' => sprintf('%s %s, %s', self::STATE_RANK, $dir, $tail),
+            default => $tail,
         };
     }
 
     /**
-     * Ссылки, выданные на один файл, — для его карточки.
-     *
-     * Видно только те, у которых есть строка: ссылка без отзыва и лимита живёт
-     * целиком в подписи, и знать о её существовании нам неоткуда.
-     *
-     * Адрес собираем заново: подпись — это HMAC от полей, которые все лежат в
-     * строке (файл, срок, режим, эпоха бакета, id ссылки), так что она выходит
-     * ровно та же. Хранить сам токен для этого не нужно.
-     *
      * @return ShareLinkRes[]
      */
     public function forFile(string $bucketId, string $slug, string $baseUrl, int $limit = 20): array
@@ -278,31 +250,26 @@ final class ShareLinkService
         );
     }
 
-    /** Сколько ссылок у бакета: всего, живых и сколько уже можно вычистить. */
+    /** @return array{total: int, active: int, revoked: int, expired: int} */
     public function counts(string $bucketId): array
     {
-        $all = $this->repo->findAllBy(Qb::eq('bucket_id', $bucketId));
-        $active = array_filter($all, static fn(ShareLink $link) => !$link->revoked
-            && strtotime($link->expires_at) > time());
-        $revoked = array_filter($all, static fn(ShareLink $link) => $link->revoked);
-        $expired = array_filter($all, static fn(ShareLink $link) => !$link->revoked
-            && strtotime($link->expires_at) <= time());
+        $row = $this->repo
+            ->select(
+                'count(*) AS total,'
+                . ' count(*) FILTER (WHERE NOT revoked AND expires_at > now()) AS active,'
+                . ' count(*) FILTER (WHERE revoked) AS revoked,'
+                . ' count(*) FILTER (WHERE NOT revoked AND expires_at <= now()) AS expired'
+            )
+            ->findBy(Qb::eq('bucket_id', $bucketId), LinkCounts::class) ?? new LinkCounts();
 
         return [
-            'total' => count($all),
-            'active' => count($active),
-            'revoked' => count($revoked),
-            'expired' => count($expired),
+            'total' => $row->total,
+            'active' => $row->active,
+            'revoked' => $row->revoked,
+            'expired' => $row->expired,
         ];
     }
 
-    /**
-     * Вычистить мёртвые строки: отозванные или с истёкшим сроком.
-     *
-     * Живые не трогаем даже случайно — фильтр строится по состоянию, а не по
-     * тому, что пришло от клиента. Истёкшие считаем по времени базы: строка
-     * после срока всё равно ничего не открывает.
-     */
     public function purge(string $bucketId, LinkPurge $state): int
     {
         $now = date('Y-m-d H:i:s P');
@@ -325,7 +292,6 @@ final class ShareLinkService
         return count($ids);
     }
 
-    /** Отзыв одной ссылки: строка остаётся, чтобы в панели было видно факт. */
     public function revoke(string $bucketId, int $id): void
     {
         $link = $this->repo->findBy(Qb::and(Qb::eq('id', $id), Qb::eq('bucket_id', $bucketId)));

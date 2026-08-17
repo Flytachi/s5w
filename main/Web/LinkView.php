@@ -8,7 +8,6 @@ use Main\Entity\FileEntry;
 use Main\Entity\ShareLink;
 use Main\Enum\Disposition;
 
-/** Временная ссылка глазами панели: строка вместе с файлом, на который выдана. */
 final readonly class LinkView
 {
     public function __construct(
@@ -23,7 +22,6 @@ final readonly class LinkView
         public bool $attachment,
         public string $note,
         public string $createdAt,
-        /** Пустая строка — адрес не собирали (например, в API-выдаче). */
         public string $url = '',
     ) {
     }
@@ -53,7 +51,6 @@ final readonly class LinkView
             && ($this->maxDownloads === null || $this->downloads < $this->maxDownloads);
     }
 
-    /** Почему ссылка не работает — одной причиной, самой ранней. */
     public function deadReason(): ?string
     {
         return match (true) {

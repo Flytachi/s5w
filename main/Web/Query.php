@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Main\Web;
 
-/** Сборка адресов для постраничности и фильтров: пустые параметры не тащим. */
 final class Query
 {
     public static function url(string $path, array $params): string

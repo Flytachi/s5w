@@ -40,7 +40,6 @@ final class ShareLinkRes
         );
     }
 
-    /** Ссылка без состояния: строки в базе нет, отзывать нечего. */
     public static function stateless(string $url, string $expiresAt, Disposition $disposition): self
     {
         return new self(

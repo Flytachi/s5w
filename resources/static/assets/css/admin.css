@@ -61,7 +61,7 @@
   --font: "Onest", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --sidebar-w: 264px;
+  --sidebar-w: 292px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -668,8 +668,6 @@ select[multiple].select-native {
 
 /* ---- Custom select ---- */
 
-.cselect { position: relative; }
-
 .cselect__btn {
   width: 100%;
   display: flex;
@@ -688,10 +686,20 @@ select[multiple].select-native {
 .cselect__btn:hover { border-color: var(--gray-5); }
 .cselect.is-open .cselect__btn { border-color: var(--dark); }
 
-.cselect__value { flex: 1; text-align: left; }
+.cselect { position: relative; min-width: 0; }
+
+.cselect__value {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .cselect__value .status-dot { margin-right: 8px; }
 
-.cselect__chev { transition: transform 0.2s ease; color: var(--gray-6); }
+.cselect__chev { flex: 0 0 auto; transition: transform 0.2s ease; color: var(--gray-6); }
 .cselect.is-open .cselect__chev { transform: rotate(180deg); }
 
 .cselect__menu {
@@ -723,7 +731,11 @@ select[multiple].select-native {
   font-weight: 500;
   color: var(--dark);
   text-align: left;
+  min-width: 0;
 }
+
+.cselect__option .status-dot { flex: 0 0 auto; }
+.cselect__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .cselect__option:hover { background: var(--gray-2); }
 .cselect__option.is-selected { background: var(--dark); color: var(--white); }
@@ -1586,7 +1598,26 @@ code.inline {
 
 .auth__logo { display: flex; align-items: center; gap: 10px; font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
 .auth__logo svg { width: 28px; height: 28px; color: var(--brand); }
-.auth__sub { color: var(--gray-5); font-size: 0.88rem; margin-bottom: 22px; }
+.auth__sub { color: var(--gray-5); font-size: 0.88rem; }
+
+/* Переключатель темы на странице входа: шапки здесь нет, а тема нужна. */
+.auth__theme { position: fixed; top: 20px; right: 20px; }
+
+/* Глазок в поле пароля — справа, чтобы не спорить с иконкой замка слева. */
+.auth__peek { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); }
+.input-group:has(.auth__peek) .input { padding-right: 44px; }
+
+.auth__note { margin-top: 20px; font-size: 0.78rem; color: var(--gray-5); line-height: 1.5; }
+
+/* Ошибка входа — единственный красный элемент на странице. */
+.alert--danger {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.alert--danger .icon { color: var(--danger); }
+.alert--danger .alert__text { color: var(--danger); }
 
 /* --- Мелочи ------------------------------------------------- */
 
@@ -1735,6 +1766,10 @@ code.inline {
    ============================================================ */
 
 .choices { display: flex; flex-direction: column; gap: 8px; }
+
+/* Два взаимоисключающих варианта читаются рядом, а не списком. */
+.choices--pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.modal--token { max-width: 640px; }
 
 .choice {
   display: flex;
@@ -2113,6 +2148,7 @@ code.inline {
 
   .card { padding: 16px; }
   .modal { padding: 20px; }
+  .choices--pair { grid-template-columns: 1fr; }
   .modal__footer { flex-wrap: wrap; }
   .modal__footer .btn { flex: 1; justify-content: center; }
 
@@ -2209,6 +2245,22 @@ code.inline {
 .stat--warn .stat__icon { background: var(--warn); color: #fff; }
 .stat--warn .stat__value { color: var(--warn); }
 
+/* Выключенное — не тревога, а состояние: серый ряд без цвета. */
+.stat--mute { background: var(--gray-2); border-color: var(--gray-3); }
+.stat--mute .stat__icon { background: var(--gray-6); color: var(--white); }
+.stat--mute .stat__value { color: var(--gray-7); }
+
+/* На узком экране четыре плитки в ряд делят ширину так, что подпись вылезает
+   за карточку: слово не переносится. Ужимаем значок и цифру, а не текст. */
+@media (max-width: 1400px) {
+  .stat { gap: 10px; padding: 14px 16px; }
+  .stat__icon { width: 40px; height: 40px; border-radius: 12px; }
+  .stat__icon .icon { width: 20px; height: 20px; }
+  .stat__value { font-size: 1.7rem; }
+  .stat__label { font-size: 0.88rem; }
+  .stat__note { font-size: 0.74rem; }
+}
+
 /* Ноль — не событие: плитка гаснет до нейтральной. */
 .stat:has(.stat__value.is-zero) { background: var(--white); border-color: transparent; }
 .stat:has(.stat__value.is-zero) .stat__icon { background: var(--gray-2); color: var(--gray-5); }
@@ -2278,6 +2330,26 @@ code.inline {
 .panel .table { min-width: 0; }
 /* Имя файла ужимается, но не в одну букву: раньше сжималась именно эта колонка. */
 .panel .table td:first-child { width: 100%; max-width: 0; min-width: 210px; }
+/* Столбцы с плашками не ужимаются: у плашки текст не переносится, и в узкой
+   ячейке он вылезает за собственную подложку — выглядит как сломанная вёрстка. */
+.panel--tokens .table td:nth-child(2), .panel--tokens .table th:nth-child(2) { min-width: 96px; }
+.panel--tokens .table td:nth-child(3), .panel--tokens .table th:nth-child(3) { min-width: 112px; }
+
+/* Когда ширины не хватает, первыми уходят даты: ключ, доступ и состояние —
+   то, ради чего сюда заходят. */
+@media (max-width: 1280px) {
+  .panel--tokens .table th:nth-child(6), .panel--tokens .table td:nth-child(6) { display: none; }
+}
+
+@media (max-width: 1150px) {
+  .panel--tokens .table th:nth-child(5), .panel--tokens .table td:nth-child(5) { display: none; }
+}
+
+@media (max-width: 1024px) {
+  /* Общее правило прячет второй столбец — здесь это доступ, вернём. */
+  .panel--tokens .table th:nth-child(2), .panel--tokens .table td:nth-child(2) { display: table-cell; }
+}
+
 .panel .table td:nth-last-child(2) {
   max-width: 180px;
   overflow: hidden;
@@ -2306,6 +2378,7 @@ code.inline {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   background: var(--white);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-sm);
@@ -2332,6 +2405,9 @@ code.inline {
 }
 
 .fm__where b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fm__where { flex: 1 1 190px; }
+.fm__where .text-sm { white-space: nowrap; }
+.fm__head .search-pill { flex: 1 1 160px; min-width: 0; }
 .fm__where .icon { color: var(--gray-5); flex: 0 0 auto; }
 
 /* Прокрутка живёт здесь, а не на странице. */

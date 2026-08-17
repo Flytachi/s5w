@@ -14,10 +14,12 @@ use Flytachi\Winter\Kernel\Http\Response\ResponseView;
 use Flytachi\Winter\Kernel\Http\Stereotype\Controller;
 use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
+use Main\Controllers\Middlewares\AdminPageMiddleware;
 use Main\Dto\FileRes;
 use Main\Request\BucketListRequest;
 use Main\Request\LinkListRequest;
 use Main\Request\PanelListRequest;
+use Main\Request\TokenListRequest;
 use Main\Service\AccessTokenService;
 use Main\Service\BucketService;
 use Main\Service\FileService;
@@ -30,17 +32,7 @@ use Main\Web\LinkView;
 use Main\Web\Query;
 use Main\Web\MockData;
 
-/**
- * Веб-админка под /admin/ui — отдельно от API на /admin/buckets.
- *
- * Навигация составная: сверху общее, ниже выбранный бакет со своими файлами,
- * папками, токенами и ссылками. Токен и ссылка вне бакета не существуют.
- *
- * Все разделы работают с базой; на выдумке остался только обзор — там сводка
- * по всему хранилищу, считать которую пока некому.
- *
- * TODO: закрыть AdminJwtMiddleware вместе с API (docs/plan.md §8.8).
- */
+#[AdminPageMiddleware]
 #[RequestMapping('admin/ui')]
 final class AdminWebController extends Controller
 {
@@ -92,23 +84,16 @@ final class AdminWebController extends Controller
         ]);
     }
 
-    /** Обзор бакета — первое, что видно при заходе: цифры и настройки. */
     #[GetMapping('buckets/{id}')]
     public function overview(#[PathVariable, Uuid] string $id): ResponseView
     {
         return $this->bucketPage($id, 'bucket-overview', 'overview', 'сводка по бакету', [
             'folders' => $this->folderViews($id),
             'linkCounts' => $this->links->counts($id),
-            'tokenCount' => $this->tokens->getAll($id, (new PanelListRequest(limit: 5))->toPage())->meta->total,
-        ]);
+            'tokenCount' => $this->tokens->counts($id)['total'],
+        ], withStats: true);
     }
 
-    /**
-     * Файловый менеджер: папки и файлы в одном окне.
-     *
-     * Папка выбирается через тот же параметр, что и фильтр списка, — адрес
-     * остаётся честным, а постраничность считается сервером по выбранной папке.
-     */
     #[GetMapping('buckets/{id}/files')]
     public function files(
         #[PathVariable, Uuid] string $id,
@@ -126,23 +111,22 @@ final class AdminWebController extends Controller
                 '/admin/ui/buckets/' . $id . '/files',
                 $request->params($number),
             ),
-        ]);
+        ], withStats: true);
     }
 
     #[GetMapping('buckets/{id}/tokens')]
     public function tokens(
         #[PathVariable, Uuid] string $id,
-        #[RequestQuery, Valid] PanelListRequest $request,
+        #[RequestQuery, Valid] TokenListRequest $request,
     ): ResponseView {
-        $page = $this->tokens->getAll($id, $request->toPage());
+        $page = $this->tokens->panelPage($id, $request);
 
-        return $this->bucketPage($id, 'bucket-tokens', 'tokens', 'ключи клиента к каналу /p', [
+        return $this->bucketPage($id, 'bucket-tokens', 'tokens', 'ключи клиента к бакету', [
             'meta' => $page->meta,
             'tokens' => $page->data,
-            'pageUrl' => static fn(int $number) => Query::url(
-                '/admin/ui/buckets/' . $id . '/tokens',
-                $request->params($number),
-            ),
+            'counts' => $this->tokens->counts($id),
+            'query' => $request,
+            'pageUrl' => static fn(int $number) => $request->url($id, ['page' => $number]),
         ]);
     }
 
@@ -166,15 +150,6 @@ final class AdminWebController extends Controller
         ]);
     }
 
-    /** Отдельная страница без каркаса админки. */
-    #[GetMapping('login')]
-    public function login(): ResponseView
-    {
-        return ResponseView::view('admin/login');
-    }
-
-    // ── Внутреннее ───────────────────────────────────────────────────────────
-
     /** @return FolderView[] */
     private function folderViews(string $bucketId): array
     {
@@ -190,13 +165,14 @@ final class AdminWebController extends Controller
         string $nav,
         string $subtitle,
         array $data,
+        bool $withStats = false,
     ): ResponseView {
         $bucket = $this->buckets->get($id);
-        $current = BucketView::from($bucket, $this->buckets->stats([$id])[$id]);
+        $stats = $withStats
+            ? $this->buckets->stats([$id])[$id]
+            : ['files' => 0, 'blobs' => 0, 'folders' => 0];
+        $current = BucketView::from($bucket, $stats);
 
-        // Шапка внутри бакета — только имя и статус: раздел виден по подсветке
-        // в меню, описание есть на обзоре, а строка подписи забирала высоту у
-        // файлового окна.
         return $this->page($resource, $current->name, $nav, $data + [
             'subtitle' => '',
             'bucket' => $current,
@@ -204,10 +180,6 @@ final class AdminWebController extends Controller
     }
 
     /**
-     * Список для переключателя в боковом меню — без счётчиков: там нужны
-     * только имя и статус, а считать содержимое каждого бакета ради этого
-     * значило бы три запроса на выпадающий список.
-     *
      * @return BucketView[]
      */
     private function switcherBuckets(): array

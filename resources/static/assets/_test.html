@@ -60,6 +60,45 @@ async function api(method, path, body) {
 async function run() {
   const NAME = "ui-test-" + Math.random().toString(36).slice(2, 8);
 
+  // Логин и пароль можно передать в адресе (?login=…&password=…), иначе набор
+  // работает на уже открытой сессии панели.
+  const creds = new URLSearchParams(location.search);
+  let ownSession = false;
+
+  if (creds.get("login")) {
+    const auth = await api("POST", "/admin/auth/login", {
+      login: creds.get("login"),
+      password: creds.get("password") || "",
+    });
+    check("вход в панель", auth.status === 200, "сессия до " + (auth.data && auth.data.expiresAt));
+    ownSession = auth.status === 200;
+  } else {
+    const probe = await api("GET", "/admin/buckets?limit=1");
+    check("сессия уже открыта", probe.status === 200,
+          probe.status === 401 ? "войдите в панель или запустите с ?login=…&password=…" : "");
+    if (probe.status !== 200) return;
+  }
+
+  // ───────────────────── чужого не пускают ─────────────────────
+  const anon = await fetch("/admin/buckets", { credentials: "omit", headers: { Accept: "application/json" } });
+  const anonBody = await anon.json().catch(() => null);
+  check("без сессии API отвечает 401", anon.status === 401, String(anon.status));
+  check("и отвечает разбираемым JSON", anonBody !== null && anonBody.code === 401, anonBody && anonBody.message);
+
+  const anonPage = await fetch("/admin/ui/buckets", { credentials: "omit" });
+  check("страница без сессии уводит на вход", anonPage.url.includes("/admin/ui/login"), new URL(anonPage.url).pathname);
+  check("и помнит, куда шли", decodeURIComponent(anonPage.url).includes("next=/admin/ui/buckets"));
+
+  const openLogin = await fetch("/admin/ui/login", { credentials: "omit" });
+  check("сама форма входа открыта всем", openLogin.status === 200, String(openLogin.status));
+
+  const loggedIn = await fetch("/admin/ui/login");
+  check("вошедшего форма входа не показывает", new URL(loggedIn.url).pathname === "/admin/ui",
+        new URL(loggedIn.url).pathname);
+
+  const wrong = await api("POST", "/admin/auth/login", { login: "нет-такого", password: "нет" });
+  check("чужой пароль не пускают", wrong.status === 401, wrong.data && wrong.data.message);
+
   // ───────────────────── подготовка: свой бакет ─────────────────────
   const created = await api("POST", "/admin/buckets", { name: NAME, description: "прогон интерфейса", quotaBytes: 33554432 });
   check("бакет для прогона создан", created.status === 202, NAME);
@@ -328,9 +367,19 @@ async function run() {
   check("порядок виден на кнопке", /по весу/.test($(".fm__main .dropdown [data-dropdown-toggle]").textContent));
 
   // ───────────────────── токены ─────────────────────
+  const slug = fileRow.dataset.id;
+  const counter = (name) => $(`[data-counter="tokens-${name}"]`).textContent.trim();
+
   await load("/admin/ui/buckets/" + BUCKET + "/tokens");
+  check("сводка по ключам на месте", $$("[data-counter^='tokens-']").length === 4, "живых, полных, выключенных, просроченных");
+  check("ключей пока нет", counter("active") === "0" && counter("full") === "0");
+
   $('[data-modal-open="modal-token"]').click();
   await waitFor(() => $("#modal-token.is-open"), "форма токена");
+  check("вид ключа выбирается карточками", $$('#modal-token .choice input[name="access"]').length === 2);
+  check("по умолчанию — только отдача", $('#modal-token [name="access"]:checked').value === "1");
+  check("срок списком, по умолчанию бессрочно", $('#modal-token [name="expiresInDays"]').value === "");
+
   $('#modal-token [name="name"]').value = "";
   $('#modal-token [type="submit"]').click();
   await waitFor(() => $("#modal-token .field__error"), "ошибка пустого имени");
@@ -342,25 +391,186 @@ async function run() {
   await waitFor(() => $("#modal-secret.is-open"), "секрет токена");
   const token = $("[data-secret-value]").textContent;
   check("токен показан один раз", /^s5w_[a-f0-9]{40,}$/.test(token), token.slice(0, 14) + "…");
+  check("проверочная команда ведёт на /v1/check", /\/v1\/check/.test($("[data-secret-curl]").textContent));
   check("строка токена добавлена", rows("tokens").length === 1);
   $("#modal-secret [data-modal-close]").click();
 
+  let basicRow = rows("tokens")[0];
+  check("в строке вид «чтение»", /чтение/.test(basicRow.querySelector('[data-cell="access"]').textContent));
+  check("в строке хвост ключа", basicRow.querySelector(".fileline__meta").textContent.trim() === "s5w_…" + token.slice(-4),
+        "s5w_…" + token.slice(-4));
+  check("плитка живых выросла", counter("active") === "1" && counter("full") === "0");
+
   // токен действительно работает на приватной отдаче
-  const priv = await fetch("/p/" + fileRow.dataset.id, { headers: { Authorization: "Bearer " + token } });
+  const priv = await fetch("/p/" + slug, { headers: { Authorization: "Bearer " + token } });
   check("по токену приватная отдача работает", priv.status === 200, String(priv.status));
 
-  const tokenRow = rows("tokens")[0];
-  tokenRow.querySelector('[data-action="token:toggle"]').click();
-  await waitFor(() => /выключен/.test(tokenRow.querySelector('[data-cell="status"]').textContent), "статус");
-  check("токен выключается на месте", true);
+  // ключ с полным доступом
+  $('[data-modal-open="modal-token"]').click();
+  await waitFor(() => $("#modal-token.is-open"), "форма токена");
+  $('#modal-token [name="name"]').value = "полный из теста";
+  $('#modal-token [name="access"][value="2"]').checked = true;
+  $('#modal-token [type="submit"]').click();
+  await waitFor(() => $("#modal-secret.is-open"), "секрет полного ключа");
+  const fullToken = $("[data-secret-value]").textContent;
+  check("у полного ключа команда та же", /\/v1\/check/.test($("[data-secret-curl]").textContent));
+  $("#modal-secret [data-modal-close]").click();
 
-  const denied = await fetch("/p/" + fileRow.dataset.id, { headers: { Authorization: "Bearer " + token } });
+  let fullRow = rows("tokens")[0];
+  check("в строке вид «полный»", /полный/.test(fullRow.querySelector('[data-cell="access"]').textContent));
+  check("плитка полных выросла", counter("full") === "1" && counter("active") === "2");
+
+  // ротация меняет секрет и хвост, старый ключ умирает
+  fullRow.querySelector('[data-action="token:rotate"]').click();
+  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение ротации")).click();
+  await waitFor(() => $("#modal-secret.is-open"), "новый секрет");
+  const rotated = $("[data-secret-value]").textContent;
+  check("ключ сменился", rotated !== fullToken, rotated.slice(0, 14) + "…");
+  check("хвост в строке обновился", fullRow.querySelector(".fileline__meta").textContent.trim() === "s5w_…" + rotated.slice(-4));
+  $("#modal-secret [data-modal-close]").click();
+  const dead = await fetch("/p/" + slug, { headers: { Authorization: "Bearer " + fullToken } });
+  check("старый ключ после ротации не пускают", dead.status === 401, String(dead.status));
+
+  // сортировка и поиск сквозные
+  await load("/admin/ui/buckets/" + BUCKET + "/tokens?sort=access&dir=desc");
+  check("сортировка по виду: полный сверху", rows("tokens")[0].dataset.access === "FULL");
+  await load("/admin/ui/buckets/" + BUCKET + "/tokens?sort=name&dir=asc");
+  check("сортировка по имени", rows("tokens")[0].dataset.name === "из теста", rows("tokens").map((r) => r.dataset.name).join(", "));
+  await load("/admin/ui/buckets/" + BUCKET + "/tokens?search=" + encodeURIComponent("полный"));
+  check("поиск по имени", rows("tokens").length === 1 && rows("tokens")[0].dataset.name === "полный из теста");
+
+  await load("/admin/ui/buckets/" + BUCKET + "/tokens?sort=name&dir=asc");
+  basicRow = rows("tokens")[0];
+  fullRow = rows("tokens")[1];
+
+  basicRow.querySelector('[data-action="token:toggle"]').click();
+  await waitFor(() => /выключен/.test(basicRow.querySelector('[data-cell="status"]').textContent), "статус");
+  check("токен выключается на месте", true);
+  check("плитки пересчитались", counter("inactive") === "1" && counter("active") === "1", "выключен один из двух");
+
+  const denied = await fetch("/p/" + slug, { headers: { Authorization: "Bearer " + token } });
   check("выключенный токен получает 403", denied.status === 403, String(denied.status));
 
-  tokenRow.querySelector('[data-action="token:delete"]').click();
-  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение")).click();
-  await waitFor(() => rows("tokens").length === 0, "строка убрана");
-  check("токен удалён", true);
+  for (const row of [basicRow, fullRow]) {
+    row.querySelector('[data-action="token:delete"]').click();
+    (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение")).click();
+    await sleep(250);
+  }
+  await waitFor(() => rows("tokens").length === 0, "строки убраны");
+  check("токены удалены", true);
+  check("сводка обнулилась", counter("active") === "0" && counter("full") === "0" && counter("inactive") === "0");
+
+  // ───────────────────── настройки папки доходят до файлов ─────────────────────
+  const fileState = async () => (await api("GET", `/admin/buckets/${BUCKET}/files/${fileRow.dataset.id}`)).data;
+  // no-store: без него браузер отвечает из своего кэша, и закрытая папка
+  // «продолжает отдавать» файл, которого сервер уже не даёт.
+  const openState = async () => (await fetch("/o/" + BUCKET + "/" + fileRow.dataset.id, { cache: "no-store" })).status;
+  const setFolder = (isPublic, retention) =>
+    api("PUT", `/admin/buckets/${BUCKET}/folders/photos`, { name: "photos", public: isPublic, retention });
+
+  // Проверка переноса выше оставила файл в корне — вернём его в папку.
+  const placed = await fileState();
+  await api("PUT", `/admin/buckets/${BUCKET}/files/${fileRow.dataset.id}`, { name: placed.name, folder: "photos" });
+
+  const before = await fileState();
+  check("файл публичной папки открыт наружу", before.public && (await openState()) === 200, "папка: " + before.folder);
+  check("и получил срок от папки", before.expiresAt !== null, before.expiresAt);
+
+  await setFolder(false, 0);
+  const closed = await fileState();
+  check("папку закрыли — файл закрылся с ней", closed.public === false && (await openState()) === 404,
+        "public=" + closed.public);
+  check("срок сняли — у файла его тоже нет", closed.expiresAt === null, String(closed.expiresAt));
+
+  await setFolder(true, 2);
+  const opened = await fileState();
+  check("папку открыли обратно — файл снова наружу", opened.public && (await openState()) === 200);
+  // Неделя считается от загрузки файла, а не от правки папки — значит срок
+  // должен лечь около семи дней вперёд, а не в другой конец календаря.
+  const daysLeft = (Date.parse(opened.expiresAt.replace(" ", "T").replace(/\+(\d\d)$/, "+$1:00")) - Date.now()) / 86400000;
+  check("срок вернулся и считается от загрузки", daysLeft > 6 && daysLeft < 8, daysLeft.toFixed(2) + " дней");
+
+  // ───────────────────── клиентский API /v1 ─────────────────────
+  const issueKey = async (name, access) =>
+    (await api("POST", `/admin/buckets/${BUCKET}/tokens`, { name, access })).data;
+
+  const keyFull = await issueKey("v1 полный", 2);
+  const keyBasic = await issueKey("v1 чтение", 1);
+
+  const v1 = async (method, path, body, key = keyFull.token) => {
+    const headers = { Authorization: "Bearer " + key };
+    if (body && !(body instanceof FormData)) headers["Content-Type"] = "application/json";
+    const res = await fetch(path, {
+      method,
+      headers,
+      body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+    });
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+    return { status: res.status, data };
+  };
+
+  const apiWho = await v1("GET", "/v1/check");
+  check("/v1/check отдаёт свой бакет", apiWho.status === 200 && apiWho.data.bucket.id === BUCKET, apiWho.data?.bucket?.name);
+  check("/v1/check знает вид ключа и место", apiWho.data.access.name === "FULL" && apiWho.data.bytes.quota === 33554432,
+        `${apiWho.data.access.name}, квота ${apiWho.data.bytes.quota}`);
+
+  const apiWhoBasic = await v1("GET", "/v1/check", null, keyBasic.token);
+  check("ключ «чтение» тоже спрашивает про себя", apiWhoBasic.status === 200 && apiWhoBasic.data.access.name === "BASIC");
+
+  const apiNoKey = await fetch("/v1/check");
+  check("без ключа — 401", apiNoKey.status === 401, String(apiNoKey.status));
+
+  const apiDenied = await v1("GET", "/v1/files", null, keyBasic.token);
+  check("«чтение» в /v1/files не пускают", apiDenied.status === 403, apiDenied.data?.message);
+
+  const apiListed = await v1("GET", "/v1/files");
+  check("/v1/files отдаёт список", apiListed.status === 200 && apiListed.data.meta.total === 1, "файлов: " + apiListed.data?.meta?.total);
+
+  const apiFolder = await v1("POST", "/v1/folders", { name: "из апи", public: false, retention: 1 });
+  check("/v1/folders заводит папку", apiFolder.status === 201 && apiFolder.data.retention.name === "DAY", apiFolder.data?.name);
+
+  const apiForm = new FormData();
+  apiForm.append("file", new File([new Uint8Array(4096)], "выгрузка.bin", { type: "application/octet-stream" }));
+  apiForm.append("folder", "из апи");
+  const apiUploaded = await v1("POST", "/v1/files", apiForm);
+  check("/v1/files принимает загрузку", apiUploaded.status === 201 && apiUploaded.data.folder === "из апи", apiUploaded.data?.name);
+  check("у файла в папке-времянке есть срок", apiUploaded.data.expiresAt !== null, apiUploaded.data?.expiresAt);
+  const apiSlug = apiUploaded.data.id;
+
+  const apiRenamed = await v1("PUT", `/v1/files/${apiSlug}`, { name: "выгрузка-2.bin", folder: "из апи" });
+  check("/v1/files переименовывает", apiRenamed.status === 200 && apiRenamed.data.name === "выгрузка-2.bin");
+
+  const apiByKey = await fetch("/p/" + apiSlug, { headers: { Authorization: "Bearer " + keyBasic.token } });
+  check("залитый через API файл отдаётся по /p", apiByKey.status === 200, String(apiByKey.status));
+
+  const apiLink = await v1("POST", `/v1/files/${apiSlug}/link`, { ttl: 600, revocable: true, note: "из прогона" });
+  check("/v1 выпускает временную ссылку", apiLink.status === 201 && apiLink.data.id !== null, apiLink.data?.url?.slice(-12));
+  const apiOpened = await fetch(apiLink.data.url);
+  check("по выпущенной ссылке файл открывается", apiOpened.status === 200, String(apiOpened.status));
+
+  const apiLinkList = await v1("GET", "/v1/links");
+  check("/v1/links показывает выпущенное", apiLinkList.status === 200 && apiLinkList.data.data.some((l) => l.id === apiLink.data.id));
+
+  const apiRevoke = await v1("DELETE", `/v1/links/${apiLink.data.id}`);
+  const apiDeadLink = await fetch(apiLink.data.url);
+  check("отозванная ссылка отвечает 404", apiRevoke.status === 204 && apiDeadLink.status === 404,
+        `${apiRevoke.status} → ${apiDeadLink.status}`);
+
+  const apiEpoch = await v1("DELETE", "/v1/links");
+  check("/v1/links гасит всё разом", apiEpoch.status === 200 && apiEpoch.data.epoch >= 1, "эпоха " + apiEpoch.data?.epoch);
+
+  const apiDropped = await v1("DELETE", `/v1/files/${apiSlug}`);
+  const apiGone = await v1("GET", `/v1/files/${apiSlug}`);
+  check("/v1 удаляет файл", apiDropped.status === 204 && apiGone.status === 404, `${apiDropped.status} → ${apiGone.status}`);
+
+  const apiFolderGone = await v1("DELETE", "/v1/folders/" + encodeURIComponent("из апи"));
+  check("/v1 удаляет папку", apiFolderGone.status === 204, String(apiFolderGone.status));
+
+  for (const key of [keyFull, keyBasic]) {
+    await api("DELETE", `/admin/buckets/${BUCKET}/tokens/${key.accessToken.id}`);
+  }
 
   // ───────────────────── удаление файла и папки ─────────────────────
   await load("/admin/ui/buckets/" + BUCKET + "/files");
@@ -409,6 +619,13 @@ async function run() {
   // ───────────────────── уборка ─────────────────────
   const dropped = await api("DELETE", "/admin/buckets/" + BUCKET);
   check("тестовый бакет удалён", dropped.status === 202, NAME);
+
+  // Выходим только из своей сессии, чужую не трогаем.
+  if (ownSession) {
+    const out = await api("POST", "/admin/auth/logout");
+    const after = await api("GET", "/admin/buckets?limit=1");
+    check("выход гасит сессию", out.status === 200 && after.status === 401, `${out.status} → ${after.status}`);
+  }
 }
 
 run()

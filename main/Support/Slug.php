@@ -8,7 +8,7 @@ final class Slug
 {
     public const int LENGTH = 16;
 
-    private const int BYTES = 12; // 12 байт → ровно 16 символов base64url без '='
+    private const int BYTES = 12;
 
     public static function generate(): string
     {

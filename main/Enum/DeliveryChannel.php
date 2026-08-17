@@ -6,7 +6,7 @@ namespace Main\Enum;
 
 enum DeliveryChannel
 {
-    case PUBLIC;   // /o — без авторизации
-    case PRIVATE;  // /p — по токену бакета
-    case TEMPORARY; // /t — по подписанной ссылке
+    case PUBLIC;
+    case PRIVATE;
+    case TEMPORARY;
 }

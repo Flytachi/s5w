@@ -18,11 +18,13 @@ use Flytachi\Winter\Kernel\Route\Annotation\PatchMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PutMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
+use Main\Controllers\Middlewares\AdminAuthMiddleware;
 use Main\Request\CachePolicyRequest;
 use Main\Request\FolderRequest;
 use Main\Request\PageRequest;
 use Main\Service\FolderService;
 
+#[AdminAuthMiddleware]
 #[RequestMapping('admin/buckets/{bucketId}/folders')]
 final class FolderController extends Controller
 {
@@ -50,7 +52,7 @@ final class FolderController extends Controller
         #[PathVariable, Uuid] string $bucketId,
         #[PathVariable] string $name,
     ): ResponseEntity {
-        return ResponseEntity::ok($this->service->getOne($bucketId, $name));
+        return ResponseEntity::ok($this->service->getOne($bucketId, self::name($name)));
     }
 
     #[PutMapping('{name}')]
@@ -59,7 +61,7 @@ final class FolderController extends Controller
         #[PathVariable] string $name,
         #[RequestJson, Valid] FolderRequest $request,
     ): ResponseEntity {
-        return ResponseEntity::ok($this->service->update($bucketId, $name, $request));
+        return ResponseEntity::ok($this->service->update($bucketId, self::name($name), $request));
     }
 
     #[PatchMapping('{name}/cache')]
@@ -68,7 +70,7 @@ final class FolderController extends Controller
         #[PathVariable] string $name,
         #[RequestJson, Valid] CachePolicyRequest $request,
     ): ResponseEntity {
-        return ResponseEntity::ok($this->service->setCachePolicy($bucketId, $name, $request));
+        return ResponseEntity::ok($this->service->setCachePolicy($bucketId, self::name($name), $request));
     }
 
     #[DeleteMapping('{name}')]
@@ -76,7 +78,12 @@ final class FolderController extends Controller
         #[PathVariable, Uuid] string $bucketId,
         #[PathVariable] string $name,
     ): ResponseEntity {
-        $this->service->delete($bucketId, $name);
+        $this->service->delete($bucketId, self::name($name));
         return ResponseEntity::noContent();
+    }
+
+    private static function name(string $raw): string
+    {
+        return rawurldecode($raw);
     }
 }

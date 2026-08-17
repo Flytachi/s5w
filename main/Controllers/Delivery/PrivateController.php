@@ -17,12 +17,6 @@ use Main\Http\BucketContext;
 use Main\Service\DeliveryService;
 use Main\Support\Slug;
 
-/**
- * Приватная отдача: /p/{slug} по токену бакета.
- *
- * Бакета в адресе нет — он известен из токена, и подставить чужой невозможно
- * в принципе, а не только запрещено проверкой.
- */
 #[AccessTokenMiddleware]
 #[RequestMapping('p')]
 final class PrivateController extends Controller

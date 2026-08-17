@@ -18,14 +18,13 @@ use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PatchMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
+use Main\Controllers\Middlewares\AdminAuthMiddleware;
 use Main\Request\AccessTokenRequest;
 use Main\Request\PageRequest;
 use Main\Request\TokenStatusRequest;
 use Main\Service\AccessTokenService;
 
-/**
- * TODO: закрыть AdminJwtMiddleware (docs/plan.md §8.8).
- */
+#[AdminAuthMiddleware]
 #[RequestMapping('admin/buckets/{bucketId}/tokens')]
 final class AccessTokenController extends Controller
 {

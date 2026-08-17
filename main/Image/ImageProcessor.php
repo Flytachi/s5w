@@ -11,21 +11,9 @@ use Flytachi\Winter\Kernel\Exception\ServerError;
 use Main\Enum\ImageFormat;
 use Main\Request\FileUploadRequest;
 
-/**
- * Обработка картинки при загрузке (docs/plan.md §10).
- *
- * Порядок: заголовок → потолок пикселей → декод → ресайз → EXIF-поворот →
- * кодек. Ничего не просили — файл даже не открывается.
- */
 #[Singleton]
 final class ImageProcessor
 {
-    /**
-     * GD держит картинку несжатым bitmap'ом по 4 байта на пиксель, а поворот
-     * на время работы удваивает это. 25 Мп — это 100 МБ на кадр, 200 МБ на пике
-     * при memory_limit=256M на воркер. Заодно это защита от «декомпрессионной
-     * бомбы»: файл на 40 КБ с холстом 30000×30000.
-     */
     private const int MAX_PIXELS = 25_000_000;
 
     private const array DECODABLE = [
@@ -62,8 +50,6 @@ final class ImageProcessor
                 HttpCode::UNPROCESSABLE_ENTITY,
             );
         }
-        // GD схлопывает анимацию в первый кадр — это порча файла, а не
-        // оптимизация. Такие кладём как есть.
         if ($this->isAnimated($srcPath, $mime)) {
             return ProcessedImage::skipped($srcPath, 'animated');
         }
@@ -80,8 +66,6 @@ final class ImageProcessor
         $orientation = $this->orientation($srcPath, $mime);
         $rotates = in_array($orientation, [5, 6, 7, 8], true);
 
-        // Ресайз считаем по тому, как картинка выглядит после поворота: у фото
-        // с телефона в файле может лежать альбомный кадр с меткой «повернуть».
         $box = $rotates
             ? [$request->maxHeight, $request->maxWidth]
             : [$request->maxWidth, $request->maxHeight];
@@ -98,8 +82,6 @@ final class ImageProcessor
         if (!imageistruecolor($image)) {
             imagepalettetotruecolor($image);
         }
-        // Декодер флаги альфы не выставляет: без этого прозрачный png,
-        // пересохранённый в webp без ресайза, приедет с чёрным фоном.
         imagealphablending($image, false);
         imagesavealpha($image, true);
 
@@ -107,9 +89,6 @@ final class ImageProcessor
             $image = $this->resize($image, $scale);
             $operations[] = sprintf('resize:%dx%d', imagesx($image), imagesy($image));
         }
-        // Поворот после ресайза: он аллоцирует ещё один кадр, и дешевле делать
-        // это на уменьшенной картинке. Результат тот же — рамку ресайза мы уже
-        // развернули выше.
         if ($orientation !== 1) {
             $image = $this->applyOrientation($image, $orientation);
             $operations[] = 'exif-rotate';
@@ -125,18 +104,12 @@ final class ImageProcessor
 
         $resultWidth = imagesx($image);
         $resultHeight = imagesy($image);
-        // imagedestroy() с PHP 8.0 ничего не делает (в 8.5 он ещё и deprecated):
-        // кадр освобождает счётчик ссылок, здесь — на выходе из метода.
         unset($image);
 
         clearstatcache(true, $outPath);
         $outSize = (int) filesize($outPath);
         $srcSize = (int) filesize($srcPath);
 
-        // Реэнкод «на месте» иногда даёт файл толще исходного — обычно на PNG.
-        // Отдавать такое смысла нет: ни байтов не сэкономили, ни качества не
-        // прибавили. Геометрию и формат при этом не трогали, значит явную
-        // просьбу клиента мы не игнорируем.
         if ($scale === 1.0 && $orientation === 1 && $target === $mime && $outSize >= $srcSize) {
             @unlink($outPath);
             return ProcessedImage::skipped($srcPath, 'output is larger than source');
@@ -150,9 +123,6 @@ final class ImageProcessor
         );
     }
 
-    // ── Внутреннее ───────────────────────────────────────────────────────────
-
-    /** Во сколько раз уменьшить, чтобы вписать в рамку. 1.0 — не трогать. */
     private function scaleFor(int $width, int $height, ?int $maxWidth, ?int $maxHeight): float
     {
         $scale = 1.0;
@@ -171,8 +141,6 @@ final class ImageProcessor
         $height = max(1, (int) round(imagesy($image) * $scale));
 
         $dst = imagecreatetruecolor($width, $height);
-        // Без этого прозрачность превращается в чёрный: imagecopyresampled
-        // по умолчанию смешивает пиксели с непрозрачным фоном.
         imagealphablending($dst, false);
         imagesavealpha($dst, true);
         imagefill($dst, 0, 0, imagecolorallocatealpha($dst, 0, 0, 0, 127));
@@ -181,11 +149,8 @@ final class ImageProcessor
         return $dst;
     }
 
-    /** EXIF-ориентация 1…8 → поворот и отражения. */
     private function applyOrientation(\GdImage $image, int $orientation): \GdImage
     {
-        // imagerotate считает угол против часовой, а ориентация задаёт, на
-        // сколько кадр нужно довернуть по часовой.
         $angle = match ($orientation) {
             3, 4 => 180,
             5, 6 => -90,
@@ -202,8 +167,6 @@ final class ImageProcessor
                 imagesavealpha($image, true);
             }
         }
-        // 2 — зеркало, 4 — зеркало после разворота на 180°, 5 и 7 — отражения
-        // по диагоналям, которые из поворота получаются тем же зеркалом.
         if (in_array($orientation, [2, 4, 5, 7], true)) {
             imageflip($image, IMG_FLIP_HORIZONTAL);
         }
@@ -211,7 +174,6 @@ final class ImageProcessor
         return $image;
     }
 
-    /** JPEG прозрачности не знает — подкладываем белый, иначе получим чёрный фон. */
     private function flatten(\GdImage $image): \GdImage
     {
         $dst = imagecreatetruecolor(imagesx($image), imagesy($image));
@@ -242,8 +204,6 @@ final class ImageProcessor
     {
         $ok = match ($mime) {
             'image/jpeg' => imagejpeg($image, $path, $quality),
-            // У PNG quality — уровень zlib 0…9, а не потери: шкалу разворачиваем,
-            // чтобы «меньше качество» означало «меньше файл», как у остальных.
             'image/png' => imagepng($image, $path, 9 - (int) round($quality / 100 * 9)),
             'image/gif' => imagegif($image, $path),
             'image/webp' => imagewebp($image, $path, $quality),
@@ -257,7 +217,6 @@ final class ImageProcessor
         }
     }
 
-    /** Кодек может быть не собран в gd — это состояние сервера, а не запроса. */
     private function requireEncoder(string $mime): void
     {
         $available = match ($mime) {
@@ -284,10 +243,6 @@ final class ImageProcessor
         return $orientation >= 1 && $orientation <= 8 ? $orientation : 1;
     }
 
-    /**
-     * Анимация по сигнатурам контейнера: у GIF это второй блок Graphic Control
-     * Extension, у WebP — флаг ANIM в VP8X, у PNG — чанк acTL.
-     */
     private function isAnimated(string $path, string $mime): bool
     {
         $head = (string) @file_get_contents($path, length: 65536);
@@ -302,14 +257,6 @@ final class ImageProcessor
         };
     }
 
-    /**
-     * Кадры GIF считаем потоком: первый кадр может занимать мегабайты, и по
-     * началу файла второй GCE не увидеть.
-     *
-     * Сигнатура короткая, и в теле LZW теоретически может встретиться случайно.
-     * Ошибка в эту сторону безопасна: статичный gif просто не обработается.
-     * Обратная — превращает анимацию в один кадр.
-     */
     private function gifFrames(string $path): int
     {
         $handle = @fopen($path, 'rb');

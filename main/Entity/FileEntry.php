@@ -60,8 +60,6 @@ class FileEntry
     #[Varchar(255)]
     public string $name;
 
-    // Тип принадлежит файлу, а не байтам: одно и то же содержимое законно
-    // лежит и как data.csv, и как data.txt, и Content-Type у них разный.
     #[Varchar(127)]
     public string $mime_type;
 

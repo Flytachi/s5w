@@ -11,7 +11,6 @@ use Main\Entity\Folder;
 use Main\Enum\CacheVisibility;
 use Main\Enum\DeliveryChannel;
 
-
 #[Singleton]
 final class CachePolicy
 {
@@ -29,8 +28,6 @@ final class CachePolicy
             return 'no-store';
         }
 
-        // Кэш не должен пережить ни ссылку, ни сам файл: иначе после смерти
-        // ссылки или очистки времянки клиент продолжит показывать содержимое.
         foreach ([$linkTtl, $this->secondsUntilExpiry($file)] as $limit) {
             if ($limit !== null) {
                 $maxAge = min($maxAge, max(0, $limit));

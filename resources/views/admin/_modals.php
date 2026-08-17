@@ -89,9 +89,6 @@ $folders = $folders ?? [];
             </dl>
 
             <div class="card__title mt-3" style="font-size:.95rem">Содержимое</div>
-            <p class="text-sm text-muted">
-                sha256 от байтов: одинаковые файлы бакета делят один блоб, и хэш у них совпадает.
-            </p>
             <div class="secret mt-1" style="font-size:.74rem">
                 <span style="flex:1" data-file-hash></span>
                 <button class="icon-btn icon-btn--sm" data-file-hash-copy aria-label="Копировать">
@@ -103,12 +100,7 @@ $folders = $folders ?? [];
             <div class="stack mt-1" data-file-urls></div>
 
             <div class="card__title mt-3" style="font-size:.95rem">Временные ссылки</div>
-            <p class="text-sm text-muted">
-                Здесь только те, у которых есть строка в базе — с лимитом скачиваний
-                или с разрешённым отзывом. Их адрес собирается заново, поэтому его
-                можно скопировать ещё раз. Ссылка без строки живёт целиком в своей
-                подписи, и знать о ней нам неоткуда.
-            </p>
+            <p class="text-sm text-muted">Только отзываемые и с лимитом — остальные нигде не учитываются.</p>
             <div class="stack mt-1" data-file-links></div>
         </div>
 
@@ -395,7 +387,7 @@ $folders = $folders ?? [];
 
 <!-- ================= Выпуск токена ================= -->
 <div class="modal-backdrop" id="modal-token">
-    <form class="modal" data-api="POST /admin/buckets/{bucket}/tokens" data-done="token:created">
+    <form class="modal modal--token" data-api="POST /admin/buckets/{bucket}/tokens" data-done="token:created">
         <div class="modal__header">
             <span class="tone tone--brand" style="width:32px;height:32px;padding:0;justify-content:center;border-radius:10px">
                 <svg class="icon"><use href="#i-key"/></svg>
@@ -414,9 +406,47 @@ $folders = $folders ?? [];
             </div>
 
             <div class="field">
-                <label class="field__label">Срок, дней</label>
-                <input class="input" type="number" name="expiresInDays" placeholder="бессрочно">
-                <span class="field__hint">Пусто — бессрочно, потолок 3650 дней.</span>
+                <label class="field__label">Что открывает ключ</label>
+
+                <div class="choices choices--pair">
+                    <label class="choice">
+                        <input type="radio" name="access" value="1" checked>
+                        <span class="radio__dot"></span>
+                        <span class="choice__body">
+                            <span class="choice__title">Только отдача</span>
+                            <span class="choice__text">
+                                Забирает приватные файлы по <span class="mono">/p</span>, если знает адрес.
+                                Списка файлов не видит и ничего не меняет — такой ключ не страшно
+                                положить в приложение.
+                            </span>
+                        </span>
+                    </label>
+
+                    <label class="choice">
+                        <input type="radio" name="access" value="2">
+                        <span class="radio__dot"></span>
+                        <span class="choice__body">
+                            <span class="choice__title">Полный доступ</span>
+                            <span class="choice__text">
+                                Всё то же плюс <span class="mono">/v1</span>: список и загрузка файлов,
+                                папки, временные ссылки. Для своего бэкенда — не для браузера.
+                            </span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="field__label">Срок</label>
+                <select class="select-native" name="expiresInDays">
+                    <option value="">бессрочно</option>
+                    <option value="30">30 дней</option>
+                    <option value="90">90 дней</option>
+                    <option value="365">год</option>
+                </select>
+                <span class="field__hint">
+                    После срока ключ отвечает <b>403</b> — продлить нельзя, только выпустить новый.
+                </span>
             </div>
         </div>
 
@@ -438,7 +468,7 @@ $folders = $folders ?? [];
         </div>
 
         <p class="modal__text" data-secret-note>
-            Значение показывается <b>один раз</b> — в базе лежит только хеш. Скопируйте сейчас.
+            Значение показывается <b>один раз</b>. Скопируйте сейчас.
         </p>
 
         <div class="secret mt-2">
@@ -446,6 +476,17 @@ $folders = $folders ?? [];
             <button class="icon-btn icon-btn--sm" data-secret-copy aria-label="Копировать">
                 <svg class="icon icon--sm"><use href="#i-copy"/></svg>
             </button>
+        </div>
+
+        <div class="field mt-2" data-secret-check hidden>
+            <span class="field__label">Проверить прямо сейчас</span>
+            <div class="secret">
+                <span style="flex:1" data-secret-curl></span>
+                <button class="icon-btn icon-btn--sm" data-secret-curl-copy aria-label="Копировать">
+                    <svg class="icon icon--sm"><use href="#i-copy"/></svg>
+                </button>
+            </div>
+            <span class="field__hint" data-secret-check-hint></span>
         </div>
 
         <div class="modal__footer">
@@ -514,8 +555,7 @@ $folders = $folders ?? [];
                     <span class="opt__title">Дать возможность отозвать эту ссылку</span>
                     <span class="opt__hint">
                         Тогда она появится в списке «Ссылки» и закрывается одной кнопкой.
-                        Без этого ссылка нигде не хранится — живёт целиком в своей подписи,
-                        а закрыть её можно, только отозвав разом все ссылки бакета.
+                        Без этого её можно закрыть, только отозвав разом все ссылки бакета.
                     </span>
                 </span>
             </label>

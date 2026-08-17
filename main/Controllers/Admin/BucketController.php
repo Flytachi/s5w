@@ -18,11 +18,13 @@ use Flytachi\Winter\Kernel\Route\Annotation\PatchMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PutMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
+use Main\Controllers\Middlewares\AdminAuthMiddleware;
 use Main\Request\BucketRequest;
 use Main\Request\CachePolicyRequest;
 use Main\Request\PageRequest;
 use Main\Service\BucketService;
 
+#[AdminAuthMiddleware]
 #[RequestMapping('admin/buckets')]
 final class BucketController extends Controller
 {
@@ -58,10 +60,6 @@ final class BucketController extends Controller
         return ResponseEntity::ok($this->service->update($id, $request));
     }
 
-    /**
-     * Кэш по умолчанию для файлов бакета — та же ручка, что у папки, уровнем выше.
-     * Папка переопределяет бакет, бакет — глобальный дефолт (docs/plan.md §6).
-     */
     #[PatchMapping('{id}/cache')]
     public function setCachePolicy(
         #[PathVariable, Uuid] string $id,

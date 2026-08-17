@@ -13,6 +13,7 @@ class WebConfiguration extends WebConfigurerAdapter
         $server->maxRequestSize(300 * 1024 * 1024);
 
         $server->staticPath('resources/static')
-            ->set('static_handler_locations', ['/assets', '/favicon.ico']);
+            ->set('static_handler_locations', ['/assets', '/favicon.ico'])
+            ->set('http_parse_cookie', false);
     }
 }

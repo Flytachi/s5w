@@ -11,7 +11,6 @@ use Flytachi\Winter\Kernel\Http\Request\Validation\Size;
 
 final class FileListRequest
 {
-    /** Разрешённые поля: дата, имя, тип содержимого и вес. */
     public const array SORTS = ['created', 'name', 'type', 'size'];
 
     public function __construct(

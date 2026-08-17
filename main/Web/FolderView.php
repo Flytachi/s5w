@@ -8,7 +8,6 @@ use Main\Entity\Folder;
 use Main\Enum\CacheVisibility;
 use Main\Enum\Retention;
 
-/** Папка глазами панели: сущность плюс число файлов внутри. */
 final readonly class FolderView
 {
     public function __construct(
@@ -44,13 +43,11 @@ final readonly class FolderView
         return $this->retention !== Retention::NONE->name;
     }
 
-    /** Своя политика кэша: достаточно одного заданного поля — второе возьмётся из бакета. */
     public function hasCache(): bool
     {
         return $this->cacheMaxAge !== null || $this->cacheVisibility !== null;
     }
 
-    /** Короткая подпись для подсказки: «приватный · 3600 с». */
     public function cacheLabel(): string
     {
         $parts = [];
@@ -68,7 +65,6 @@ final readonly class FolderView
         return implode(' · ', $parts);
     }
 
-    /** «неделя», «полгода» — то же, что в форме, а не константа из кода. */
     public function retentionLabel(): string
     {
         return match ($this->retention) {

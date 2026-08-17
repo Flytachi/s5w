@@ -9,12 +9,6 @@ use Flytachi\Winter\Kernel\Http\Request\Validation\Max;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Min;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Size;
 
-/**
- * Список временных ссылок для панели: страница, поиск и сортировка.
- *
- * Сортировка и поиск сквозные — по всему бакету, а не по видимой странице:
- * «самые свежие» на второй странице обязаны быть свежее, чем на третьей.
- */
 final class LinkListRequest
 {
     public const array SORTS = ['created', 'file', 'mode', 'state'];
@@ -29,7 +23,6 @@ final class LinkListRequest
         #[Max(100)]
         public int $limit = self::PER_PAGE,
 
-        /** Ищем по имени файла и по пометке — по тому, что видно в строке. */
         #[Size(min: 0, max: 100)]
         public ?string $search = null,
 
@@ -60,7 +53,6 @@ final class LinkListRequest
         return '/admin/ui/buckets/' . $bucketId . '/links' . ($query === '' ? '' : '?' . $query);
     }
 
-    /** Клик по заголовку: тот же столбец — переворот, другой — с начала. */
     public function sortUrl(string $bucketId, string $sort): string
     {
         return $this->url($bucketId, [

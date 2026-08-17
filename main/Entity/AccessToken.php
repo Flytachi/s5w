@@ -15,6 +15,7 @@ use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\Timestamp;
 use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\Uuid;
 use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\Varchar;
 use Flytachi\Winter\Kernel\Ppa\Mapping\Constants\FKAction;
+use Main\Enum\TokenAccess;
 use Main\Enum\TokenStatus;
 use Main\Repository\BucketRepository;
 
@@ -42,6 +43,13 @@ class AccessToken
     #[SmallInteger]
     #[CheckEnum(TokenStatus::class)]
     public int $status = TokenStatus::ACTIVE->value;
+
+    #[SmallInteger]
+    #[CheckEnum(TokenAccess::class)]
+    public int $access = TokenAccess::BASIC->value;
+
+    #[Varchar(4)]
+    public string $tail = '';
 
     #[Timestamp]
     public ?string $expires_at = null;

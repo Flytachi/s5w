@@ -20,7 +20,63 @@ document.addEventListener("DOMContentLoaded", () => {
   initForms();
   initActions();
   initUpload();
+  initLogin();
+  initLogout();
 });
+
+/* ============================================================
+   Вход и выход
+   ============================================================ */
+
+function initLogin() {
+  const form = document.querySelector("[data-login-form]");
+  if (!form) return;
+
+  const box = form.querySelector("[data-login-error]");
+  const peek = form.querySelector("[data-password-peek]");
+  const password = form.querySelector('[name="password"]');
+
+  peek?.addEventListener("click", () => {
+    const shown = password.type === "text";
+    password.type = shown ? "password" : "text";
+    peek.querySelector("use").setAttribute("href", shown ? "#i-eye" : "#i-lock");
+    password.focus();
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const button = form.querySelector('[type="submit"]');
+    box.hidden = true;
+    setBusy(button, true);
+
+    try {
+      await Api.post("/admin/auth/login", {
+        login: form.querySelector('[name="login"]').value.trim(),
+        password: password.value,
+      });
+      location.href = form.dataset.next || "/admin/ui";
+    } catch (err) {
+      form.querySelector("[data-login-message]").textContent =
+        err.status === 429 ? "Слишком много попыток. Подождите пару минут." : err.message;
+      box.hidden = false;
+      password.value = "";
+      password.focus();
+    } finally {
+      setBusy(button, false);
+    }
+  });
+}
+
+function initLogout() {
+  document.querySelector("[data-logout]")?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    try {
+      await Api.post("/admin/auth/logout");
+    } finally {
+      location.href = "/admin/ui/login";
+    }
+  });
+}
 
 /* ============================================================
    Виджеты каркаса
@@ -725,12 +781,19 @@ function onFolderCreated(folder) {
 }
 
 function onTokenCreated(data) {
+  const token = data.accessToken;
+  const full = token.access.name === "FULL";
+
   const rows = document.querySelector('[data-rows="tokens"]');
   if (rows) {
-    rows.prepend(Render.tokenRow(data.accessToken));
+    rows.prepend(Render.tokenRow(token));
     toggleEmpty("tokens", false);
   }
-  showSecret("Токен выпущен", data.token);
+
+  bumpCounter("tokens-active", 1);
+  if (full) bumpCounter("tokens-full", 1);
+
+  showSecret("Токен выпущен", data.token, null, tokenCheck(data.token, full));
 }
 
 function onLinkCreated(link, form) {
@@ -747,7 +810,7 @@ function onLinkCreated(link, form) {
   if (drawer && drawerRow) loadFileLinks(drawer, drawerRow.dataset.id);
 
   showSecret("Ссылка выпущена", link.url, "Подпись не хранится — повторить её нечем.");
-  showToast(link.id === null ? "Ссылка живёт целиком в подписи — в списке её не будет" : "Ссылка добавлена в список", {
+  showToast(link.id === null ? "Ссылка выпущена — в списке её не будет" : "Ссылка добавлена в список", {
     type: "info",
   });
 }
@@ -779,7 +842,7 @@ function onCacheSaved(data, form) {
   card.querySelector(".fm__folder").title = Render.folderTitle(name, marks);
 }
 
-function showSecret(title, value, note) {
+function showSecret(title, value, note, check) {
   const modal = openModal("modal-secret");
   if (!modal) return;
 
@@ -787,6 +850,37 @@ function showSecret(title, value, note) {
   modal.querySelector("[data-secret-value]").textContent = value;
   modal.querySelector("[data-secret-copy]").dataset.copy = value;
   if (note) modal.querySelector(".modal__text").innerHTML = note;
+
+  const box = modal.querySelector("[data-secret-check]");
+  box.hidden = !check;
+  if (check) {
+    box.querySelector("[data-secret-curl]").textContent = check.curl;
+    box.querySelector("[data-secret-curl-copy]").dataset.copy = check.curl;
+    box.querySelector("[data-secret-check-hint]").textContent = check.hint;
+  }
+}
+
+function tokenCheck(secret, full) {
+  return {
+    curl: `curl -H "Authorization: Bearer ${secret}" ${location.origin}/v1/check`,
+    hint: full
+      ? "Ответит бакетом, видом ключа и остатком места. Дальше ключу открыт весь /v1."
+      : "Ответит бакетом, видом ключа и остатком места. Дальше этот ключ умеет только /p/<slug>.",
+  };
+}
+
+function setCounter(name, value) {
+  const el = document.querySelector(`[data-counter="${name}"]`);
+  if (!el) return;
+
+  const next = Math.max(0, value);
+  el.textContent = next;
+  el.classList.toggle("is-zero", next === 0);
+}
+
+function bumpCounter(name, delta) {
+  const el = document.querySelector(`[data-counter="${name}"]`);
+  if (el) setCounter(name, Number(el.textContent) + delta);
 }
 
 /* ============================================================
@@ -819,7 +913,7 @@ function initActions() {
 
         case "token:delete": return await deleteToken(el, row, id, name);
 
-        case "token:rotate": return await rotateToken(id, name);
+        case "token:rotate": return await rotateToken(row, id, name);
         case "token:toggle": return await toggleToken(row, el, id);
         case "link:revoke": return await revokeLink(el.closest(".link-row") ?? row, id);
         case "links:revoke-all": return await revokeAllLinks();
@@ -895,6 +989,9 @@ async function deleteToken(el, row, id, name) {
   el.disabled = true;
   await Api.delete(`/admin/buckets/${bucketId()}/tokens/${id}`);
 
+  if (row.dataset.status === "ACTIVE") countToken(row, -1);
+  else bumpCounter("tokens-inactive", -1);
+
   dropRow(row, "tokens");
   showToast(`Токен <b>${Render.e(name)}</b> удалён`, { type: "ok" });
 }
@@ -965,17 +1062,28 @@ function onBucketUpdated(bucket, form) {
   showToast(`Бакет <b>${Render.e(bucket.name)}</b> сохранён`, { type: "ok" });
 }
 
-async function rotateToken(id, name) {
+async function rotateToken(row, id, name) {
   const ok = await confirmDialog({
     title: "Сменить ключ?",
-    text: `Старое значение перестанет работать сразу. Название <b>${Render.e(name)}</b> и права не меняются.`,
+    text: `Старое значение перестанет работать сразу. Название <b>${Render.e(name)}</b>,
+           вид доступа и срок не меняются.`,
     confirmLabel: "Сменить",
     tone: "brand",
   });
   if (!ok) return;
 
   const res = await Api.post(`/admin/buckets/${bucketId()}/tokens/${id}/rotate`);
-  showSecret("Новый ключ", res.data.token, "Старый уже недействителен. Значение показывается один раз.");
+  const token = res.data.accessToken;
+
+  const tail = row?.querySelector(".fileline__meta");
+  if (tail) tail.textContent = "s5w_…" + token.tail;
+
+  showSecret(
+    "Новый ключ",
+    res.data.token,
+    "Старый уже недействителен. Значение показывается один раз.",
+    tokenCheck(res.data.token, token.access.name === "FULL"),
+  );
 }
 
 async function toggleToken(row, el, id) {
@@ -983,13 +1091,28 @@ async function toggleToken(row, el, id) {
   const res = await Api.patch(`/admin/buckets/${bucketId()}/tokens/${id}/status`, { status: next });
 
   row.dataset.status = res.data.status.name;
-  row.querySelector('[data-cell="status"]').innerHTML =
-    next === 1
+  row.querySelector('[data-cell="status"]').innerHTML = res.data.expired
+    ? '<span class="tone tone--danger">просрочен</span>'
+    : next === 1
       ? '<span class="tone tone--ok"><span class="status-dot" style="background:currentColor"></span> активен</span>'
       : '<span class="tone tone--mute">выключен</span>';
   el.childNodes[0].nodeValue = next === 1 ? "Выключить " : "Включить ";
+  row.style.opacity = next === 1 && !res.data.expired ? "" : ".55";
+
+  countToken(row, next === 1 ? 1 : -1);
+  bumpCounter("tokens-inactive", next === 1 ? -1 : 1);
 
   showToast(next === 1 ? "Токен включён" : "Токен выключен", { type: next === 1 ? "ok" : "warn" });
+}
+
+function countToken(row, delta) {
+  if (row.dataset.expired === "1") {
+    bumpCounter("tokens-expired", delta);
+    return;
+  }
+
+  bumpCounter("tokens-active", delta);
+  if (row.dataset.access === "FULL") bumpCounter("tokens-full", delta);
 }
 
 async function revokeLink(row, id) {
@@ -1008,8 +1131,7 @@ async function revokeLink(row, id) {
   }
   row.querySelector('[data-action="link:revoke"]')?.remove();
 
-  const counter = document.querySelector('[data-counter="links-active"]');
-  if (counter) counter.textContent = Math.max(0, Number(counter.textContent) - 1);
+  bumpCounter("links-active", -1);
 
   showToast("Ссылка отозвана", { type: "ok" });
 }
@@ -1048,7 +1170,7 @@ async function purgeLinks(state) {
 async function revokeAllLinks() {
   const ok = await confirmDialog({
     title: "Отозвать все ссылки?",
-    text: "Бакет сменит эпоху — перестанут работать разом все подписи, включая те, которых нет в базе.",
+    text: "Перестанут работать все выданные ссылки бакета, включая те, которых нет в списке.",
     confirmLabel: "Отозвать все",
   });
   if (!ok) return;
@@ -1064,8 +1186,7 @@ async function revokeAllLinks() {
 
   const epoch = document.querySelector('[data-counter="epoch"]');
   if (epoch) epoch.textContent = res.data.epoch;
-  const active = document.querySelector('[data-counter="links-active"]');
-  if (active) active.textContent = "0";
+  setCounter("links-active", 0);
 
   showToast("Все ссылки погашены", { type: "ok", detail: "эпоха ссылок теперь " + res.data.epoch });
 }

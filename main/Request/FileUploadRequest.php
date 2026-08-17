@@ -20,7 +20,6 @@ final class FileUploadRequest
 
         public ImageFormat $format = ImageFormat::ORIGINAL,
 
-        // Шкала прямая: больше — лучше. У PNG это не потери, а уровень zlib.
         #[Min(1)]
         #[Max(100)]
         public ?int $quality = null,

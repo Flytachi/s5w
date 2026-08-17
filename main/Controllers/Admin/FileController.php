@@ -21,15 +21,14 @@ use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PutMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
+use Main\Controllers\Middlewares\AdminAuthMiddleware;
 use Main\Request\FileListRequest;
 use Main\Request\FilePlacementRequest;
 use Main\Request\FileUploadRequest;
 use Main\Service\FileService;
 use Main\Support\Slug;
 
-/**
- * TODO: закрыть AdminJwtMiddleware (docs/plan.md §8.8).
- */
+#[AdminAuthMiddleware]
 #[RequestMapping('admin/buckets/{bucketId}/files')]
 final class FileController extends Controller
 {

@@ -53,12 +53,6 @@ final class FolderService
     }
 
     /**
-     * Папки бакета для панели вместе с числом файлов в каждой.
-     *
-     * Объём папки не показываем: блоб, на который ссылаются файлы из разных
-     * папок, пришлось бы засчитать каждой, и сумма перестала бы сходиться с
-     * занятым местом бакета.
-     *
      * @return array<int, array{folder: Folder, files: int}>
      */
     public function panelList(string $bucketId): array
@@ -130,17 +124,12 @@ final class FolderService
         return FolderRes::from($folder);
     }
 
-    /**
-     * Переименование, видимость и срок хранения — одной операцией: все три
-     * свойства всегда приходят целиком, поэтому частичных состояний не бывает.
-     *
-     * TODO (когда появятся файлы): смена public — переписать денормализованный
-     * флаг на файлах папки и сбросить кэш отдачи; смена retention — пересчитать
-     * expires_at от created_at файлов.
-     */
     public function update(string $bucketId, string $name, FolderRequest $request): FolderRes
     {
         $folder = $this->get($bucketId, $name);
+
+        $wasPublic = $folder->public;
+        $wasRetention = $folder->retention;
 
         $folder->name = $request->name;
         $folder->public = $request->public;
@@ -162,6 +151,13 @@ final class FolderService
                 ClientError::throw("Folder «{$request->name}» already exists", HttpCode::CONFLICT);
             }
             throw $e;
+        }
+
+        if ($wasPublic !== $folder->public) {
+            $this->files->setPublicByFolder($bucketId, $folder->id, $folder->public);
+        }
+        if ($wasRetention !== $folder->retention) {
+            $this->files->resetExpiryByFolder($bucketId, $folder->id, $request->retention);
         }
 
         return FolderRes::from($folder);
@@ -187,10 +183,6 @@ final class FolderService
         return FolderRes::from($folder);
     }
 
-    /**
-     * Файлы сносим сами, а не отдаём CASCADE: тот унёс бы только строки, оставив
-     * ref_count блобов и used_bytes бакета завышенными, а байты — на диске.
-     */
     public function delete(string $bucketId, string $name): int
     {
         $folder = $this->get($bucketId, $name);

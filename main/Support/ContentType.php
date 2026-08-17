@@ -4,18 +4,10 @@ declare(strict_types=1);
 
 namespace Main\Support;
 
-/**
- * Тип содержимого — по байтам, а не по имени.
- *
- * Имя из multipart — это ввод пользователя, оно врёт (photo.png внутри JPEG,
- * script.js внутри HTML). Источник истины — finfo; имя используется только там,
- * где байты честно не различают форматы.
- */
 final class ContentType
 {
     public const string FALLBACK = 'application/octet-stream';
 
-    /** Написания уже приведены к каноничным (см. canonical()). */
     private const array KNOWN = [
         'jpg', 'png', 'gif', 'webp', 'avif', 'bmp', 'tiff', 'svg', 'ico', 'heic',
         'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'rtf', 'epub',
@@ -35,11 +27,6 @@ final class ContentType
         $mime = self::sniff($path);
         $extension = self::extensionFor($mime);
 
-        // Текстовые форматы finfo почти всегда видит как text/plain: csv, json,
-        // xml, md, yaml по байтам — просто текст. Здесь (и только здесь) имя
-        // файла информативнее содержимого, поэтому уточняем по нему — но строго
-        // по белому списку: у текстового содержимого с именем photo.png не
-        // должно получиться расширение png при mime text/plain.
         if ($mime === 'text/plain') {
             $hint = strtolower(self::extensionOf((string) $sourceName));
             $hinted = self::mimeFor($hint);
@@ -63,7 +50,6 @@ final class ContentType
         return finfo_file($finfo, $path) ?: self::FALLBACK;
     }
 
-    /** Расширение из имени файла; '' если его нет. */
     public static function extensionOf(string $name): string
     {
         $dot = strrpos($name, '.');
@@ -73,20 +59,11 @@ final class ContentType
         return substr($name, $dot + 1);
     }
 
-    /**
-     * Одно и то же расширение с точностью до общепринятых написаний: иначе
-     * загруженный photo.jpeg получил бы имя photo.jpeg.jpg.
-     */
     public static function sameExtension(string $a, string $b): bool
     {
         return self::canonical($a) === self::canonical($b);
     }
 
-    /**
-     * Похоже ли на указание типа. Нужно, чтобы отличить противоречащее
-     * содержимому расширение (его заменяем) от хвоста имени вроде «отчёт v1.2»
-     * (к нему просто дописываем).
-     */
     public static function isKnownExtension(string $extension): bool
     {
         return in_array(self::canonical($extension), self::KNOWN, true);
@@ -153,7 +130,6 @@ final class ContentType
             'css' => 'text/css',
             'js', 'mjs' => 'text/javascript',
             'sql' => 'application/sql',
-            // Расширение сохраняем, тип остаётся тем, что показали байты.
             'log', 'ini', 'conf', 'env' => 'text/plain',
             default => '',
         };

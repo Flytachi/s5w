@@ -230,33 +230,38 @@
   /* ---------------- Токен ---------------- */
 
   function tokenRow(t) {
+    const full = t.access.name === "FULL";
+
     return rowNode(`
-      <tr data-row="token" data-id="${t.id}" data-name="${e(t.name)}" data-status="ACTIVE">
+      <tr data-row="token" data-id="${t.id}" data-name="${e(t.name)}" data-status="ACTIVE" data-access="${t.access.name}">
         <td>
           <div class="fileline">
-            <span class="ftype ftype--image"><svg class="icon"><use href="#i-key"/></svg></span>
+            <span class="ftype ftype--${full ? "doc" : "arch"}"><svg class="icon"><use href="#i-key"/></svg></span>
             <span class="fileline__body">
-              <span class="fileline__name">${e(t.name)}</span>
-              <span class="fileline__meta">id ${t.id}</span>
+              <span class="fileline__name" title="${e(t.name)}">${e(t.name)}</span>
+              <span class="fileline__meta mono">${t.tail ? "s5w_…" + e(t.tail) : "—"}</span>
             </span>
           </div>
+        </td>
+        <td data-cell="access">
+          <span class="tone tone--${full ? "warn" : "mute"}">${e(t.accessLabel)}</span>
         </td>
         <td data-cell="status">
           <span class="tone tone--ok"><span class="status-dot" style="background:currentColor"></span> активен</span>
         </td>
-        <td class="text-sm nowrap">${left(t.expiresAt)}</td>
+        <td class="text-sm nowrap">${t.expiresAt === null ? '<span class="text-muted">бессрочно</span>' : left(t.expiresAt)}</td>
         <td class="text-sm text-muted nowrap">не использовался</td>
         <td class="text-sm text-muted nowrap">только что</td>
         <td>
-          <div class="row" style="justify-content:flex-end; flex-wrap:nowrap">
-            <button class="btn btn--ghost btn--sm" data-action="token:rotate" data-id="${t.id}" data-name="${e(t.name)}">
-              <svg class="icon icon--sm"><use href="#i-refresh"/></svg> Ротация
-            </button>
+          <div class="row row-actions" style="justify-content:flex-end; flex-wrap:nowrap">
             <div class="dropdown">
               <button class="icon-btn icon-btn--ghost icon-btn--sm" data-dropdown-toggle aria-label="Действия">
                 <svg class="icon icon--sm"><use href="#i-more-h"/></svg>
               </button>
               <div class="dropdown__menu">
+                <button class="dropdown__item" data-action="token:rotate" data-id="${t.id}" data-name="${e(t.name)}">
+                  Ротация <svg class="icon"><use href="#i-refresh"/></svg>
+                </button>
                 <button class="dropdown__item" data-action="token:toggle" data-id="${t.id}">
                   Выключить <svg class="icon"><use href="#i-lock"/></svg>
                 </button>

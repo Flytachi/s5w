@@ -16,13 +16,6 @@ use Main\Http\BlobResponse;
 use Main\Service\DeliveryService;
 use Main\Support\Slug;
 
-/**
- * Публичная отдача: /o/{bucket}/{slug} — без авторизации.
- *
- * Доступны только файлы с public = true, то есть корень бакета и публичные
- * папки. Пара «UUID бакета + 96-битный slug» делает перебор бессмысленным,
- * а приватный файл здесь неотличим от несуществующего — 404 в обоих случаях.
- */
 #[RequestMapping('o')]
 final class PublicController extends Controller
 {
@@ -38,7 +31,6 @@ final class PublicController extends Controller
         return $this->service->public($bucketId, $slug, self::isDownload($http));
     }
 
-    /** ?download=1 → отдать вложением, что бы ни говорил mime. */
     public static function isDownload(HttpRequest $http): bool
     {
         return ($http->getQueryParams()['download'] ?? null) === '1';

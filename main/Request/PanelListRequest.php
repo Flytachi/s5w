@@ -9,13 +9,6 @@ use Flytachi\Winter\Kernel\Http\Request\Validation\Max;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Min;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Size;
 
-/**
- * Списки внутри бакета для панели.
- *
- * Отдельно от {@see PageRequest} и {@see FileListRequest} только из-за размера
- * страницы: у API он свой (25), а в панели список живёт в окне со своей
- * прокруткой, и двадцати строк хватает, чтобы реже листать.
- */
 final class PanelListRequest
 {
     public const int PER_PAGE = 20;
@@ -31,7 +24,6 @@ final class PanelListRequest
         #[Size(min: 0, max: 255)]
         public ?string $search = null,
 
-        // null — весь бакет, '' — только корень, иначе конкретная папка
         #[Size(min: 0, max: 100)]
         public ?string $folder = null,
 
@@ -43,12 +35,6 @@ final class PanelListRequest
     ) {
     }
 
-    /**
-     * Папка для сервиса: null — весь бакет, '' — только корень, иначе имя.
-     *
-     * В адресе корень приходит как `folder=/`: пустая строка в query-строке
-     * неотличима от отсутствующего параметра, а это разные вещи.
-     */
     public function folderFilter(): ?string
     {
         return $this->folder === '/' ? '' : $this->folder;
@@ -66,7 +52,6 @@ final class PanelListRequest
         );
     }
 
-    /** Подпись выбранного порядка — её показывает кнопка сортировки. */
     public function sortLabel(): string
     {
         return match ($this->sort) {
@@ -82,7 +67,6 @@ final class PanelListRequest
         return $this->dir !== 'asc';
     }
 
-    /** Что произойдёт по клику — противоположный порядок, словами про этот столбец. */
     public function dirToggleLabel(): string
     {
         return match ($this->sort) {
@@ -97,7 +81,6 @@ final class PanelListRequest
         return new PageRequest(page: $this->page, limit: $this->limit, search: $this->search);
     }
 
-    /** Параметры фильтра для ссылок постраничности. */
     public function params(int $page): array
     {
         return [

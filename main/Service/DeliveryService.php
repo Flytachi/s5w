@@ -49,7 +49,6 @@ final class DeliveryService
     #[Autowired]
     private ShareLinkService $links;
 
-    /** /o/{bucket}/{slug} */
     public function public(string $bucketId, string $slug, bool $download): BlobResponse
     {
         $file = $this->findBySlug($bucketId, $slug);
@@ -60,7 +59,6 @@ final class DeliveryService
         return $this->serve($file, DeliveryChannel::PUBLIC, $download);
     }
 
-    /** /p/{slug} */
     public function private(string $bucketId, string $slug, bool $download): BlobResponse
     {
         return $this->serve(
@@ -135,7 +133,6 @@ final class DeliveryService
     ): BlobResponse {
         $blob = $this->blobs->findById($file->blob_id);
         if ($blob === null || !$this->store->blobExists($bucket->id, $blob->hash)) {
-            // Строка есть, а байтов нет — это наша поломка, а не запрос клиента.
             throw new \RuntimeException("Blob file vanished for file {$file->id}");
         }
 
@@ -162,7 +159,6 @@ final class DeliveryService
             || $mime === 'application/pdf'
             || $mime === 'text/plain';
     }
-
 
     private function assertAlive(FileEntry $file): void
     {

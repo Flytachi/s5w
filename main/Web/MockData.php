@@ -4,13 +4,6 @@ declare(strict_types=1);
 
 namespace Main\Web;
 
-/**
- * Данные для макета админки.
- *
- * Структуры повторяют ответы API (`BucketRes`, `FolderRes`, `FileRes`,
- * `AccessTokenRes`, `ShareLinkRes`) — когда дойдём до подключения бэкенда,
- * во вьюхах менять будет нечего, только источник.
- */
 final class MockData
 {
     private const string BUCKET_MEDIA = '1b826036-e5a0-459d-87fd-fb7800cff67b';
@@ -180,7 +173,6 @@ final class MockData
             ],
         ];
 
-        // у пустого бакета — пустой список, чтобы было видно и это состояние
         return $bucketId === self::BUCKET_BACKUP ? [] : $files;
     }
 
@@ -230,7 +222,6 @@ final class MockData
         ];
     }
 
-    /** Сводка для обзора. */
     public static function overview(): array
     {
         $buckets = self::buckets();
@@ -244,7 +235,6 @@ final class MockData
             'saved' => 2483027968,
             'tokens' => 11,
             'links' => 7,
-            // загрузки по дням — рисуем спарклайном прямо в разметке
             'uploads' => [128, 96, 210, 184, 240, 173, 268, 312, 254, 298, 341, 386, 352, 410],
             'traffic' => [
                 ['label' => 'пн', 'value' => 62], ['label' => 'вт', 'value' => 78], ['label' => 'ср', 'value' => 54],
@@ -266,7 +256,6 @@ final class MockData
         ];
     }
 
-    /** Последние события — для ленты на обзоре. */
     public static function events(): array
     {
         return [

@@ -10,7 +10,7 @@ use Flytachi\Winter\DI\Attribute\Singleton;
 final class LinkSigner
 {
     private const int VERSION = 1;
-    private const int SIGNATURE_BYTES = 16; // 128 бит — достаточно против подделки
+    private const int SIGNATURE_BYTES = 16;
     private const int FLAG_ATTACHMENT = 0b01;
     private const int FLAG_HAS_JTI = 0b10;
 
@@ -29,7 +29,6 @@ final class LinkSigner
         return $this->encode($body . $this->signature($body));
     }
 
-
     public function verify(string $token): ?LinkPayload
     {
         $raw = $this->decode($token);
@@ -40,8 +39,6 @@ final class LinkSigner
         $body = substr($raw, 0, -self::SIGNATURE_BYTES);
         $signature = substr($raw, -self::SIGNATURE_BYTES);
 
-        // hash_equals — сравнение за константное время: иначе подпись
-        // подбирается по времени ответа побайтово.
         if (!hash_equals($this->signature($body), $signature)) {
             return null;
         }
@@ -72,10 +69,6 @@ final class LinkSigner
             | ($payload->jti !== null ? self::FLAG_HAS_JTI : 0);
     }
 
-    /**
-     * Ключ выводим из WINTER_KEY, отдельный секрет в env не заводим. Следствие
-     * осознанное: ротация WINTER_KEY гасит все выданные ссылки разом.
-     */
     private function signature(string $body): string
     {
         $key = hash_hmac('sha256', 'winter/s5w/link/v1', (string) env('WINTER_KEY', ''), true);

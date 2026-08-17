@@ -27,6 +27,19 @@ enum Retention: int
         };
     }
 
+    public function sqlInterval(): ?string
+    {
+        return match ($this) {
+            self::NONE => null,
+            self::DAY => '1 day',
+            self::WEEK => '7 days',
+            self::MONTH => '1 month',
+            self::QUARTER => '3 months',
+            self::HALF_YEAR => '6 months',
+            self::YEAR => '1 year',
+        };
+    }
+
     /**
      * @return array{id: int, name: string}
      */

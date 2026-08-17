@@ -29,7 +29,7 @@ class BucketProvisioner
     public function provision(string $bucketId): void
     {
         if ($this->repo->findById($bucketId) === null) {
-            return; // удалили, пока задача ждала очереди
+            return;
         }
 
         $this->setStatus($bucketId, BucketStatus::PENDING);
@@ -44,15 +44,6 @@ class BucketProvisioner
         }
     }
 
-    /**
-     * Порядок намеренный: сначала строка, потом каталог.
-     *
-     * Строку уносит CASCADE вместе с папками, файлами, блобами и токенами —
-     * после коммита база консистентна. Если процесс умрёт на удалении каталога,
-     * на диске останется сирота: её подберёт будущий OrphanDirSweeper. Обратный
-     * порядок оставил бы живую строку с исчезнувшими файлами — то есть 500 на
-     * каждой отдаче вместо мусора на диске.
-     */
     #[Async]
     public function purge(string $bucketId): void
     {

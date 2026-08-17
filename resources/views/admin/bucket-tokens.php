@@ -1,86 +1,152 @@
 <?php
 
 use Main\Web\Fmt;
+
+/** @var \Main\Request\TokenListRequest $query */
+$base = '/admin/ui/buckets/' . $bucket->id . '/tokens';
+
+$th = static function (string $key, string $label) use ($query, $bucket): string {
+    $arrow = $query->sortArrow($key);
+
+    return '<a class="th-sort' . ($arrow === null ? '' : ' is-active') . '" href="'
+        . Fmt::e($query->sortUrl($bucket->id, $key)) . '">' . Fmt::e($label)
+        . ($arrow === null ? '' : ' <span class="th-sort__arrow">' . $arrow . '</span>') . '</a>';
+};
 ?>
 
-<div class="card">
+<div class="grid grid--4 metrics-row mb-3">
+    <div class="card stat stat--ok">
+        <span class="stat__icon"><svg class="icon"><use href="#i-key"/></svg></span>
+        <span class="stat__value<?= $counts['active'] === 0 ? ' is-zero' : '' ?>" data-counter="tokens-active"><?= Fmt::num($counts['active']) ?></span>
+        <span class="stat__body">
+            <span class="stat__label">Живых</span>
+            <span class="stat__note">работают сейчас</span>
+        </span>
+    </div>
+
+    <div class="card stat stat--warn">
+        <span class="stat__icon"><svg class="icon"><use href="#i-zap"/></svg></span>
+        <span class="stat__value<?= $counts['full'] === 0 ? ' is-zero' : '' ?>" data-counter="tokens-full"><?= Fmt::num($counts['full']) ?></span>
+        <span class="stat__body">
+            <span class="stat__label">Полных</span>
+            <span class="stat__note">пишут в бакет</span>
+        </span>
+    </div>
+
+    <div class="card stat stat--mute">
+        <span class="stat__icon"><svg class="icon"><use href="#i-lock"/></svg></span>
+        <span class="stat__value<?= $counts['inactive'] === 0 ? ' is-zero' : '' ?>" data-counter="tokens-inactive"><?= Fmt::num($counts['inactive']) ?></span>
+        <span class="stat__body">
+            <span class="stat__label">Выключено</span>
+            <span class="stat__note">отвечают 403</span>
+        </span>
+    </div>
+
+    <div class="card stat stat--danger">
+        <span class="stat__icon"><svg class="icon"><use href="#i-clock"/></svg></span>
+        <span class="stat__value<?= $counts['expired'] === 0 ? ' is-zero' : '' ?>" data-counter="tokens-expired"><?= Fmt::num($counts['expired']) ?></span>
+        <span class="stat__body">
+            <span class="stat__label">Просрочено</span>
+            <span class="stat__note">вышел срок</span>
+        </span>
+    </div>
+</div>
+
+<div class="card panel panel--tokens">
     <div class="card__header">
         <div>
             <div class="card__title">Токены доступа</div>
-            <div class="card__subtitle">
-                ключи клиента к каналу <span class="mono">/p</span> этого бакета —
-                <?= Fmt::num($meta->total) ?> <?= Fmt::plural($meta->total, 'штука', 'штуки', 'штук') ?>
-            </div>
         </div>
         <div class="card__spacer"></div>
-        <button class="btn btn--dark btn--sm" data-modal-open="modal-token">
-            <svg class="icon icon--sm"><use href="#i-plus"/></svg> Выпустить
-        </button>
-    </div>
 
-    <div class="alert mt-2">
-        <svg class="icon"><use href="#i-info"/></svg>
-        <div class="alert__body">
-            <div class="alert__title">Значение показывается один раз</div>
-            <div class="alert__text">
-                В базе лежит только sha256-хеш. Потеряли — ротируйте: строка останется той же, ключ станет новым.
-                Бакет клиент не указывает, он определяется по токену.
-            </div>
+        <div class="panel__tools">
+            <form class="search-pill" method="get" action="<?= $base ?>">
+                <svg class="icon icon--sm"><use href="#i-search"/></svg>
+                <input type="search" name="search" placeholder="Название ключа" value="<?= Fmt::e($query->search ?? '') ?>">
+                <input type="hidden" name="sort" value="<?= Fmt::e($query->sort) ?>">
+                <input type="hidden" name="dir" value="<?= Fmt::e($query->dir) ?>">
+            </form>
+
+            <?php if (($query->search ?? '') !== ''): ?>
+                <a class="icon-btn icon-btn--ghost icon-btn--sm" href="<?= Fmt::e($query->url($bucket->id, ['search' => null, 'page' => 1])) ?>"
+                   aria-label="Сбросить поиск">
+                    <svg class="icon icon--sm"><use href="#i-x"/></svg>
+                </a>
+            <?php endif ?>
+
+            <button class="btn btn--dark btn--sm" data-modal-open="modal-token">
+                <svg class="icon icon--sm"><use href="#i-plus"/></svg> Выпустить
+            </button>
         </div>
     </div>
 
-    <div class="table-wrap mt-2">
+    <div class="panel__scroll mt-2">
         <table class="table">
             <thead>
             <tr>
-                <th>Название</th>
-                <th>Статус</th>
+                <th><?= $th('name', 'Ключ') ?></th>
+                <th><?= $th('access', 'Доступ') ?></th>
+                <th><?= $th('state', 'Состояние') ?></th>
                 <th>Срок</th>
-                <th>Последнее обращение</th>
-                <th>Выпущен</th>
+                <th><?= $th('used', 'Обращались') ?></th>
+                <th><?= $th('created', 'Выпущен') ?></th>
                 <th></th>
             </tr>
             </thead>
             <tbody data-rows="tokens">
             <?php foreach ($tokens as $token): ?>
+                <?php
+                $active = $token->status['name'] === 'ACTIVE' && !$token->expired;
+                $full = $token->access['name'] === 'FULL';
+                ?>
                 <tr data-row="token" data-id="<?= $token->id ?>" data-name="<?= Fmt::e($token->name) ?>"
-                    data-status="<?= Fmt::e($token->status['name']) ?>">
+                    data-status="<?= Fmt::e($token->status['name']) ?>" data-access="<?= Fmt::e($token->access['name']) ?>"
+                    <?= $token->expired ? 'data-expired="1" ' : '' ?><?= $active ? '' : 'style="opacity:.55"' ?>>
                     <td>
                         <div class="fileline">
-                            <span class="ftype ftype--<?= $token->expired ? 'arch' : 'image' ?>">
+                            <span class="ftype ftype--<?= $full ? 'doc' : 'arch' ?>">
                                 <svg class="icon"><use href="#i-key"/></svg>
                             </span>
                             <span class="fileline__body">
-                                <span class="fileline__name"><?= Fmt::e($token->name) ?></span>
-                                <span class="fileline__meta">id <?= $token->id ?></span>
+                                <span class="fileline__name" title="<?= Fmt::e($token->name) ?>"><?= Fmt::e($token->name) ?></span>
+                                <span class="fileline__meta mono">
+                                    <?= $token->tail === '' ? '—' : 's5w_…' . Fmt::e($token->tail) ?>
+                                </span>
                             </span>
                         </div>
                     </td>
+                    <td data-cell="access">
+                        <span class="tone tone--<?= $full ? 'warn' : 'mute' ?>"><?= Fmt::e($token->accessLabel) ?></span>
+                    </td>
                     <td data-cell="status">
-                        <?php if ($token->expired): ?>
-                            <span class="tone tone--danger">просрочен</span>
-                        <?php elseif ($token->status['name'] === 'ACTIVE'): ?>
-                            <span class="tone tone--ok"><span class="status-dot" style="background:currentColor"></span> активен</span>
-                        <?php else: ?>
+                        <?php if ($token->status['name'] !== 'ACTIVE'): ?>
                             <span class="tone tone--mute">выключен</span>
+                        <?php elseif ($token->expired): ?>
+                            <span class="tone tone--danger">просрочен</span>
+                        <?php else: ?>
+                            <span class="tone tone--ok"><span class="status-dot" style="background:currentColor"></span> активен</span>
                         <?php endif ?>
                     </td>
-                    <td class="text-sm nowrap"><?= Fmt::left($token->expiresAt) ?></td>
+                    <td class="text-sm nowrap">
+                        <?= $token->expiresAt === null ? '<span class="text-muted">бессрочно</span>' : Fmt::left($token->expiresAt) ?>
+                    </td>
                     <td class="text-sm text-muted nowrap">
                         <?= $token->lastUsedAt === null ? 'не использовался' : Fmt::ago($token->lastUsedAt) ?>
                     </td>
-                    <td class="text-sm text-muted nowrap"><?= Fmt::date($token->createdAt) ?></td>
+                    <td class="text-sm text-muted nowrap" title="<?= Fmt::e(Fmt::date($token->createdAt)) ?>">
+                        <?= Fmt::ago($token->createdAt) ?>
+                    </td>
                     <td>
-                        <div class="row" style="justify-content:flex-end; flex-wrap:nowrap">
-                            <button class="btn btn--ghost btn--sm" data-action="token:rotate"
-                                    data-id="<?= $token->id ?>" data-name="<?= Fmt::e($token->name) ?>">
-                                <svg class="icon icon--sm"><use href="#i-refresh"/></svg> Ротация
-                            </button>
+                        <div class="row row-actions" style="justify-content:flex-end; flex-wrap:nowrap">
                             <div class="dropdown">
                                 <button class="icon-btn icon-btn--ghost icon-btn--sm" data-dropdown-toggle aria-label="Действия">
                                     <svg class="icon icon--sm"><use href="#i-more-h"/></svg>
                                 </button>
                                 <div class="dropdown__menu">
+                                    <button class="dropdown__item" data-action="token:rotate"
+                                            data-id="<?= $token->id ?>" data-name="<?= Fmt::e($token->name) ?>">
+                                        Ротация <svg class="icon"><use href="#i-refresh"/></svg>
+                                    </button>
                                     <button class="dropdown__item" data-action="token:toggle" data-id="<?= $token->id ?>">
                                         <?= $token->status['name'] === 'ACTIVE' ? 'Выключить' : 'Включить' ?>
                                         <svg class="icon"><use href="#i-lock"/></svg>
@@ -97,31 +163,20 @@ use Main\Web\Fmt;
             <?php endforeach ?>
             </tbody>
         </table>
-    </div>
 
-    <div class="empty" data-empty="tokens"<?= $tokens === [] ? '' : ' hidden' ?>>
-        <svg class="icon"><use href="#i-key"/></svg>
-        <div class="empty__title">Токенов нет</div>
-        <div class="text-sm">Без токена клиент не заберёт приватный файл</div>
+        <div class="empty" data-empty="tokens"<?= $tokens === [] ? '' : ' hidden' ?>>
+            <svg class="icon"><use href="#i-key"/></svg>
+            <?php if (($query->search ?? '') !== ''): ?>
+                <div class="empty__title">Ничего не нашлось</div>
+                <div class="text-sm">По запросу «<?= Fmt::e($query->search) ?>» ключей нет</div>
+            <?php else: ?>
+                <div class="empty__title">Токенов нет</div>
+                <div class="text-sm">Без токена клиент не заберёт приватный файл</div>
+            <?php endif ?>
+        </div>
     </div>
 
     <?php wrImport('admin/_pagination') ?>
-</div>
-
-<div class="card card--dark mt-3">
-    <div class="card__header"><div class="card__title" style="color:#fff">Проверить руками</div></div>
-    <div class="secret mt-2" style="background: rgba(255,255,255,.08)">
-        <span style="flex:1">curl -H "Authorization: Bearer s5w_…" <?= Fmt::e($bucket->id) ?>&nbsp;→ /p/&lt;slug&gt;</span>
-        <button class="icon-btn icon-btn--sm" aria-label="Копировать"
-                data-copy='curl -H "Authorization: Bearer s5w_…" http://localhost:9090/p/slug'>
-            <svg class="icon icon--sm"><use href="#i-copy"/></svg>
-        </button>
-    </div>
-    <p class="text-sm mt-2" style="color: var(--gray-6)">
-        Нет заголовка или ключ неизвестен — <b>401</b>. Выключенный или просроченный
-        токен — <b>403</b>: повторять с тем же секретом бессмысленно.
-        Slug чужого бакета — <b>404</b>, чтобы перебор не подсказывал, что существует.
-    </p>
 </div>
 
 <?php wrImport('admin/_modals') ?>

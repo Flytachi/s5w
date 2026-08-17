@@ -7,13 +7,6 @@ namespace Main\Storage;
 use Flytachi\Winter\DI\Attribute\Singleton;
 use Flytachi\Winter\Kernel\Kernel;
 
-/**
- * Файловое хранилище: storage/chest/{bucketId}/{sha256}.
- *
- * Имя файла — сам хеш содержимого, поэтому запись одного и того же контента
- * дважды идёт в один и тот же путь. Учёт ссылок ведёт база (Blob.ref_count),
- * здесь только байты.
- */
 #[Singleton]
 final class BlobStore
 {
@@ -29,7 +22,6 @@ final class BlobStore
         return is_dir($this->bucketPath($bucketId));
     }
 
-    /** Идемпотентно: существующий каталог — не ошибка. */
     public function createBucketDir(string $bucketId): void
     {
         $path = $this->bucketPath($bucketId);
@@ -41,7 +33,6 @@ final class BlobStore
         }
     }
 
-    /** Идемпотентно: отсутствующий каталог — не ошибка. */
     public function removeBucketDir(string $bucketId): void
     {
         $path = $this->bucketPath($bucketId);
@@ -62,8 +53,6 @@ final class BlobStore
             throw new \RuntimeException("Failed to remove bucket dir \"{$path}\"");
         }
     }
-
-    // ── Блобы ────────────────────────────────────────────────────────────────
 
     public function blobPath(string $bucketId, string $hash): string
     {
@@ -103,7 +92,6 @@ final class BlobStore
         @unlink($srcPath);
     }
 
-    /** Идемпотентно: отсутствующий файл — не ошибка. */
     public function blobDelete(string $bucketId, string $hash): void
     {
         $path = $this->blobPath($bucketId, $hash);

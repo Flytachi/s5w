@@ -8,7 +8,6 @@ use Main\Entity\Bucket;
 use Main\Enum\BucketStatus;
 use Main\Enum\CacheVisibility;
 
-
 final class BucketRes
 {
     /**
@@ -41,7 +40,6 @@ final class BucketRes
             ],
             status: BucketStatus::from($model->status)->toArray(),
             cache: [
-                // null в обоих полях = «наследовать глобальный дефолт»
                 'maxAge' => $model->cache_max_age,
                 'visibility' => $model->cache_visibility === null
                     ? null

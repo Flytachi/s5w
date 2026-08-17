@@ -36,6 +36,11 @@
       json = { message: text.slice(0, 200) };
     }
 
+    if (res.status === 401 && !document.querySelector("[data-login-form]")) {
+      location.href = "/admin/ui/login?next=" + encodeURIComponent(location.pathname + location.search);
+      await new Promise(() => {});
+    }
+
     if (!res.ok) {
       throw new ApiError(res.status, (json && json.message) || "Запрос не прошёл", json && json.errors);
     }

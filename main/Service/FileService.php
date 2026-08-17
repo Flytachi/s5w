@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Main\Service;
 
 use Flytachi\Winter\Base\HttpCode;
+use Flytachi\Winter\Cdo\CDOBind;
 use Flytachi\Winter\Cdo\Qb;
 use Flytachi\Winter\DI\Attribute\Autowired;
 use Flytachi\Winter\DI\Attribute\Singleton;
@@ -65,8 +66,6 @@ final class FileService
         $folder = $this->resolveFolder($bucketId, $request->folder);
         $sourceName = (string) ($upload['name'] ?? '');
 
-        // До транзакции и до блоба: в хранилище уходят уже обработанные байты,
-        // значит и хэш, и квота считаются по ним (docs/plan.md §10.2).
         $processed = $this->images->process($tmpPath, $request);
 
         $db = $this->repo->db();
@@ -98,16 +97,11 @@ final class FileService
             if ($db->inTransaction()) {
                 $db->rollBack();
             }
-            // Откат вернул ref_count назад, а файл на диске остался. Убираем его
-            // только если байты записали мы: при дедупликации по этому пути
-            // лежит содержимое чужой, живой строки.
             if ($stored !== null && !$stored->deduplicated) {
                 $this->store->blobDelete($bucketId, $stored->blob->hash);
             }
             throw $e;
         } finally {
-            // Результат обработки — наш временный файл рядом с загруженным;
-            // за исходником уберёт рантайм, за этим убирать некому.
             if ($processed->temporary) {
                 @unlink($processed->path);
             }
@@ -118,7 +112,6 @@ final class FileService
     {
         $where = [Qb::eq('bucket_id', $bucketId)];
 
-        // null — весь бакет, '' — только корень, иначе конкретная папка.
         if ($request->folder !== null) {
             $where[] = $request->folder === ''
                 ? Qb::isNull('folder_id')
@@ -138,8 +131,6 @@ final class FileService
             return $page;
         }
 
-        // Блобы и папки — двумя IN-запросами, а не по одному на строку:
-        // страница в 100 файлов иначе стоит 200 обращений к базе.
         $blobs = $this->mapById($this->blobRepo, array_column($page->data, 'blob_id'));
         $folders = $this->mapById($this->folderRepo, array_filter(array_column($page->data, 'folder_id')));
 
@@ -157,13 +148,6 @@ final class FileService
         );
     }
 
-    /**
-     * ORDER BY по выбору из закрытого списка — в SQL, а не в памяти: сортировка
-     * обязана быть сквозной по всему списку, а не по видимой странице.
-     *
-     * Вес лежит на блобе, не на файле, поэтому берётся подзапросом: join ради
-     * одной колонки заставил бы разбирать выдачу вручную.
-     */
     private function orderBy(FileListRequest $request): string
     {
         $dir = $request->dir === 'asc' ? 'ASC' : 'DESC';
@@ -199,13 +183,6 @@ final class FileService
         return $file;
     }
 
-    /**
-     * Переименование и перемещение.
-     *
-     * При смене папки видимость и срок хранения пересчитываются по новому
-     * месту: файл, уехавший из публичной папки в приватную, обязан перестать
-     * отдаваться через /o немедленно, а не когда-нибудь.
-     */
     public function update(
         string $bucketId,
         string $slug,
@@ -244,13 +221,6 @@ final class FileService
         return FileRes::from($file, $this->blobOf($file), $folder?->name, $baseUrl);
     }
 
-    /**
-     * Удаление файла со снятием ссылки с содержимого.
-     *
-     * Строка и счётчик ссылок меняются в одной транзакции; файл на диске
-     * удаляется после коммита — если бы порядок был обратным, откат оставил бы
-     * живую строку без содержимого.
-     */
     public function delete(string $bucketId, string $slug): void
     {
         $file = $this->get($bucketId, $slug);
@@ -274,10 +244,37 @@ final class FileService
         }
     }
 
-    /**
-     * Удаление всех файлов папки — через общий путь, чтобы ссылки на блобы и
-     * квота бакета считались так же, как при поштучном удалении.
-     */
+    public function setPublicByFolder(string $bucketId, int $folderId, bool $public): int
+    {
+        return (int) $this->repo->update(
+            ['public' => $public, 'updated_at' => date('Y-m-d H:i:s P')],
+            Qb::and(Qb::eq('bucket_id', $bucketId), Qb::eq('folder_id', $folderId)),
+        );
+    }
+
+    public function resetExpiryByFolder(string $bucketId, int $folderId, Retention $retention): int
+    {
+        $interval = $retention->sqlInterval();
+        $expiry = $interval === null ? 'NULL' : "created_at + interval '{$interval}'";
+
+        $updated = $this->repo->rawFetch(
+            sprintf(
+                'UPDATE %s SET expires_at = %s, updated_at = :updated'
+                . ' WHERE bucket_id = :bucket AND folder_id = :folder RETURNING id',
+                $this->repo->originTable(),
+                $expiry,
+            ),
+            [
+                new CDOBind('updated', date('Y-m-d H:i:s P')),
+                new CDOBind('bucket', $bucketId),
+                new CDOBind('folder', $folderId),
+            ],
+            FileEntry::class,
+        );
+
+        return count($updated);
+    }
+
     public function deleteByFolder(string $bucketId, int $folderId): int
     {
         $files = $this->repo->findAllBy(Qb::and(
@@ -292,17 +289,6 @@ final class FileService
         return count($files);
     }
 
-    // ── Внутреннее ───────────────────────────────────────────────────────────
-
-    /**
-     * Вставка с двумя видами конфликтов: занятое имя и (теоретически) занятый
-     * slug. Какой именно сработал — видно по имени индекса, поэтому суффикс
-     * навешивается только на имя, а slug просто перевыпускается.
-     *
-     * SAVEPOINT обязателен: в Postgres любая ошибка в транзакции делает её
-     * непригодной целиком, и без него первая же коллизия имени убила бы уже
-     * записанный блоб.
-     */
     private function insertWithRetries(FileEntry $file): void
     {
         $db = $this->repo->db();
@@ -332,7 +318,6 @@ final class FileService
         ClientError::throw('Name conflict, retry limit exceeded', HttpCode::CONFLICT);
     }
 
-    /** «отчёт.pdf» + 2 → «отчёт (2).pdf» */
     private function suffixed(string $name, int $n): string
     {
         $dot = strrpos($name, '.');
@@ -341,18 +326,12 @@ final class FileService
             : substr($name, 0, $dot) . " ({$n})" . substr($name, $dot);
     }
 
-    /**
-     * Имя из формы, иначе из multipart, иначе случайное — и всегда с
-     * расширением по содержимому: без него скачанный файл система не откроет.
-     */
     private function finalName(?string $requested, string $sourceName, string $extension): string
     {
         $name = trim((string) ($requested ?: $sourceName));
         if ($name === '') {
             $name = 'file-' . bin2hex(random_bytes(4));
         }
-        // Имя не должно уезжать в подкаталоги — оно попадает в
-        // Content-Disposition при отдаче.
         $name = str_replace(['/', '\\', "\0"], '-', $name);
 
         if ($extension === '') {
@@ -364,10 +343,6 @@ final class FileService
             return $name;
         }
 
-        // Расширение противоречит содержимому: photo.jpg после перекодирования
-        // в webp, mislabeled.png с jpeg внутри. Заменяем его, но только если
-        // это действительно указание типа — «отчёт v1.2» тоже кончается точкой
-        // с хвостом, и его резать нельзя.
         $dot = strrpos($name, '.');
         if ($dot > 0 && ContentType::isKnownExtension($current)) {
             $name = substr($name, 0, $dot);
@@ -376,7 +351,6 @@ final class FileService
         return $name . '.' . $extension;
     }
 
-    /** null/'' — корень бакета; иначе папка обязана существовать. */
     private function resolveFolder(string $bucketId, ?string $name): ?Folder
     {
         if ($name === null || $name === '') {
@@ -397,7 +371,6 @@ final class FileService
         return $folder;
     }
 
-    /** Срок жизни файла: скользящий, от момента загрузки (docs/plan.md §5). */
     private function expiryFor(?Folder $folder): ?string
     {
         $interval = $folder === null ? null : Retention::from($folder->retention)->interval();

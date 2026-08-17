@@ -21,7 +21,6 @@ use Main\Enum\Disposition;
 use Main\Repository\BucketRepository;
 use Main\Repository\FileEntryRepository;
 
-
 #[Table]
 class ShareLink
 {

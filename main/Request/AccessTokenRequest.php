@@ -9,6 +9,7 @@ use Flytachi\Winter\Kernel\Http\Request\Validation\NotBlank;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Positive;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Required;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Size;
+use Main\Enum\TokenAccess;
 
 final class AccessTokenRequest
 {
@@ -17,6 +18,8 @@ final class AccessTokenRequest
         #[NotBlank]
         #[Size(min: 1, max: 100)]
         public string $name,
+
+        public TokenAccess $access = TokenAccess::BASIC,
 
         #[Positive]
         #[Max(3650)]

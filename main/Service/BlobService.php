@@ -30,11 +30,6 @@ final class BlobService
     private BlobStore $store;
 
     /**
-     * Кладёт содержимое временного файла в бакет.
-     *
-     * Тот же контент второй раз не пишется и квоту не занимает: находим блоб по
-     * (bucket, sha256) и просто увеличиваем счётчик ссылок.
-     *
      * @param string $srcPath временный файл; при успешной укладке он уезжает в хранилище
      * @param string|null $sourceName исходное имя — только как подсказка для типа
      */
@@ -49,8 +44,6 @@ final class BlobService
         $type = ContentType::detect($srcPath, $sourceName);
 
         $db = $this->repo->db();
-        // Транзакцию открываем, только если её нет: загрузка файла оборачивает
-        // блоб и строку файла в одну свою, чтобы они появлялись вместе.
         $owns = !$db->inTransaction();
         if ($owns) {
             $db->beginTransaction();
@@ -58,12 +51,7 @@ final class BlobService
         $written = false;
 
         try {
-            // Две попытки: на второй мы уже точно видим чужую строку (INSERT,
-            // получивший 23505, ждал коммита победителя — значит, она видна).
             for ($attempt = 0; $attempt < 2; $attempt++) {
-                // FOR UPDATE держит существующий блоб от параллельного release:
-                // иначе он мог бы обнулить ref_count и удалить файл ровно между
-                // нашим SELECT и нашим UPDATE.
                 $blob = $this->repo
                     ->where(Qb::and(Qb::eq('bucket_id', $bucketId), Qb::eq('hash', $hash)))
                     ->forBy('UPDATE')
@@ -75,9 +63,6 @@ final class BlobService
                     if ($owns) {
                         $db->commit();
                     }
-                    // Файл (если мы его успели записать на первой попытке) не
-                    // трогаем: путь content-addressed, там те же байты, и теперь
-                    // они принадлежат победившей строке.
                     return new StoredBlob($blob, true, $type['mime'], $type['extension']);
                 }
 
@@ -93,8 +78,6 @@ final class BlobService
                     );
                 }
 
-                // Байты пишем до коммита: файл без строки — мусор, который
-                // подберёт уборщик, а строка без файла — 500 на каждой отдаче.
                 if (!$written) {
                     $this->store->blobWrite($bucketId, $hash, $srcPath);
                     $written = true;
@@ -107,10 +90,6 @@ final class BlobService
                 $blob->ref_count = 1;
                 $blob->created_at = date('Y-m-d H:i:s P');
 
-                // Гонка двух одинаковых загрузок: FOR UPDATE не запирает ещё не
-                // существующую строку, поэтому обе доходят до INSERT и одна
-                // получает 23505. Savepoint нужен, чтобы этот отказ не убил всю
-                // транзакцию — в том числе внешнюю, чужую.
                 $db->exec('SAVEPOINT s5w_blob');
                 try {
                     $blob->id = $this->repo->insert($blob);
@@ -143,24 +122,12 @@ final class BlobService
                     $this->store->blobDelete($bucketId, $hash);
                 }
             }
-            // Во внешней транзакции файл убирает тот, кто её откатывает: только
-            // он знает, дошло ли дело до коммита (см. StoredBlob::$written).
             throw $e;
         }
     }
 
     /**
-     * Снимает одну ссылку. Последняя уносит и строку, и файл, и занятое место.
-     *
-     * unlink делается после коммита намеренно: откат транзакции не должен
-     * стоить нам файла, на который кто-то ещё ссылается. Обратная ошибка —
-     * файл-сирота при падении между коммитом и unlink — стоит места, а не
-     * данных, и подбирается уборщиком.
-     *
      * @return Blob|null осиротевший блоб, если сняли последнюю ссылку и вызов
-     *   идёт внутри чужой транзакции: удалить его файл должен тот, кто её
-     *   коммитит. При собственной транзакции файл удаляется здесь и возвращается
-     *   null — вызывающему делать нечего.
      */
     public function release(string $bucketId, int $blobId): ?Blob
     {
@@ -180,7 +147,7 @@ final class BlobService
                 if ($owns) {
                     $db->commit();
                 }
-                return null; // уже освобождён — release идемпотентен
+                return null;
             }
 
             if ($blob->ref_count > 1) {
@@ -211,8 +178,6 @@ final class BlobService
             throw $e;
         }
 
-        // Внутри внешней транзакции файл ещё не наш, чтобы его удалять: она
-        // может откатиться, и строка блоба вернётся к жизни.
         if ($orphan !== null && $owns) {
             $this->store->blobDelete($orphan->bucket_id, $orphan->hash);
             return null;

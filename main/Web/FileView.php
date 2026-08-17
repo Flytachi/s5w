@@ -6,13 +6,6 @@ namespace Main\Web;
 
 use Main\Dto\FileRes;
 
-/**
- * Файл глазами панели.
- *
- * Обёртка вокруг {@see FileRes}: ответ API уже несёт всё нужное, но работать с
- * массивами во вьюхах неудобно, а вычисления вроде «какого типа значок» лучше
- * держать в одном месте.
- */
 final readonly class FileView
 {
     public function __construct(
@@ -53,7 +46,6 @@ final readonly class FileView
         );
     }
 
-    /** Класс плитки и иконка по типу содержимого. */
     public function kind(): array
     {
         return Fmt::kind($this->mime);
@@ -64,7 +56,6 @@ final readonly class FileView
         return $this->public ? 'o' : 'p';
     }
 
-    /** Что показывать в колонке «Обработка». */
     public function processedLabel(): ?string
     {
         if ($this->processed === null) {

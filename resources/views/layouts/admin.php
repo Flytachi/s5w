@@ -20,9 +20,9 @@ $base = $bucket === null ? null : '/admin/ui/buckets/' . $bucket->id;
     <link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
     <meta name="theme-color" content="#3b5bdb">
-    <link rel="stylesheet" href="/assets/css/fonts.css">
-    <link rel="stylesheet" href="/assets/css/admin.css">
-    <script src="/assets/js/theme.js"></script>
+    <link rel="stylesheet" href="<?= Fmt::asset('/assets/css/fonts.css') ?>">
+    <link rel="stylesheet" href="<?= Fmt::asset('/assets/css/admin.css') ?>">
+    <script src="<?= Fmt::asset('/assets/js/theme.js') ?>"></script>
 </head>
 <body data-page="<?= Fmt::e($nav) ?>"<?= $bucket === null ? '' : ' data-bucket-id="' . Fmt::e($bucket->id) . '"' ?>>
 
@@ -50,7 +50,7 @@ $base = $bucket === null ? null : '/admin/ui/buckets/' . $bucket->id;
                     <?php if ($bucket === null): ?>
                         <span class="status-dot status-dot--light"></span>не выбран
                     <?php else: ?>
-                        <span class="status-dot<?= $bucket->isActive() ? '' : ' status-dot--mid' ?>"></span><?= Fmt::e($bucket->name) ?>
+                        <span class="status-dot<?= $bucket->isActive() ? '' : ' status-dot--mid' ?>"></span><span class="cselect__name"><?= Fmt::e($bucket->name) ?></span>
                     <?php endif ?>
                 </span>
                 <svg class="icon icon--sm cselect__chev"><use href="#i-chevron-down"/></svg>
@@ -60,7 +60,7 @@ $base = $bucket === null ? null : '/admin/ui/buckets/' . $bucket->id;
                     <button type="button"
                             class="cselect__option<?= $bucket !== null && $item->id === $bucket->id ? ' is-selected' : '' ?>"
                             data-value="<?= Fmt::e($item->id) ?>">
-                        <span class="status-dot<?= $item->isActive() ? '' : ' status-dot--mid' ?>"></span><?= Fmt::e($item->name) ?>
+                        <span class="status-dot<?= $item->isActive() ? '' : ' status-dot--mid' ?>"></span><span class="cselect__name"><?= Fmt::e($item->name) ?></span>
                         <svg class="icon icon--check"><use href="#i-check"/></svg>
                     </button>
                 <?php endforeach ?>
@@ -78,7 +78,6 @@ $base = $bucket === null ? null : '/admin/ui/buckets/' . $bucket->id;
                 </a>
                 <a class="nav-item <?= $active('files') ?>" href="<?= $base ?>/files">
                     <svg class="icon"><use href="#i-folder"/></svg> Файлы
-                    <span class="ml-auto text-sm text-muted"><?= Fmt::num($bucket->files) ?></span>
                 </a>
                 <a class="nav-item <?= $active('tokens') ?>" href="<?= $base ?>/tokens">
                     <svg class="icon"><use href="#i-key"/></svg> Токены
@@ -98,7 +97,7 @@ $base = $bucket === null ? null : '/admin/ui/buckets/' . $bucket->id;
         <?php endif ?>
 
         <div class="sidebar__footer">
-            <a class="nav-item" href="/admin/ui/login">
+            <a class="nav-item" href="/admin/ui/login" data-logout>
                 <svg class="icon"><use href="#i-logout"/></svg> Выйти
             </a>
         </div>
@@ -147,9 +146,9 @@ $base = $bucket === null ? null : '/admin/ui/buckets/' . $bucket->id;
     </main>
 </div>
 
-<script src="/assets/js/icons.js"></script>
-<script src="/assets/js/api.js"></script>
-<script src="/assets/js/render.js"></script>
-<script src="/assets/js/admin.js"></script>
+<script src="<?= Fmt::asset('/assets/js/icons.js') ?>"></script>
+<script src="<?= Fmt::asset('/assets/js/api.js') ?>"></script>
+<script src="<?= Fmt::asset('/assets/js/render.js') ?>"></script>
+<script src="<?= Fmt::asset('/assets/js/admin.js') ?>"></script>
 </body>
 </html>

@@ -10,7 +10,6 @@ use Flytachi\Winter\Kernel\Http\Request\Validation\Positive;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Required;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Size;
 
-
 final class BucketRequest
 {
     public function __construct(

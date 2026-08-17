@@ -67,14 +67,9 @@ final class BlobResponse implements Sendable
         $response->header('Content-Disposition', $this->disposition());
         $response->header('Content-Encoding', 'identity');
         $response->header('Content-Length', (string) $length);
-        // Браузер не должен угадывать тип по содержимому: загруженный html,
-        // отданный как text/plain, иначе выполнится как html.
         $response->header('X-Content-Type-Options', 'nosniff');
     }
 
-    /**
-     * RFC 6266/5987: ASCII-вариант для старых клиентов + filename* с UTF-8.
-     */
     private function disposition(): string
     {
         $type = $this->attachment ? 'attachment' : 'inline';
@@ -99,9 +94,6 @@ final class BlobResponse implements Sendable
             return null;
         }
 
-        // If-Range: клиент докачивает то, что уже начал. Если валидатор не
-        // совпал — представление изменилось, и склеивать куски нельзя: отдаём
-        // файл целиком.
         $ifRange = $request->getHeader('If-Range');
         if ($ifRange !== null) {
             $matches = str_starts_with($ifRange, '"') || str_starts_with($ifRange, 'W/')
@@ -113,8 +105,6 @@ final class BlobResponse implements Sendable
         }
 
         $set = substr($header, 6);
-        // Множественные диапазоны (multipart/byteranges) не поддерживаем; RFC
-        // 9110 §14.2 разрешает в этом случае просто отдать всё представление.
         if (str_contains($set, ',')) {
             return null;
         }
@@ -122,7 +112,7 @@ final class BlobResponse implements Sendable
         [$startRaw, $endRaw] = array_pad(explode('-', $set, 2), 2, '');
 
         if ($startRaw === '') {
-            $last = (int) $endRaw; // bytes=-N — последние N байт
+            $last = (int) $endRaw;
             if ($last <= 0) {
                 return false;
             }
@@ -141,7 +131,6 @@ final class BlobResponse implements Sendable
         return [$start, $end];
     }
 
-    /** RFC 9110 §13.2.2: If-None-Match важнее If-Modified-Since. */
     private function isNotModified(HttpRequest $request, int $mtime, string $etag): bool
     {
         $inm = $request->getHeader('If-None-Match');
