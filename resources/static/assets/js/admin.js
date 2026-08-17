@@ -22,7 +22,72 @@ document.addEventListener("DOMContentLoaded", () => {
   initUpload();
   initLogin();
   initLogout();
+  initDonut();
 });
+
+/* ============================================================
+   Диаграмма по расширениям
+   ============================================================ */
+
+function initDonut() {
+  const donut = document.querySelector("[data-donut]");
+  if (!donut) return;
+
+  const rows = document.querySelectorAll(".kinds tr[data-slice]");
+  const tip = document.createElement("div");
+  tip.className = "ring-tip";
+  tip.hidden = true;
+  document.body.appendChild(tip);
+
+  const find = (index) => ({
+    slice: donut.querySelector(`[data-slice="${index}"]`),
+    row: document.querySelector(`.kinds tr[data-slice="${index}"]`),
+  });
+
+  const highlight = (index) => {
+    donut.classList.toggle("is-hover", index !== null);
+    donut.querySelectorAll(".ring__slice").forEach((s) => s.classList.remove("is-active"));
+    rows.forEach((r) => r.classList.remove("is-active"));
+    if (index === null) return;
+
+    const { slice, row } = find(index);
+    slice?.classList.add("is-active");
+    row?.classList.add("is-active");
+  };
+
+  const show = (slice, event) => {
+    const d = slice.dataset;
+    tip.innerHTML = `<b>.${d.name}</b> ${d.size}<br><span>${d.share}% · ${d.count} шт</span>`;
+    tip.hidden = false;
+    move(event);
+  };
+
+  const move = (event) => {
+    tip.style.left = Math.min(event.clientX + 14, window.innerWidth - tip.offsetWidth - 12) + "px";
+    tip.style.top = Math.max(event.clientY - tip.offsetHeight - 12, 8) + "px";
+  };
+
+  donut.addEventListener("mouseover", (e) => {
+    const slice = e.target.closest(".ring__slice");
+    if (!slice) return;
+    highlight(slice.dataset.slice);
+    show(slice, e);
+  });
+
+  donut.addEventListener("mousemove", (e) => {
+    if (!tip.hidden) move(e);
+  });
+
+  donut.addEventListener("mouseleave", () => {
+    highlight(null);
+    tip.hidden = true;
+  });
+
+  rows.forEach((row) => {
+    row.addEventListener("mouseenter", () => highlight(row.dataset.slice));
+    row.addEventListener("mouseleave", () => highlight(null));
+  });
+}
 
 /* ============================================================
    Вход и выход

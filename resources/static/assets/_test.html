@@ -587,8 +587,10 @@ async function run() {
 
   // ───────────────────── обзор бакета ─────────────────────
   await load("/admin/ui/buckets/" + BUCKET);
-  check("обзор — первый таб бакета", $$(".metric").length >= 4, $$(".metric__label")[0].textContent.trim());
-  check("в обзоре видно место", /из/.test($(".stat-hero__label").textContent), $(".stat-hero__num").textContent.trim());
+  check("обзор — первый таб бакета", !!$(".card--brand") && !!$(".ring"), "место и диаграмма на месте");
+  check("место показано занятым и свободным", $$(".usage__value").length === 2,
+        $$(".usage__value").map((e) => e.textContent.trim()).join(" · "));
+  check("плитки доступа ведут в разделы", $$("a.access-tile").length === 4);
   check("плитки ведут в разделы", $$("a.card").length >= 3);
   check("активен раздел «Обзор»", $(".sidebar .stack .nav-item.active").textContent.trim().startsWith("Обзор"));
 
