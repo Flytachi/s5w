@@ -122,7 +122,7 @@ function initLogin() {
       location.href = form.dataset.next || "/admin/ui";
     } catch (err) {
       form.querySelector("[data-login-message]").textContent =
-        err.status === 429 ? "Слишком много попыток. Подождите пару минут." : err.message;
+        err.status === 429 ? "Слишком много попыток. Попробуйте позже." : err.message;
       box.hidden = false;
       password.value = "";
       password.focus();
@@ -774,7 +774,7 @@ function onBucketCreated(bucket) {
   const rows = document.querySelector('[data-rows="buckets"]');
   showToast(`Бакет <b>${Render.e(bucket.name)}</b> создаётся`, {
     type: "info",
-    detail: "каталог заводится фоном — статус сменится сам",
+    detail: "статус сменится сам",
   });
 
   if (!rows) {
@@ -878,8 +878,8 @@ function onLinkCreated(link, form) {
   const drawer = document.querySelector("#drawer-file.is-open");
   if (drawer && drawerRow) loadFileLinks(drawer, drawerRow.dataset.id);
 
-  showSecret("Ссылка выпущена", link.url, "Подпись не хранится — повторить её нечем.");
-  showToast(link.id === null ? "Ссылка выпущена — в списке её не будет" : "Ссылка добавлена в список", {
+  showSecret("Ссылка выпущена", link.url, "Показывается один раз — скопируйте сейчас.");
+  showToast(link.id === null ? "Ссылка выпущена, в списке её не будет" : "Ссылка добавлена в список", {
     type: "info",
   });
 }
@@ -933,8 +933,8 @@ function tokenCheck(secret, full) {
   return {
     curl: `curl -H "Authorization: Bearer ${secret}" ${location.origin}/v1/check`,
     hint: full
-      ? "Ответит бакетом, видом ключа и остатком места. Дальше ключу открыт весь /v1."
-      : "Ответит бакетом, видом ключа и остатком места. Дальше этот ключ умеет только /p/<slug>.",
+      ? "Ответит бакетом, видом токена и остатком места. Этому токену открыт весь /v1."
+      : "Ответит бакетом, видом токена и остатком места. Этот токен умеет только /p/<slug>.",
   };
 }
 
@@ -1031,9 +1031,8 @@ async function deleteFolder(el, row, name) {
   const ok = await confirmDialog({
     title: "Удалить папку?",
     text: files > 0
-      ? `Вместе с папкой <b>${Render.e(name)}</b> удалятся ${files} ${plural(files, "файл", "файла", "файлов")}
-         внутри. Квота освободится, как только содержимое перестанет быть кому-то нужно.`
-      : `Папка <b>${Render.e(name)}</b> пуста — удаляем.`,
+      ? `Вместе с папкой <b>${Render.e(name)}</b> удалятся ${files} ${plural(files, "файл", "файла", "файлов")} внутри.`
+      : `Папка <b>${Render.e(name)}</b> пуста.`,
   });
   if (!ok) return;
 
@@ -1050,7 +1049,7 @@ async function deleteFolder(el, row, name) {
 async function deleteToken(el, row, id, name) {
   const ok = await confirmDialog({
     title: "Удалить токен?",
-    text: `Клиент с ключом <b>${Render.e(name)}</b> сразу начнёт получать 401. Восстановить нельзя —
+    text: `Клиент с этим токеном сразу начнёт получать 401. Восстановить нельзя —
            можно только выпустить новый.`,
   });
   if (!ok) return;
@@ -1087,7 +1086,7 @@ async function deleteBucket(row, el, id, name) {
 
   row.style.opacity = ".55";
   statusCell.innerHTML = Render.statusCell("PENDING");
-  showToast(`Бакет <b>${Render.e(name)}</b> удаляется`, { type: "info", detail: "каталог сносится фоном" });
+  showToast(`Бакет <b>${Render.e(name)}</b> удаляется`, { type: "info", detail: "удаляется в фоне" });
 
   watchStatus(id, (status) => {
     if (status !== "GONE") return false;
@@ -1139,9 +1138,9 @@ function onBucketUpdated(bucket, form) {
 
 async function rotateToken(row, id, name) {
   const ok = await confirmDialog({
-    title: "Сменить ключ?",
+    title: "Сменить значение токена?",
     text: `Старое значение перестанет работать сразу. Название <b>${Render.e(name)}</b>,
-           вид доступа и срок не меняются.`,
+           вид доступа и срок останутся прежними.`,
     confirmLabel: "Сменить",
     tone: "brand",
   });
@@ -1154,7 +1153,7 @@ async function rotateToken(row, id, name) {
   if (tail) tail.textContent = "s5w_…" + token.tail;
 
   showSecret(
-    "Новый ключ",
+    "Новое значение токена",
     res.data.token,
     "Старый уже недействителен. Значение показывается один раз.",
     tokenCheck(res.data.token, token.access.name === "FULL"),
@@ -1263,7 +1262,7 @@ async function revokeAllLinks() {
   if (epoch) epoch.textContent = res.data.epoch;
   setCounter("links-active", 0);
 
-  showToast("Все ссылки погашены", { type: "ok", detail: "эпоха ссылок теперь " + res.data.epoch });
+  showToast("Все ссылки погашены", { type: "ok", detail: "все выданные адреса закрыты" });
 }
 
 /* ============================================================
@@ -1324,7 +1323,7 @@ async function loadFileLinks(modal, slug) {
     const links = res.data || [];
     box.innerHTML = links.length
       ? links.map(fileLinkRow).join("")
-      : '<span class="text-sm text-muted">Ни одной — все выданные ссылки были без отзыва и лимита.</span>';
+      : '<span class="text-sm text-muted">Отзываемых ссылок нет</span>';
   } catch (err) {
     box.innerHTML = `<span class="text-sm text-warn">${Render.e(err.message || "не удалось получить список")}</span>`;
   }
@@ -1483,25 +1482,33 @@ function openLinkModal(slug, name) {
  */
 function cacheHeader({ maxAge, visibility, filePublic, channel }) {
   // видимость: настройка, иначе выводится из флага файла
-  let scope = visibility || (filePublic ? "PUBLIC" : "PRIVATE");
+  let scope = visibility || (filePublic ? "SHARED" : "PRIVATE");
   if (scope === "NO_STORE") return "no-store";
 
   // приватный файл и каналы /p и /t публичными не бывают
   if (!filePublic || channel !== "o") scope = "PRIVATE";
 
-  const age = maxAge !== null && maxAge !== "" ? Number(maxAge) : scope === "PUBLIC" ? 86400 : 0;
-  const word = scope === "PUBLIC" ? "public" : "private";
+  const age = maxAge !== null && maxAge !== "" ? Number(maxAge) : scope === "SHARED" ? CACHE_DEFAULT_AGE : 0;
+  const word = scope === "SHARED" ? "public" : "private";
 
   if (age <= 0) return `${word}, max-age=0, must-revalidate`;
-  return `${word}, max-age=${age}` + (scope === "PUBLIC" ? ", immutable" : "");
+  return `${word}, max-age=${age}` + (scope === "SHARED" ? ", immutable" : "");
 }
 
 function renderCachePreview(form) {
   const box = form.querySelector("[data-cache-preview]");
-  const maxAge = form.querySelector('[name="maxAge"]').value;
+  let maxAge = form.querySelector('[name="maxAge"]').value;
   // elements, а не querySelector: видимость выбирается группой переключателей.
-  const visibility = { 1: "PUBLIC", 2: "PRIVATE", 3: "NO_STORE" }[form.elements.visibility.value] || null;
+  let visibility = { 1: "SHARED", 2: "PRIVATE", 3: "NO_STORE" }[form.elements.visibility.value] || null;
   const inherited = maxAge === "" && visibility === null;
+
+  // Пустое поле у папки — это настройка бакета, а не дефолт сервиса: показываем то,
+  // что клиент увидит на самом деле.
+  if (form.dataset.level === "folder") {
+    const body = document.body.dataset;
+    if (visibility === null && body.cacheVisibility) visibility = body.cacheVisibility;
+    if (maxAge === "" && body.cacheMaxAge) maxAge = body.cacheMaxAge;
+  }
 
   const row = (channel, label, filePublic) => `
     <div class="cache-preview__row">
@@ -1520,7 +1527,7 @@ function renderCachePreview(form) {
       : "Что уйдёт в заголовке при таких настройках:"}</div>` +
     row("o", "файл в публичной папке", true) +
     row("p", "по токену", false) +
-    row("t", "по временной ссылке", false);
+    row("t", "по временной ссылке — но не дольше её самой", false);
 }
 
 const CACHE_WORDING = {
@@ -1528,23 +1535,33 @@ const CACHE_WORDING = {
     intro: `Когда клиент скачал файл, копия остаётся у него в браузере, а по пути — ещё и у
             CDN, прокси и провайдера. Здесь решается, <b>кому</b> из них можно держать эту
             копию и <b>сколько</b>. Папка перекрывает бакет, бакет — дефолт сервиса.`,
-    title: "Наследовать",
-    text: `Решает бакет, а если и там пусто — сам сервис. Обычный выбор,
+    title: "Как в бакете",
+    text: `Решает бакет, а если и там ничего не выбрано — сам сервис. Обычный выбор,
            пока у папки нет причин отличаться.`,
-    age: "наследовать",
-    empty: "Ничего не задано — значения берутся выше по цепочке. Сейчас вышло бы так:",
+    empty: "Ничего не задано — берётся с уровня выше. Сейчас вышло бы так:",
   },
   bucket: {
     intro: `Когда клиент скачал файл, копия остаётся у него в браузере, а по пути — ещё и у
             CDN, прокси и провайдера. Здесь решается, <b>кому</b> из них можно держать эту
             копию и <b>сколько</b>. Бакет — верхний уровень: заданное здесь работает для всех
             папок, пока папка не решит иначе.`,
-    title: "Не задавать",
-    text: `Тогда всё выводится из самого файла: публичный кэшируется сутки, приватный —
-           не хранится. Папка при этом может задать своё.`,
-    age: "по файлу",
-    empty: "Ничего не задано — всё выводится из самого файла. Сейчас вышло бы так:",
+    empty: "Так отдаются файлы этого бакета:",
   },
+};
+
+/** Здравый срок под выбранный режим: подставляется при смене, devops перебьёт руками. */
+const CACHE_DEFAULT_AGE = 86400;
+
+const CACHE_TTL_SUGGEST = {
+  bucket: { 1: CACHE_DEFAULT_AGE, 2: 3600, 3: null },
+  folder: { "": null, 1: CACHE_DEFAULT_AGE, 2: 3600, 3: null },
+};
+
+const CACHE_TTL_HINT = {
+  "": "Пусто — срок берётся с бакета.",
+  1: "Пусто — сутки. Ноль — браузер перепроверяет каждый раз.",
+  2: "Пусто — без кэша: браузер перепроверяет каждый раз.",
+  3: "При этом режиме срок в заголовок не попадает.",
 };
 
 function openCacheModal(data, isFolder) {
@@ -1560,20 +1577,91 @@ function openCacheModal(data, isFolder) {
     : `PATCH /admin/buckets/${data.id || bucketId()}/cache`;
 
   form.querySelector("[data-cache-intro]").innerHTML = words.intro;
-  form.querySelector("[data-cache-none-title]").textContent = words.title;
-  form.querySelector("[data-cache-none-text]").textContent = words.text;
-  form.querySelector('[name="maxAge"]').placeholder = words.age;
+  if (isFolder) {
+    form.querySelector("[data-cache-auto-title]").textContent = words.title;
+    form.querySelector("[data-cache-auto-text]").textContent = words.text;
+  }
 
-  form.querySelector('[name="maxAge"]').value = data.maxAge || "";
-  form.elements.visibility.value = { PUBLIC: "1", PRIVATE: "2", NO_STORE: "3" }[data.visibility] || "";
+  // Наследовать бакету не от кого: «как уровнем выше» есть только у папки.
+  form.querySelector('[data-cache-opt="auto"]').hidden = !isFolder;
+
+  const ttl = form.querySelector('[name="maxAge"]');
+  ttl.value = data.maxAge ?? "";
+  ttl.dataset.suggested = "";
+  form.elements.visibility.value = { SHARED: "1", PRIVATE: "2", NO_STORE: "3" }[data.visibility] || "";
   modal.querySelector("[data-cache-target]").textContent = isFolder ? "· папка " + data.name : "· весь бакет";
 
+  syncCacheTtl(form);
   refreshSelects(form);
   renderCachePreview(form);
   if (!form.dataset.previewBound) {
     form.addEventListener("input", () => renderCachePreview(form));
-    form.addEventListener("change", () => renderCachePreview(form));
+    form.addEventListener("change", (e) => {
+      if (e.target.name === "visibility") syncCacheTtl(form, true);
+      renderCachePreview(form);
+    });
+    form.querySelectorAll("[data-cache-presets] [data-ttl]").forEach((button) => {
+      button.addEventListener("click", () => {
+        ttl.value = button.dataset.ttl;
+        ttl.dataset.suggested = "";
+        renderCachePreview(form);
+      });
+    });
     form.dataset.previewBound = "1";
+  }
+}
+
+/** Срок, который действует у бакета: его показываем папке как «как в бакете (N)». */
+function inheritedAge() {
+  const body = document.body.dataset;
+  if (body.cacheMaxAge) return body.cacheMaxAge;
+  if (body.cacheVisibility === "NO_STORE") return null;
+  if (body.cacheVisibility === "PRIVATE") return "0";
+  return String(CACHE_DEFAULT_AGE);
+}
+
+/** Пустое поле не должно молчать: в подсказке — число, которое уйдёт клиенту. */
+function ttlPlaceholder(level, value) {
+  if (value === "3") return "—";
+  if (value === "2") return "0 — без кэша";
+  if (value === "1") return CACHE_DEFAULT_AGE + " — по умолчанию";
+
+  const age = inheritedAge();
+  return age === null ? "как в бакете" : `как в бакете (${age})`;
+}
+
+/**
+ * Срок под выбранный режим: при смене режима подставляется здравое число, но только
+ * если поле пустое или в нём стоит прошлая подсказка — руками введённое не затираем.
+ * У режима «Никому» срока нет вовсе, поэтому поле гасится.
+ */
+function syncCacheTtl(form, switched = false) {
+  const ttl = form.querySelector('[name="maxAge"]');
+  const value = form.elements.visibility.value;
+  const level = form.dataset.level === "bucket" ? "bucket" : "folder";
+  const suggest = CACHE_TTL_SUGGEST[level][value === "" ? "" : Number(value)] ?? null;
+  const off = value === "3";
+
+  form.querySelector("[data-cache-ttl]").classList.toggle("is-off", off);
+  ttl.disabled = off;
+  ttl.placeholder = ttlPlaceholder(level, value);
+  form.querySelectorAll("[data-cache-presets] [data-ttl]").forEach((b) => (b.disabled = off));
+  form.querySelector("[data-cache-ttl-hint]").textContent = CACHE_TTL_HINT[value === "" ? "" : Number(value)];
+
+  if (!switched) return;
+
+  const untouched = ttl.value === "" || ttl.value === ttl.dataset.suggested;
+  if (off) {
+    ttl.value = "";
+    ttl.dataset.suggested = "";
+    return;
+  }
+  if (suggest !== null && untouched) {
+    ttl.value = String(suggest);
+    ttl.dataset.suggested = String(suggest);
+  } else if (suggest === null && untouched) {
+    ttl.value = "";
+    ttl.dataset.suggested = "";
   }
 }
 
@@ -1758,7 +1846,7 @@ function initUpload() {
   /** Что случилось с файлом — словами, а не кодом. */
   function describe(file) {
     if (file.processed?.applied) return file.processed.operations.join(", ");
-    if (file.deduplicated) return "дедупликация — такие байты уже лежали";
+    if (file.deduplicated) return "дедупликация — такой файл уже есть";
     return "без обработки";
   }
 
@@ -1998,7 +2086,7 @@ function initImageOptions(box, sourceMime, onApplyAll) {
     box.classList.toggle("is-set", parts.length > 0);
     note.textContent = parts.length ? parts.join(" · ") : "как есть";
     out.textContent = parts.length
-      ? "Обработка идёт до записи — хэш и квота считаются по результату."
+      ? "Квота считается по результату обработки."
       : "Файл ляжет байт в байт.";
   };
 

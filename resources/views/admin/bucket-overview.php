@@ -45,7 +45,7 @@ $offset = 0;
             <div class="quota__bar"><div class="quota__fill" style="width: <?= $bucket->percent() ?>%"></div></div>
             <div class="quota__meta">
                 <span>квота <?= Fmt::bytes($bucket->quota) ?></span>
-                <span><?= Fmt::num($bucket->files) ?> файлов</span>
+                <span><?= Fmt::num($bucket->files) ?> <?= Fmt::plural($bucket->files, 'файл', 'файла', 'файлов') ?></span>
             </div>
         </div>
     </div>
@@ -86,28 +86,21 @@ $offset = 0;
             <button class="icon-btn icon-btn--ghost icon-btn--sm" aria-label="Изменить"
                     data-action="bucket:cache" data-id="<?= Fmt::e($bucket->id) ?>"
                     data-max-age="<?= $bucket->cacheMaxAge ?? '' ?>"
-                    data-visibility="<?= Fmt::e($bucket->cacheVisibility ?? '') ?>">
+                    data-visibility="<?= Fmt::e($bucket->cacheVisibility->name) ?>">
                 <svg class="icon icon--sm"><use href="#i-edit"/></svg>
             </button>
         </div>
 
-        <?php if ($bucket->cacheVisibility === null): ?>
-            <div class="empty-inline mt-2">
-                <svg class="icon"><use href="#i-clock"/></svg>
-                <div>
-                    <div style="font-weight:600">Не задан</div>
-                    <div class="text-sm text-muted">Кэш выводится из самого файла, папка может задать своё.</div>
-                </div>
-            </div>
-        <?php else: ?>
-            <dl class="kv mt-2">
-                <dt>Видимость</dt>
-                <dd><span class="tone tone--<?= $bucket->cacheVisibility === 'PUBLIC' ? 'ok' : 'brand' ?>">
-                    <?= Fmt::e($bucket->cacheVisibility) ?>
-                </span></dd>
-                <dt>max-age</dt><dd><?= (int) $bucket->cacheMaxAge ?> с</dd>
-            </dl>
-        <?php endif ?>
+        <dl class="kv mt-2">
+            <dt>Видимость</dt>
+            <dd><span class="tone tone--<?= $bucket->cacheVisibility->tone() ?>">
+                <?= Fmt::e($bucket->cacheVisibility->label()) ?>
+            </span></dd>
+            <dt>max-age</dt>
+            <dd><?= $bucket->cacheMaxAge === null
+                ? Fmt::e($bucket->cacheVisibility->defaultMaxAge() . ' с — по умолчанию')
+                : $bucket->cacheMaxAge . ' с' ?></dd>
+        </dl>
 
         <div class="text-sm text-muted mt-3">Действует на <span class="mono">/o</span>; на <span class="mono">/p</span>
             и <span class="mono">/t</span> отдаётся <span class="mono">private</span>.</div>
@@ -128,7 +121,7 @@ $offset = 0;
                 <svg class="icon"><use href="#i-file"/></svg>
                 <div>
                     <div style="font-weight:600">Пусто</div>
-                    <div class="text-sm text-muted">Загрузите первый файл — здесь появится разбивка.</div>
+                    <div class="text-sm text-muted">Загрузите первый файл.</div>
                 </div>
             </div>
         <?php else: ?>
@@ -198,7 +191,7 @@ $offset = 0;
             <div class="bar-mini__fill" style="width: <?= $bucket->files > 0 ? round($bucket->blobs / $bucket->files * 100) : 0 ?>%"></div>
         </div>
         <div class="text-sm text-muted mt-1">
-            Дублей свёрнуто: <b><?= Fmt::num($dedup) ?></b> — столько файлов делят чужие байты.
+            Дублей свёрнуто: <b><?= Fmt::num($dedup) ?></b> — место занято один раз.
         </div>
 
         <div class="text-sm text-muted mt-3">Где лежат</div>
@@ -231,7 +224,7 @@ $offset = 0;
         <span class="stat__icon"><svg class="icon"><use href="#i-key"/></svg></span>
         <span class="stat__value<?= $tokenCounts['active'] === 0 ? ' is-zero' : '' ?>"><?= $tokenCounts['active'] ?></span>
         <span class="stat__body">
-            <span class="stat__label">Ключи</span>
+            <span class="stat__label">Токены</span>
             <span class="stat__note">активны</span>
         </span>
     </a>
@@ -240,7 +233,7 @@ $offset = 0;
         <span class="stat__icon"><svg class="icon"><use href="#i-clock"/></svg></span>
         <span class="stat__value<?= $tokenCounts['expired'] === 0 ? ' is-zero' : '' ?>"><?= $tokenCounts['expired'] ?></span>
         <span class="stat__body">
-            <span class="stat__label">Ключи</span>
+            <span class="stat__label">Токены</span>
             <span class="stat__note">просрочены</span>
         </span>
     </a>
@@ -250,7 +243,7 @@ $offset = 0;
         <span class="stat__value<?= $linkCounts['active'] === 0 ? ' is-zero' : '' ?>"><?= $linkCounts['active'] ?></span>
         <span class="stat__body">
             <span class="stat__label">Ссылки</span>
-            <span class="stat__note">живые</span>
+            <span class="stat__note">активные</span>
         </span>
     </a>
 

@@ -40,8 +40,8 @@ $locked = (bool) wrData('locked');
                 <div class="alert__body">
                     <div class="alert__title">Панель заперта</div>
                     <div class="alert__text">
-                        В окружении сервиса не заданы <span class="mono">ADMIN_LOGIN</span>
-                        и <span class="mono">ADMIN_PASSWORD</span>. Пока их нет, вход закрыт.
+                        Не заданы <span class="mono">ADMIN_LOGIN</span>
+                        и <span class="mono">ADMIN_PASSWORD</span>.
                     </div>
                 </div>
             </div>

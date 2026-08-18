@@ -20,7 +20,7 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
         <span class="stat__icon"><svg class="icon"><use href="#i-link"/></svg></span>
         <span class="stat__value<?= $counts['active'] === 0 ? ' is-zero' : '' ?>" data-counter="links-active"><?= Fmt::num($counts['active']) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Живых</span>
+            <span class="stat__label">Активные</span>
             <span class="stat__note">работают сейчас</span>
         </span>
     </div>
@@ -30,7 +30,7 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
         <span class="stat__value"><?= Fmt::num($counts['total']) ?></span>
         <span class="stat__body">
             <span class="stat__label">Выпущено</span>
-            <span class="stat__note">строка в базе</span>
+            <span class="stat__note">за всё время</span>
         </span>
     </div>
 
@@ -38,7 +38,7 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
         <span class="stat__icon"><svg class="icon"><use href="#i-x-circle"/></svg></span>
         <span class="stat__value<?= $counts['revoked'] === 0 ? ' is-zero' : '' ?>" data-counter="links-revoked"><?= Fmt::num($counts['revoked']) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Отозвано</span>
+            <span class="stat__label">Отозваны</span>
             <span class="stat__note">закрыты вручную</span>
         </span>
     </div>
@@ -47,8 +47,8 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
         <span class="stat__icon"><svg class="icon"><use href="#i-clock"/></svg></span>
         <span class="stat__value<?= $counts['expired'] === 0 ? ' is-zero' : '' ?>" data-counter="links-expired"><?= Fmt::num($counts['expired']) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Истекло</span>
-            <span class="stat__note">вышел срок</span>
+            <span class="stat__label">Истекли</span>
+            <span class="stat__note">срок истёк</span>
         </span>
     </div>
 </div>
@@ -57,7 +57,7 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
     <div class="card__header">
         <div>
             <div class="card__title">Временные ссылки</div>
-            <div class="card__subtitle">канал <span class="mono">/t</span> — только со строкой в базе</div>
+            <div class="card__subtitle">канал <span class="mono">/t</span> — ссылки, которые можно отозвать</div>
         </div>
         <div class="card__spacer"></div>
 
@@ -177,7 +177,7 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
                 <div class="text-sm">По запросу «<?= Fmt::e($query->search) ?>» ссылок нет</div>
             <?php else: ?>
                 <div class="empty__title">Ссылок нет</div>
-                <div class="text-sm">Выпустите ссылку из карточки файла — она появится здесь</div>
+                <div class="text-sm">Выпустите ссылку из карточки файла</div>
             <?php endif ?>
         </div>
     </div>

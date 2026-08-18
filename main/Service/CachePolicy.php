@@ -25,7 +25,7 @@ final class CachePolicy
         $maxAge = $this->maxAge($folder, $bucket, $visibility);
 
         if ($visibility === CacheVisibility::NO_STORE) {
-            return 'no-store';
+            return $visibility->directive();
         }
 
         foreach ([$linkTtl, $this->secondsUntilExpiry($file)] as $limit) {
@@ -34,12 +34,12 @@ final class CachePolicy
             }
         }
 
-        $scope = $visibility === CacheVisibility::PUBLIC ? 'public' : 'private';
+        $scope = $visibility->directive();
         if ($maxAge <= 0) {
             return $scope . ', max-age=0, must-revalidate';
         }
 
-        $immutable = $visibility === CacheVisibility::PUBLIC ? ', immutable' : '';
+        $immutable = $visibility === CacheVisibility::SHARED ? ', immutable' : '';
 
         return "{$scope}, max-age={$maxAge}{$immutable}";
     }
@@ -50,10 +50,7 @@ final class CachePolicy
         Bucket $bucket,
         DeliveryChannel $channel,
     ): CacheVisibility {
-        $configured = $folder?->cache_visibility ?? $bucket->cache_visibility;
-        $visibility = $configured !== null
-            ? CacheVisibility::from($configured)
-            : ($file->public ? CacheVisibility::PUBLIC : CacheVisibility::PRIVATE);
+        $visibility = CacheVisibility::from($folder?->cache_visibility ?? $bucket->cache_visibility);
 
         if ($visibility === CacheVisibility::NO_STORE) {
             return $visibility;
@@ -68,14 +65,9 @@ final class CachePolicy
 
     private function maxAge(?Folder $folder, Bucket $bucket, CacheVisibility $visibility): int
     {
-        $configured = $folder?->cache_max_age ?? $bucket->cache_max_age;
-        if ($configured !== null) {
-            return $configured;
-        }
-
-        return $visibility === CacheVisibility::PUBLIC
-            ? (int) env('CACHE_DEFAULT_MAX_AGE', 86400)
-            : (int) env('CACHE_PRIVATE_MAX_AGE', 0);
+        return $folder?->cache_max_age
+            ?? $bucket->cache_max_age
+            ?? $visibility->defaultMaxAge();
     }
 
     private function secondsUntilExpiry(FileEntry $file): ?int

@@ -44,7 +44,7 @@ class Bucket
 
     #[SmallInteger]
     #[CheckEnum(CacheVisibility::class)]
-    public ?int $cache_visibility = null;
+    public int $cache_visibility = CacheVisibility::SHARED->value;
 
     #[BigInteger]
     public int $link_epoch = 1;

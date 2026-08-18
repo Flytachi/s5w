@@ -1761,6 +1761,8 @@ code.inline {
    словами, и в одну колонку это была бы простыня. */
 .modal--cache { max-width: 860px; }
 
+.field.is-off { opacity: 0.45; }
+
 .cache-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 300px);

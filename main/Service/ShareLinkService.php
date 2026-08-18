@@ -30,6 +30,9 @@ use Main\Support\LinkSigner;
 #[Singleton]
 final class ShareLinkService
 {
+    private const string ALIVE = 'NOT revoked AND expires_at > now()'
+        . ' AND (max_downloads IS NULL OR downloads < max_downloads)';
+
     private const string STATE_RANK = 'CASE WHEN revoked THEN 0'
         . ' WHEN expires_at <= now() THEN 1'
         . ' WHEN max_downloads IS NOT NULL AND downloads >= max_downloads THEN 2'
@@ -231,7 +234,7 @@ final class ShareLinkService
         $row = $this->repo
             ->select(
                 'count(*) AS total,'
-                . ' count(*) FILTER (WHERE NOT revoked AND expires_at > now()) AS active,'
+                . ' count(*) FILTER (WHERE ' . self::ALIVE . ') AS active,'
                 . ' count(*) FILTER (WHERE revoked) AS revoked,'
                 . ' count(*) FILTER (WHERE NOT revoked AND expires_at <= now()) AS expired'
             )

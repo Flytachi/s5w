@@ -13,7 +13,7 @@ final class BucketRes
     /**
      * @param array{quota: int, used: int, free: int} $bytes
      * @param array{id: int, name: string} $status
-     * @param array{maxAge: int|null, visibility: array{id: int, name: string}|null} $cache
+     * @param array{maxAge: int|null, visibility: array{id: int, name: string}} $cache
      */
     public function __construct(
         public string $id,
@@ -41,9 +41,7 @@ final class BucketRes
             status: BucketStatus::from($model->status)->toArray(),
             cache: [
                 'maxAge' => $model->cache_max_age,
-                'visibility' => $model->cache_visibility === null
-                    ? null
-                    : CacheVisibility::from($model->cache_visibility)->toArray(),
+                'visibility' => CacheVisibility::from($model->cache_visibility)->toArray(),
             ],
             createdAt: $model->created_at,
             updatedAt: $model->updated_at,

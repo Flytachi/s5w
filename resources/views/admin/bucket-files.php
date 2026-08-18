@@ -47,7 +47,7 @@ $order = static fn(array $params) => Fmt::e(Query::url($base, $params + $query->
                      data-retention="<?= $folder->retentionId ?>"
                      data-files="<?= $folder->files ?>"
                      data-max-age="<?= $folder->cacheMaxAge ?? '' ?>"
-                     data-visibility="<?= Fmt::e($folder->cacheVisibility ?? '') ?>">
+                     data-visibility="<?= Fmt::e($folder->cacheVisibility?->name ?? '') ?>">
                     <?php
                     $marks = [];
                     if (!$folder->public) {
@@ -83,7 +83,7 @@ $order = static fn(array $params) => Fmt::e(Query::url($base, $params + $query->
                             </button>
                             <button class="dropdown__item" data-action="folder:cache" data-name="<?= Fmt::e($folder->name) ?>"
                                     data-max-age="<?= $folder->cacheMaxAge ?? '' ?>"
-                                    data-visibility="<?= Fmt::e($folder->cacheVisibility ?? '') ?>">
+                                    data-visibility="<?= Fmt::e($folder->cacheVisibility?->name ?? '') ?>">
                                 Политика кэша <svg class="icon"><use href="#i-clock"/></svg>
                             </button>
                             <button class="dropdown__item" data-action="folder:delete"
@@ -97,7 +97,7 @@ $order = static fn(array $params) => Fmt::e(Query::url($base, $params + $query->
 
             <?php if ($folders === []): ?>
                 <p class="text-sm text-muted" style="padding: 10px 8px">
-                    Папок нет — все файлы лежат в корне. Папка задаёт видимость, срок хранения и кэш.
+                    Папок нет — все файлы в корне
                 </p>
             <?php endif ?>
         </div>
@@ -145,7 +145,7 @@ $order = static fn(array $params) => Fmt::e(Query::url($base, $params + $query->
                 </button>
 
                 <div class="dropdown__menu dropdown__menu--check">
-                    <?php foreach (['created' => 'по дате создания', 'name' => 'по имени', 'type' => 'по типу', 'size' => 'по весу'] as $key => $label): ?>
+                    <?php foreach (['created' => 'по дате создания', 'name' => 'по имени', 'type' => 'по типу', 'size' => 'по размеру'] as $key => $label): ?>
                         <a class="dropdown__item<?= $query->sort === $key ? ' is-selected' : '' ?>"
                            href="<?= $order(['sort' => $key === 'created' ? null : $key]) ?>">
                             <?= $label ?>
@@ -251,7 +251,7 @@ $order = static fn(array $params) => Fmt::e(Query::url($base, $params + $query->
                     <div class="text-sm">По запросу «<?= Fmt::e($query->search) ?>» здесь пусто</div>
                 <?php else: ?>
                     <div class="empty__title">Пусто</div>
-                    <div class="text-sm">Перетащите файлы в окно загрузки — они появятся здесь</div>
+                    <div class="text-sm">Загрузите первый файл</div>
                 <?php endif ?>
             </div>
         </div>

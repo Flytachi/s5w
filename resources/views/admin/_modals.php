@@ -100,7 +100,7 @@ $folders = $folders ?? [];
             <div class="stack mt-1" data-file-urls></div>
 
             <div class="card__title mt-3" style="font-size:.95rem">Временные ссылки</div>
-            <p class="text-sm text-muted">Только отзываемые и с лимитом — остальные нигде не учитываются.</p>
+            <p class="text-sm text-muted">Только отзываемые и с лимитом.</p>
             <div class="stack mt-1" data-file-links></div>
         </div>
 
@@ -139,7 +139,7 @@ $folders = $folders ?? [];
                 <label class="field__label">Имя</label>
                 <input class="input" name="name" autocomplete="off">
                 <span class="field__hint">
-                    Уникально внутри папки. Попадает в <span class="mono">Content-Disposition</span> при скачивании.
+                    Уникально внутри папки. Под этим именем файл скачается.
                 </span>
             </div>
 
@@ -152,8 +152,7 @@ $folders = $folders ?? [];
                     <?php endforeach ?>
                 </select>
                 <span class="field__hint">
-                    При переносе видимость и срок пересчитываются по новому месту: файл, уехавший
-                    из публичной папки в приватную, перестаёт отдаваться через <span class="mono">/o</span> сразу.
+                    При переносе файл получает видимость и срок новой папки.
                 </span>
             </div>
         </div>
@@ -179,15 +178,14 @@ $folders = $folders ?? [];
         </div>
 
         <p class="modal__text">
-            Каталог на диске заводится фоном: бакет побудет в статусе <b>CREATED</b>
-            и станет <b>ACTIVE</b> через доли секунды.
+            Бакет готовится в фоне и станет <b>ACTIVE</b> через мгновение.
         </p>
 
         <div class="stack mt-2">
             <div class="field">
                 <label class="field__label">Имя</label>
                 <input class="input" name="name" placeholder="media-lab" autocomplete="off">
-                <span class="field__hint">Уникально, 1…100 символов. Попадает в адрес публичной отдачи.</span>
+                <span class="field__hint">Уникально, 1…100 символов.</span>
             </div>
 
             <div class="field">
@@ -204,7 +202,7 @@ $folders = $folders ?? [];
                         <option value="1073741824">ГБ</option>
                     </select>
                 </div>
-                <span class="field__hint">Считается по занятым байтам: сжатие и дедупликация экономят квоту.</span>
+                <span class="field__hint">Считается по занятым байтам — дедупликация экономит квоту.</span>
             </div>
         </div>
 
@@ -253,8 +251,8 @@ $folders = $folders ?? [];
                     <option value="6">год</option>
                 </select>
                 <span class="field__hint">
-                    Срок скользящий: считается от загрузки каждого файла. Смена срока действует
-                    на новые файлы — уже лежащие сохраняют свой.
+                    У каждого файла свой срок, от его загрузки. Смена срока
+                    пересчитывает и уже лежащие файлы.
                 </span>
             </div>
         </div>
@@ -284,71 +282,67 @@ $folders = $folders ?? [];
         <div class="cache-grid mt-2">
             <div class="stack">
                 <div class="field">
-                    <label class="field__label">Сколько держать копию, секунд</label>
-                    <input class="input" type="number" name="maxAge" placeholder="наследовать">
-                    <span class="field__hint">
-                        <span class="mono">3600</span> — час, <span class="mono">86400</span> — сутки,
-                        <span class="mono">0</span> — перепроверять каждый раз.
-                    </span>
-                </div>
-
-                <div class="field">
                     <label class="field__label">Кому можно хранить копию</label>
 
                     <div class="choices">
-                        <label class="choice">
+                        <label class="choice" data-cache-opt="auto">
                             <input type="radio" name="visibility" value="" checked>
                             <span class="radio__dot"></span>
                             <span class="choice__body">
-                                <span class="choice__title" data-cache-none-title></span>
-                                <span class="choice__text" data-cache-none-text></span>
+                                <span class="choice__title" data-cache-auto-title></span>
+                                <span class="choice__text" data-cache-auto-text></span>
                             </span>
                         </label>
 
-                        <label class="choice">
+                        <label class="choice" data-cache-opt="public">
                             <input type="radio" name="visibility" value="1">
                             <span class="radio__dot"></span>
                             <span class="choice__body">
-                                <span class="choice__title">
-                                    Всем по пути <span class="mono">public</span>
-                                </span>
+                                <span class="choice__title">Всем — браузеру и CDN</span>
                                 <span class="choice__text">
-                                    Копию держат и браузер, и CDN с прокси — файл отдаётся быстро и почти
-                                    без нагрузки на сервис, но лежит на чужих серверах. Для того, что и так
+                                    Копию хранят и браузер, и CDN с прокси. Для того, что и так
                                     открыто всем: аватарки, обложки, картинки сайта.
                                 </span>
                             </span>
                         </label>
 
-                        <label class="choice">
+                        <label class="choice" data-cache-opt="private">
                             <input type="radio" name="visibility" value="2">
                             <span class="radio__dot"></span>
                             <span class="choice__body">
-                                <span class="choice__title">
-                                    Только клиенту <span class="mono">private</span>
-                                </span>
+                                <span class="choice__title">Только браузеру клиента</span>
                                 <span class="choice__text">
-                                    Копия остаётся в браузере того, кто скачал; общие кэши хранить не
-                                    имеют права. Для личных файлов: счета, фото профиля, выписки.
+                                    Копия остаётся только у того, кто скачал; CDN и прокси хранить
+                                    её не имеют права. Для личных файлов: счета, выписки, фото профиля.
                                 </span>
                             </span>
                         </label>
 
-                        <label class="choice">
+                        <label class="choice" data-cache-opt="none">
                             <input type="radio" name="visibility" value="3">
                             <span class="radio__dot"></span>
                             <span class="choice__body">
-                                <span class="choice__title">
-                                    Нигде <span class="mono">no-store</span>
-                                </span>
+                                <span class="choice__title">Никому</span>
                                 <span class="choice__text">
-                                    Не сохраняет никто — каждый показ качает файл заново. Медленнее и
-                                    дороже по трафику, зато на диске у клиента ничего не оседает: паспорта,
-                                    договоры, всё, что нельзя оставлять после выхода.
+                                    Копию не хранит никто — файл качается заново каждый раз. Для того,
+                                    что нельзя оставлять на чужом устройстве: паспорта, договоры.
                                 </span>
                             </span>
                         </label>
                     </div>
+                </div>
+
+                <div class="field" data-cache-ttl>
+                    <label class="field__label">Сколько держать копию, секунд</label>
+                    <input class="input" type="number" name="maxAge" min="0" max="31536000">
+                    <div class="row mt-1" data-cache-presets>
+                        <button type="button" class="btn btn--ghost btn--sm" data-ttl="3600">час</button>
+                        <button type="button" class="btn btn--ghost btn--sm" data-ttl="86400">сутки</button>
+                        <button type="button" class="btn btn--ghost btn--sm" data-ttl="31536000">год</button>
+                        <button type="button" class="btn btn--ghost btn--sm" data-ttl="0">не кэшировать</button>
+                        <button type="button" class="btn btn--ghost btn--sm" data-ttl="">по умолчанию</button>
+                    </div>
+                    <span class="field__hint" data-cache-ttl-hint></span>
                 </div>
             </div>
 
@@ -359,11 +353,10 @@ $folders = $folders ?? [];
                     <svg class="icon"><use href="#i-info"/></svg>
                     <div class="alert__body">
                         <div class="alert__text">
-                            Настройки не абсолютны. Приватный файл никогда не получит
-                            <span class="mono">public</span>, каналы <span class="mono">/p</span> и
-                            <span class="mono">/t</span> всегда отдают <span class="mono">private</span>,
-                            а срок подрезается временем жизни файла и ссылки — кэш не должен пережить
-                            то, что кэширует.
+                            Приватный файл не получит <span class="mono">public</span>, каналы
+                            <span class="mono">/p</span> и <span class="mono">/t</span> всегда отдают
+                            <span class="mono">private</span>, а срок кэша не переживёт срок файла
+                            или ссылки.
                         </div>
                     </div>
                 </div>
@@ -394,11 +387,11 @@ $folders = $folders ?? [];
             <div class="field">
                 <label class="field__label">Название</label>
                 <input class="input" name="name" placeholder="мобильное приложение" autocomplete="off">
-                <span class="field__hint">Чтобы потом было понятно, что именно отзывать.</span>
+                <span class="field__hint">Чтобы потом понять, что отзывать.</span>
             </div>
 
             <div class="field">
-                <label class="field__label">Что открывает ключ</label>
+                <label class="field__label">Что открывает токен</label>
 
                 <div class="choices choices--pair">
                     <label class="choice">
@@ -407,9 +400,8 @@ $folders = $folders ?? [];
                         <span class="choice__body">
                             <span class="choice__title">Только отдача</span>
                             <span class="choice__text">
-                                Забирает приватные файлы по <span class="mono">/p</span>, если знает адрес.
-                                Списка файлов не видит и ничего не меняет — такой ключ не страшно
-                                положить в приложение.
+                                Забирает приватные файлы по <span class="mono">/p</span> по известному
+                                адресу. Списка файлов не видит и ничего не меняет.
                             </span>
                         </span>
                     </label>
@@ -437,7 +429,7 @@ $folders = $folders ?? [];
                     <option value="365">год</option>
                 </select>
                 <span class="field__hint">
-                    После срока ключ отвечает <b>403</b> — продлить нельзя, только выпустить новый.
+                    После срока токен отвечает <b>403</b> — продлить нельзя, только выпустить новый.
                 </span>
             </div>
         </div>
@@ -515,8 +507,8 @@ $folders = $folders ?? [];
                     <option value="2592000">месяц</option>
                 </select>
                 <span class="field__hint">
-                    Срок зашит в саму ссылку: по истечении она перестаёт открываться,
-                    продлить её нельзя — только выпустить новую.
+                    После срока ссылка перестаёт открываться. Продлить нельзя —
+                    только выпустить новую.
                 </span>
             </div>
 
@@ -537,17 +529,16 @@ $folders = $folders ?? [];
             <div class="field">
                 <label class="field__label">Пометка</label>
                 <input class="input" name="note" placeholder="для подрядчика" autocomplete="off">
-                <span class="field__hint">Видна только в списке ссылок — чтобы потом понять, кому она уходила.</span>
+                <span class="field__hint">Видна только в списке ссылок.</span>
             </div>
 
             <label class="check">
                 <input type="checkbox" name="revocable">
                 <span class="check__box"><svg class="icon"><use href="#i-check"/></svg></span>
                 <span class="opt__label">
-                    <span class="opt__title">Дать возможность отозвать эту ссылку</span>
+                    <span class="opt__title">Разрешить отзыв ссылки</span>
                     <span class="opt__hint">
-                        Тогда она появится в списке «Ссылки» и закрывается одной кнопкой.
-                        Без этого её можно закрыть, только отозвав разом все ссылки бакета.
+                        Появится в списке «Ссылки», и её можно будет закрыть одной кнопкой.
                     </span>
                 </span>
             </label>
@@ -556,8 +547,8 @@ $folders = $folders ?? [];
                 <svg class="icon"><use href="#i-info"/></svg>
                 <div class="alert__body">
                     <div class="alert__text">
-                        Ссылка живёт долго, а отозвать её по отдельности будет нельзя —
-                        только все сразу. Для такого срока лучше включить отзыв или лимит.
+                        Ссылка живёт долго, а отозвать её можно будет только вместе со всеми.
+                        Включите отзыв или лимит.
                     </div>
                 </div>
             </div>

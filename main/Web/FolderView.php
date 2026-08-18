@@ -16,7 +16,7 @@ final readonly class FolderView
         public int $retentionId,
         public string $retention,
         public ?int $cacheMaxAge,
-        public ?string $cacheVisibility,
+        public ?CacheVisibility $cacheVisibility,
         public int $files,
         public string $createdAt,
     ) {
@@ -32,7 +32,7 @@ final readonly class FolderView
             cacheMaxAge: $folder->cache_max_age,
             cacheVisibility: $folder->cache_visibility === null
                 ? null
-                : CacheVisibility::from($folder->cache_visibility)->name,
+                : CacheVisibility::from($folder->cache_visibility),
             files: $files,
             createdAt: $folder->created_at,
         );
@@ -52,11 +52,7 @@ final readonly class FolderView
     {
         $parts = [];
         if ($this->cacheVisibility !== null) {
-            $parts[] = match ($this->cacheVisibility) {
-                'PUBLIC' => 'публичный',
-                'PRIVATE' => 'приватный',
-                default => 'не хранить',
-            };
+            $parts[] = $this->cacheVisibility->label();
         }
         if ($this->cacheMaxAge !== null) {
             $parts[] = $this->cacheMaxAge . ' с';

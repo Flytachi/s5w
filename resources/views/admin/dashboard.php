@@ -44,7 +44,7 @@ $area = "0,30 {$line} 100,30";
             <span class="metric__value"><?= Fmt::num($overview['blobs']) ?></span>
             <span class="metric__delta metric__delta--up">
                 <svg class="icon icon--sm"><use href="#i-layers"/></svg>
-                <?= Fmt::num($overview['files'] - $overview['blobs']) ?> дублей свёрнуто
+                <?= Fmt::num($overview['files'] - $overview['blobs']) ?> <?= Fmt::plural($overview['files'] - $overview['blobs'], 'дубль', 'дубля', 'дублей') ?> свёрнуто
             </span>
         </div>
     </div>
@@ -133,7 +133,7 @@ $area = "0,30 {$line} 100,30";
                 <div class="row" style="gap: 10px">
                     <span class="tone chan chan--<?= $channel['channel'] ?>">/<?= $channel['channel'] ?></span>
                     <span class="text-sm"><?= Fmt::e($channel['label']) ?></span>
-                    <span class="ml-auto text-sm text-muted"><?= Fmt::num($channel['hits']) ?> запросов</span>
+                    <span class="ml-auto text-sm text-muted"><?= Fmt::num($channel['hits']) ?> <?= Fmt::plural($channel['hits'], 'запрос', 'запроса', 'запросов') ?></span>
                 </div>
             <?php endforeach ?>
         </div>
@@ -164,7 +164,7 @@ $area = "0,30 {$line} 100,30";
                             <div class="fileline__body">
                                 <div class="fileline__name"><?= Fmt::e($bucket->name) ?></div>
                                 <div class="fileline__meta">
-                                    <?= Fmt::num($bucket->files) ?> файлов<span class="dot-sep"></span><?= $bucket->folders ?> папок
+                                    <?= Fmt::num($bucket->files) ?> <?= Fmt::plural($bucket->files, 'файл', 'файла', 'файлов') ?><span class="dot-sep"></span><?= $bucket->folders ?> <?= Fmt::plural($bucket->folders, 'папка', 'папки', 'папок') ?>
                                 </div>
                             </div>
                         </div>

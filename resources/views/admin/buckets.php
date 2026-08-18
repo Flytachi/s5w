@@ -24,7 +24,7 @@ $searching = ($query->search ?? '') !== '';
         <span class="stat__icon"><svg class="icon"><use href="#i-database"/></svg></span>
         <span class="stat__value<?= $counts->active === 0 ? ' is-zero' : '' ?>" data-counter="buckets-active"><?= Fmt::num($counts->active) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Работают</span>
+            <span class="stat__label">Активные</span>
             <span class="stat__note">всего <span data-counter="buckets-total"><?= Fmt::num($counts->total) ?></span></span>
         </span>
     </div>
@@ -34,7 +34,7 @@ $searching = ($query->search ?? '') !== '';
         <span class="stat__value"><?= Fmt::bytes($counts->used) ?></span>
         <span class="stat__body">
             <span class="stat__label">Занято</span>
-            <span class="stat__note">из <?= Fmt::bytes($counts->quota) ?> выданных квот</span>
+            <span class="stat__note">из <?= Fmt::bytes($counts->quota) ?></span>
         </span>
     </div>
 
@@ -42,7 +42,7 @@ $searching = ($query->search ?? '') !== '';
         <span class="stat__icon"><svg class="icon"><use href="#i-alert-triangle"/></svg></span>
         <span class="stat__value<?= $counts->full === 0 ? ' is-zero' : '' ?>"><?= Fmt::num($counts->full) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Под завязку</span>
+            <span class="stat__label">Заполнены</span>
             <span class="stat__note">90% квоты и выше</span>
         </span>
     </div>
@@ -52,7 +52,7 @@ $searching = ($query->search ?? '') !== '';
         <span class="stat__value<?= $counts->pending === 0 ? ' is-zero' : '' ?>" data-counter="buckets-pending"><?= Fmt::num($counts->pending) ?></span>
         <span class="stat__body">
             <span class="stat__label">Не готовы</span>
-            <span class="stat__note">заводятся или сносятся</span>
+            <span class="stat__note">создаются или удаляются</span>
         </span>
     </div>
 </div>
@@ -134,13 +134,10 @@ $searching = ($query->search ?? '') !== '';
                         <span class="text-muted">/ <?= Fmt::num($bucket->blobs) ?></span>
                     </td>
                     <td>
-                        <?php if ($bucket->cacheVisibility === null): ?>
-                            <span class="tone tone--mute">по умолчанию</span>
-                        <?php else: ?>
-                            <span class="tone tone--<?= $bucket->cacheVisibility === 'PUBLIC' ? 'ok' : 'brand' ?>">
-                                <?= Fmt::e($bucket->cacheVisibility) ?> · <?= (int) $bucket->cacheMaxAge ?>s
-                            </span>
-                        <?php endif ?>
+                        <span class="tone tone--<?= $bucket->cacheVisibility->tone() ?>">
+                            <?= Fmt::e($bucket->cacheVisibility->label()) ?>
+                            · <?= $bucket->cacheMaxAge === null ? 'по умолчанию' : $bucket->cacheMaxAge . 's' ?>
+                        </span>
                     </td>
                     <td class="text-muted text-sm nowrap"><?= Fmt::date($bucket->createdAt) ?></td>
                     <td>
@@ -162,7 +159,7 @@ $searching = ($query->search ?? '') !== '';
                                 <button class="dropdown__item" data-action="bucket:cache"
                                         data-id="<?= Fmt::e($bucket->id) ?>"
                                         data-max-age="<?= $bucket->cacheMaxAge ?? '' ?>"
-                                        data-visibility="<?= Fmt::e($bucket->cacheVisibility ?? '') ?>">
+                                        data-visibility="<?= Fmt::e($bucket->cacheVisibility->name) ?>">
                                     Политика кэша <svg class="icon"><use href="#i-clock"/></svg>
                                 </button>
                                 <button class="dropdown__item" data-action="bucket:delete"
@@ -185,7 +182,7 @@ $searching = ($query->search ?? '') !== '';
             <div class="text-sm">По запросу «<?= Fmt::e($query->search) ?>» бакетов нет</div>
         <?php else: ?>
             <div class="empty__title">Бакетов пока нет</div>
-            <div class="text-sm">Создайте первый — каталог заведётся сам</div>
+            <div class="text-sm">Создайте первый</div>
         <?php endif ?>
     </div>
 

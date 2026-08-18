@@ -57,7 +57,7 @@ final class PanelListRequest
         return match ($this->sort) {
             'name' => 'по имени',
             'type' => 'по типу',
-            'size' => 'по весу',
+            'size' => 'по размеру',
             default => 'по дате',
         };
     }
@@ -71,7 +71,7 @@ final class PanelListRequest
     {
         return match ($this->sort) {
             'name', 'type' => $this->isDesc() ? 'от А до Я' : 'от Я до А',
-            'size' => $this->isDesc() ? 'сначала лёгкие' : 'сначала тяжёлые',
+            'size' => $this->isDesc() ? 'сначала маленькие' : 'сначала большие',
             default => $this->isDesc() ? 'сначала старые' : 'сначала новые',
         };
     }

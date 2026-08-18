@@ -19,7 +19,7 @@ final readonly class BucketView
         public int $free,
         public string $status,
         public ?int $cacheMaxAge,
-        public ?string $cacheVisibility,
+        public CacheVisibility $cacheVisibility,
         public int $files,
         public int $blobs,
         public int $folders,
@@ -41,9 +41,7 @@ final readonly class BucketView
             free: max(0, $bucket->quota_bytes - $bucket->used_bytes),
             status: BucketStatus::from($bucket->status)->name,
             cacheMaxAge: $bucket->cache_max_age,
-            cacheVisibility: $bucket->cache_visibility === null
-                ? null
-                : CacheVisibility::from($bucket->cache_visibility)->name,
+            cacheVisibility: CacheVisibility::from($bucket->cache_visibility),
             files: $stats['files'],
             blobs: $stats['blobs'],
             folders: $stats['folders'],

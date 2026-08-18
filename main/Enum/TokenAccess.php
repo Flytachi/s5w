@@ -24,8 +24,8 @@ enum TokenAccess: int
     public function label(): string
     {
         return match ($this) {
-            self::BASIC => 'чтение',
-            self::FULL => 'полный',
+            self::BASIC => 'только отдача',
+            self::FULL => 'полный доступ',
         };
     }
 

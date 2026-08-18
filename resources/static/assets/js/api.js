@@ -42,7 +42,7 @@
     }
 
     if (!res.ok) {
-      throw new ApiError(res.status, (json && json.message) || "Запрос не прошёл", json && json.errors);
+      throw new ApiError(res.status, (json && json.message) || "Не удалось выполнить запрос", json && json.errors);
     }
     return { status: res.status, data: json };
   }

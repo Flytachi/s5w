@@ -19,8 +19,8 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
         <span class="stat__icon"><svg class="icon"><use href="#i-key"/></svg></span>
         <span class="stat__value<?= $counts['active'] === 0 ? ' is-zero' : '' ?>" data-counter="tokens-active"><?= Fmt::num($counts['active']) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Живых</span>
-            <span class="stat__note">работают сейчас</span>
+            <span class="stat__label">Активные</span>
+            <span class="stat__note">всего <?= Fmt::num($counts['total']) ?></span>
         </span>
     </div>
 
@@ -28,7 +28,7 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
         <span class="stat__icon"><svg class="icon"><use href="#i-zap"/></svg></span>
         <span class="stat__value<?= $counts['full'] === 0 ? ' is-zero' : '' ?>" data-counter="tokens-full"><?= Fmt::num($counts['full']) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Полных</span>
+            <span class="stat__label">Полный доступ</span>
             <span class="stat__note">пишут в бакет</span>
         </span>
     </div>
@@ -37,7 +37,7 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
         <span class="stat__icon"><svg class="icon"><use href="#i-lock"/></svg></span>
         <span class="stat__value<?= $counts['inactive'] === 0 ? ' is-zero' : '' ?>" data-counter="tokens-inactive"><?= Fmt::num($counts['inactive']) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Выключено</span>
+            <span class="stat__label">Выключены</span>
             <span class="stat__note">отвечают 403</span>
         </span>
     </div>
@@ -46,8 +46,8 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
         <span class="stat__icon"><svg class="icon"><use href="#i-clock"/></svg></span>
         <span class="stat__value<?= $counts['expired'] === 0 ? ' is-zero' : '' ?>" data-counter="tokens-expired"><?= Fmt::num($counts['expired']) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Просрочено</span>
-            <span class="stat__note">вышел срок</span>
+            <span class="stat__label">Просрочены</span>
+            <span class="stat__note">срок истёк</span>
         </span>
     </div>
 </div>
@@ -62,7 +62,7 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
         <div class="panel__tools">
             <form class="search-pill" method="get" action="<?= $base ?>">
                 <svg class="icon icon--sm"><use href="#i-search"/></svg>
-                <input type="search" name="search" placeholder="Название ключа" value="<?= Fmt::e($query->search ?? '') ?>">
+                <input type="search" name="search" placeholder="Имя токена" value="<?= Fmt::e($query->search ?? '') ?>">
                 <input type="hidden" name="sort" value="<?= Fmt::e($query->sort) ?>">
                 <input type="hidden" name="dir" value="<?= Fmt::e($query->dir) ?>">
             </form>
@@ -84,11 +84,11 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
         <table class="table">
             <thead>
             <tr>
-                <th><?= $th('name', 'Ключ') ?></th>
+                <th><?= $th('name', 'Токен') ?></th>
                 <th><?= $th('access', 'Доступ') ?></th>
                 <th><?= $th('state', 'Состояние') ?></th>
                 <th>Срок</th>
-                <th><?= $th('used', 'Обращались') ?></th>
+                <th><?= $th('used', 'Использован') ?></th>
                 <th><?= $th('created', 'Выпущен') ?></th>
                 <th></th>
             </tr>
@@ -168,10 +168,10 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
             <svg class="icon"><use href="#i-key"/></svg>
             <?php if (($query->search ?? '') !== ''): ?>
                 <div class="empty__title">Ничего не нашлось</div>
-                <div class="text-sm">По запросу «<?= Fmt::e($query->search) ?>» ключей нет</div>
+                <div class="text-sm">По запросу «<?= Fmt::e($query->search) ?>» токенов нет</div>
             <?php else: ?>
                 <div class="empty__title">Токенов нет</div>
-                <div class="text-sm">Без токена клиент не заберёт приватный файл</div>
+                <div class="text-sm">Выпустите первый</div>
             <?php endif ?>
         </div>
     </div>

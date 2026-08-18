@@ -20,6 +20,7 @@ use Main\Dto\GroupCount;
 use Main\Dto\PlacementCounts;
 use Main\Entity\Bucket;
 use Main\Enum\BucketStatus;
+use Main\Enum\CacheVisibility;
 use Main\Enum\Retention;
 use Main\Repository\BlobRepository;
 use Main\Repository\BucketRepository;
@@ -203,7 +204,7 @@ final class BucketService
     {
         $bucket = $this->get($id);
         $bucket->cache_max_age = $request->maxAge;
-        $bucket->cache_visibility = $request->visibility?->value;
+        $bucket->cache_visibility = ($request->visibility ?? CacheVisibility::SHARED)->value;
         $bucket->updated_at = date('Y-m-d H:i:s P');
 
         $this->repo->update(

@@ -24,7 +24,15 @@ $base = $bucket === null ? null : '/admin/ui/buckets/' . $bucket->id;
     <link rel="stylesheet" href="<?= Fmt::asset('/assets/css/admin.css') ?>">
     <script src="<?= Fmt::asset('/assets/js/theme.js') ?>"></script>
 </head>
-<body data-page="<?= Fmt::e($nav) ?>"<?= $bucket === null ? '' : ' data-bucket-id="' . Fmt::e($bucket->id) . '"' ?>>
+<?php
+$bucketAttrs = $bucket === null ? '' : sprintf(
+    ' data-bucket-id="%s" data-cache-max-age="%s" data-cache-visibility="%s"',
+    Fmt::e($bucket->id),
+    $bucket->cacheMaxAge ?? '',
+    Fmt::e($bucket->cacheVisibility->name),
+);
+?>
+<body data-page="<?= Fmt::e($nav) ?>"<?= $bucketAttrs ?>>
 
 <div class="layout">
 
@@ -69,7 +77,7 @@ $base = $bucket === null ? null : '/admin/ui/buckets/' . $bucket->id;
 
         <?php if ($bucket === null): ?>
             <p class="text-sm text-muted" style="padding: 10px 6px 0">
-                Выберите бакет — файлы, папки, токены и ссылки у каждого свои.
+                Выберите бакет
             </p>
         <?php else: ?>
             <div class="stack mt-1" style="gap: 4px">
@@ -128,7 +136,7 @@ $base = $bucket === null ? null : '/admin/ui/buckets/' . $bucket->id;
             <?php if (wrData('mocked')): ?>
                 <span class="mock-note">
                     <svg class="icon"><use href="#i-zap"/></svg>
-                    раздел на моках — бэкенд ещё не подключён
+                    демо-данные
                 </span>
             <?php else: ?>
                 <span class="mock-note mock-note--live">
