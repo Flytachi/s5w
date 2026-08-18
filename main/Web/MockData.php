@@ -21,7 +21,6 @@ final class MockData
                 'description' => 'фото и видео витрины',
                 'bytes' => ['quota' => 536870912, 'used' => 341827584, 'free' => 195043328],
                 'status' => ['id' => 3, 'name' => 'ACTIVE'],
-                'cache' => ['maxAge' => 86400, 'visibility' => ['id' => 1, 'name' => 'SHARED']],
                 'files' => 1284,
                 'blobs' => 1102,
                 'folders' => 3,
@@ -33,7 +32,6 @@ final class MockData
                 'description' => 'договоры и акты, только по токену',
                 'bytes' => ['quota' => 214748364, 'used' => 201326592, 'free' => 13421772],
                 'status' => ['id' => 3, 'name' => 'ACTIVE'],
-                'cache' => ['maxAge' => 0, 'visibility' => ['id' => 2, 'name' => 'PRIVATE']],
                 'files' => 3921,
                 'blobs' => 3788,
                 'folders' => 5,
@@ -45,7 +43,6 @@ final class MockData
                 'description' => 'аватарки, всё приводится к webp 512',
                 'bytes' => ['quota' => 104857600, 'used' => 41943040, 'free' => 62914560],
                 'status' => ['id' => 3, 'name' => 'ACTIVE'],
-                'cache' => ['maxAge' => 604800, 'visibility' => ['id' => 1, 'name' => 'SHARED']],
                 'files' => 8734,
                 'blobs' => 6210,
                 'folders' => 1,
@@ -57,7 +54,6 @@ final class MockData
                 'description' => 'выгрузки, чистятся раз в неделю',
                 'bytes' => ['quota' => 1073741824, 'used' => 12582912, 'free' => 1061158912],
                 'status' => ['id' => 0, 'name' => 'CREATED'],
-                'cache' => ['maxAge' => null, 'visibility' => null],
                 'files' => 6,
                 'blobs' => 6,
                 'folders' => 1,
@@ -89,29 +85,29 @@ final class MockData
         $all = [
             self::BUCKET_MEDIA => [
                 ['name' => 'photos', 'public' => true, 'retention' => ['id' => 0, 'name' => 'NONE'],
-                 'cache' => ['maxAge' => 86400, 'visibility' => 'SHARED'], 'files' => 812, 'bytes' => 214958080],
+                 'files' => 812, 'bytes' => 214958080],
                 ['name' => 'video', 'public' => true, 'retention' => ['id' => 0, 'name' => 'NONE'],
-                 'cache' => ['maxAge' => 604800, 'visibility' => 'SHARED'], 'files' => 47, 'bytes' => 118489088],
+                 'files' => 47, 'bytes' => 118489088],
                 ['name' => 'drafts', 'public' => false, 'retention' => ['id' => 2, 'name' => 'WEEK'],
-                 'cache' => ['maxAge' => 0, 'visibility' => 'NO_STORE'], 'files' => 425, 'bytes' => 8380416],
+                 'files' => 425, 'bytes' => 8380416],
             ],
             self::BUCKET_DOCS => [
                 ['name' => 'contracts', 'public' => false, 'retention' => ['id' => 6, 'name' => 'YEAR'],
-                 'cache' => ['maxAge' => 0, 'visibility' => 'PRIVATE'], 'files' => 1902, 'bytes' => 96468992],
+                 'files' => 1902, 'bytes' => 96468992],
                 ['name' => 'acts', 'public' => false, 'retention' => ['id' => 5, 'name' => 'HALF_YEAR'],
-                 'cache' => ['maxAge' => 0, 'visibility' => 'PRIVATE'], 'files' => 1544, 'bytes' => 71303168],
+                 'files' => 1544, 'bytes' => 71303168],
                 ['name' => 'inbox', 'public' => false, 'retention' => ['id' => 3, 'name' => 'MONTH'],
-                 'cache' => ['maxAge' => 0, 'visibility' => 'PRIVATE'], 'files' => 401, 'bytes' => 27262976],
+                 'files' => 401, 'bytes' => 27262976],
                 ['name' => 'exports', 'public' => false, 'retention' => ['id' => 1, 'name' => 'DAY'],
-                 'cache' => ['maxAge' => 0, 'visibility' => 'NO_STORE'], 'files' => 62, 'bytes' => 5242880],
+                 'files' => 62, 'bytes' => 5242880],
                 ['name' => 'archive', 'public' => false, 'retention' => ['id' => 0, 'name' => 'NONE'],
-                 'cache' => ['maxAge' => 0, 'visibility' => 'PRIVATE'], 'files' => 12, 'bytes' => 1048576],
+                 'files' => 12, 'bytes' => 1048576],
             ],
         ];
 
         return $all[$bucketId] ?? [
             ['name' => 'default', 'public' => true, 'retention' => ['id' => 0, 'name' => 'NONE'],
-             'cache' => ['maxAge' => null, 'visibility' => null], 'files' => 6, 'bytes' => 12582912],
+             'files' => 6, 'bytes' => 12582912],
         ];
     }
 
