@@ -105,7 +105,7 @@ final class ShareLinkService
                 || strtotime($link->expires_at) <= time()
                 || ($link->max_downloads !== null && $link->downloads >= $link->max_downloads)
             ) {
-                ClientError::throw('Share link is no longer valid', HttpCode::NOT_FOUND);
+                ClientError::throw('Link has been revoked or has reached its download limit', HttpCode::NOT_FOUND);
             }
 
             if ($link->max_downloads !== null) {
@@ -281,7 +281,7 @@ final class ShareLinkService
     {
         $bucket = $this->buckets->findById($bucketId);
         if ($bucket === null) {
-            ClientError::throw('Bucket not found', HttpCode::NOT_FOUND);
+            ClientError::throw('Bucket does not exist', HttpCode::NOT_FOUND);
         }
 
         $epoch = $bucket->link_epoch + 1;
@@ -297,7 +297,7 @@ final class ShareLinkService
     {
         $bucket = $this->buckets->findById($bucketId);
         if ($bucket === null) {
-            ClientError::throw('Bucket not found', HttpCode::NOT_FOUND);
+            ClientError::throw('Bucket does not exist', HttpCode::NOT_FOUND);
         }
 
         return $bucket;

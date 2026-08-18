@@ -72,20 +72,22 @@ final class DeliveryService
     {
         $payload = $this->signer->verify($token);
         if ($payload === null || $payload->expiresAt <= time()) {
-            $this->notFound();
+            $this->linkGone();
         }
 
         $file = $this->files->findById($payload->fileId);
         if ($file === null) {
-            $this->notFound();
+            $this->linkGone();
         }
 
         $bucket = $this->bucketOf($file);
         if ($payload->epoch !== $bucket->link_epoch) {
-            $this->notFound();
+            $this->linkGone();
         }
 
-        $this->assertAlive($file);
+        if ($file->expires_at !== null && strtotime($file->expires_at) <= time()) {
+            $this->linkGone();
+        }
 
         $attachment = $payload->attachment;
         $limited = false;
@@ -198,5 +200,10 @@ final class DeliveryService
     private function notFound(): never
     {
         ClientError::throw('File not found', HttpCode::NOT_FOUND);
+    }
+
+    private function linkGone(): never
+    {
+        ClientError::throw('Link is invalid or has expired', HttpCode::NOT_FOUND);
     }
 }

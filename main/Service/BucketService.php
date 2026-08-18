@@ -243,7 +243,7 @@ final class BucketService
             $bucket->id = $this->repo->insert($bucket);
         } catch (\Throwable $e) {
             if (Db::isUniqueViolation($e)) {
-                ClientError::throw('Bucket name already taken', HttpCode::CONFLICT);
+                ClientError::throw('Bucket name is already in use', HttpCode::CONFLICT);
             }
             throw $e;
         }
@@ -281,7 +281,7 @@ final class BucketService
             );
         } catch (\Throwable $e) {
             if (Db::isUniqueViolation($e)) {
-                ClientError::throw('Bucket name already taken', HttpCode::CONFLICT);
+                ClientError::throw('Bucket name is already in use', HttpCode::CONFLICT);
             }
             throw $e;
         }
