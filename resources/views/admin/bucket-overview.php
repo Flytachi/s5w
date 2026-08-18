@@ -1,38 +1,21 @@
 <?php
 
+use Main\Dto\ExtUsage;
 use Main\Web\Fmt;
 
 $base = '/admin/ui/buckets/' . $bucket->id;
 
-// ВРЕМЕННО: цифры выдуманы, чтобы согласовать вёрстку. Заменяются запросами.
-$mock = [
-    'ext' => [
-        ['mp4', 148_209_664, 12],
-        ['png', 96_468_992, 84],
-        ['webp', 61_865_984, 121],
-        ['jpg', 55_107_584, 63],
-        ['pdf', 28_311_552, 31],
-        ['zip', 18_874_368, 6],
-        ['svg', 12_582_912, 44],
-        ['mp3', 9_437_184, 17],
-        ['docx', 7_340_032, 12],
-        ['csv', 5_242_880, 9],
-        ['txt', 1_048_576, 13],
-    ],
-    'folders' => 7,
-    'files' => 412,
-    'blobs' => 361,
-    'where' => [
-        ['Корень', 'i-file', 1, 38, null],
-        ['Папки', 'i-folder', 3, 320, 6],
-        ['Временные папки', 'i-clock', 4, 54, 1],
-    ],
-    'tokens' => ['active' => 4, 'full' => 1, 'inactive' => 2, 'expired' => 1],
-    'links' => ['active' => 18, 'total' => 28, 'revoked' => 2, 'expired' => 8],
+$kinds = array_map(static fn(ExtUsage $row) => [$row->ext, $row->bytes, $row->total], $usage);
+$extLabel = static fn(string $name): string => $name === '' ? 'без расширения' : '.' . $name;
+
+$where = [
+    ['Корень', 1, $placement->root, null],
+    ['Папки', 3, $placement->in_folders, $folderCounts->total - $folderCounts->temp],
+    ['Временные папки', 4, $placement->in_temp, $folderCounts->temp],
 ];
 
-$kindsTotal = array_sum(array_column($mock['ext'], 1));
-$dedup = $mock['files'] - $mock['blobs'];
+$kindsTotal = array_sum(array_column($kinds, 1));
+$dedup = max(0, $bucket->files - $bucket->blobs);
 
 $circle = 2 * M_PI * 54;
 $offset = 0;
@@ -62,7 +45,7 @@ $offset = 0;
             <div class="quota__bar"><div class="quota__fill" style="width: <?= $bucket->percent() ?>%"></div></div>
             <div class="quota__meta">
                 <span>квота <?= Fmt::bytes($bucket->quota) ?></span>
-                <span><?= Fmt::num($mock['files']) ?> файлов</span>
+                <span><?= Fmt::num($bucket->files) ?> файлов</span>
             </div>
         </div>
     </div>
@@ -113,7 +96,7 @@ $offset = 0;
                 <svg class="icon"><use href="#i-clock"/></svg>
                 <div>
                     <div style="font-weight:600">Не задан</div>
-                    <div class="text-sm text-muted">Берётся дефолт сервиса, папка может его переопределить.</div>
+                    <div class="text-sm text-muted">Кэш выводится из самого файла, папка может задать своё.</div>
                 </div>
             </div>
         <?php else: ?>
@@ -140,18 +123,27 @@ $offset = 0;
             </div>
         </div>
 
+        <?php if ($kinds === []): ?>
+            <div class="empty-inline mt-2">
+                <svg class="icon"><use href="#i-file"/></svg>
+                <div>
+                    <div style="font-weight:600">Пусто</div>
+                    <div class="text-sm text-muted">Загрузите первый файл — здесь появится разбивка.</div>
+                </div>
+            </div>
+        <?php else: ?>
         <div class="ring-row mt-2">
             <div class="ring-box">
                 <svg class="ring" viewBox="0 0 140 140" data-donut>
                     <circle class="ring__track" cx="70" cy="70" r="54"></circle>
-                    <?php foreach ($mock['ext'] as $i => [$ext, $size, $count]): ?>
+                    <?php foreach ($kinds as $i => [$name, $size, $count]): ?>
                         <?php
                         $share = $kindsTotal > 0 ? $size / $kindsTotal : 0;
                         $length = $circle * $share;
                         ?>
                         <circle class="ring__slice" style="stroke: var(--chart-<?= $i % 8 + 1 ?>)"
                                 cx="70" cy="70" r="54" data-slice="<?= $i ?>"
-                                data-name="<?= Fmt::e($ext) ?>"
+                                data-name="<?= Fmt::e($extLabel($name)) ?>"
                                 data-size="<?= Fmt::e(Fmt::bytes($size)) ?>"
                                 data-count="<?= $count ?>"
                                 data-share="<?= round($share * 100, 1) ?>"
@@ -166,11 +158,11 @@ $offset = 0;
 
             <div class="kinds-scroll">
                 <table class="kinds">
-                    <?php foreach ($mock['ext'] as $i => [$ext, $size, $count]): ?>
+                    <?php foreach ($kinds as $i => [$name, $size, $count]): ?>
                         <tr data-slice="<?= $i ?>">
                             <td class="kinds__name">
                                 <span class="kinds__dot" style="background: var(--chart-<?= $i % 8 + 1 ?>)"></span>
-                                <span class="mono">.<?= Fmt::e($ext) ?></span>
+                                <span class="<?= $name === '' ? 'text-muted' : 'mono' ?>"><?= Fmt::e($extLabel($name)) ?></span>
                                 <span class="kinds__count"><?= Fmt::num($count) ?> шт</span>
                             </td>
                             <td class="kinds__value"><?= Fmt::bytes($size) ?></td>
@@ -180,6 +172,7 @@ $offset = 0;
                 </table>
             </div>
         </div>
+        <?php endif ?>
     </div>
 
     <div class="card">
@@ -191,18 +184,18 @@ $offset = 0;
 
         <div class="pair mt-2">
             <div class="pair__side">
-                <span class="pair__value"><?= Fmt::num($mock['files']) ?></span>
+                <span class="pair__value"><?= Fmt::num($bucket->files) ?></span>
                 <span class="pair__label">файлов</span>
             </div>
             <span class="pair__vs">против</span>
             <div class="pair__side">
-                <span class="pair__value"><?= Fmt::num($mock['blobs']) ?></span>
+                <span class="pair__value"><?= Fmt::num($bucket->blobs) ?></span>
                 <span class="pair__label">блобов</span>
             </div>
         </div>
 
         <div class="bar-mini mt-2">
-            <div class="bar-mini__fill" style="width: <?= $mock['files'] > 0 ? round($mock['blobs'] / $mock['files'] * 100) : 0 ?>%"></div>
+            <div class="bar-mini__fill" style="width: <?= $bucket->files > 0 ? round($bucket->blobs / $bucket->files * 100) : 0 ?>%"></div>
         </div>
         <div class="text-sm text-muted mt-1">
             Дублей свёрнуто: <b><?= Fmt::num($dedup) ?></b> — столько файлов делят чужие байты.
@@ -211,20 +204,20 @@ $offset = 0;
         <div class="text-sm text-muted mt-3">Где лежат</div>
 
         <div class="share-bar mt-1">
-            <?php foreach ($mock['where'] as [$label, $icon, $color, $count, $folders]): ?>
+            <?php foreach ($where as [$label, $color, $count, $dirs]): ?>
                 <span class="share-bar__part"
-                      style="width: <?= $mock['files'] > 0 ? round($count / $mock['files'] * 100, 2) : 0 ?>%;
+                      style="width: <?= $bucket->files > 0 ? round($count / $bucket->files * 100, 2) : 0 ?>%;
                              background: var(--chart-<?= $color ?>)"></span>
             <?php endforeach ?>
         </div>
 
-        <?php foreach ($mock['where'] as [$label, $icon, $color, $count, $folders]): ?>
+        <?php foreach ($where as [$label, $color, $count, $dirs]): ?>
             <div class="kv-row">
                 <span>
                     <span class="kinds__dot" style="background: var(--chart-<?= $color ?>)"></span>
                     <?= Fmt::e($label) ?>
-                    <?php if ($folders !== null): ?>
-                        <span class="kinds__count"><?= Fmt::num($folders) ?> шт</span>
+                    <?php if ($dirs !== null): ?>
+                        <span class="kinds__count"><?= Fmt::num($dirs) ?> шт</span>
                     <?php endif ?>
                 </span>
                 <b><?= Fmt::num($count) ?></b>
@@ -236,7 +229,7 @@ $offset = 0;
 <div class="grid grid--4">
     <a class="card stat stat--ok access-tile" href="<?= $base ?>/tokens">
         <span class="stat__icon"><svg class="icon"><use href="#i-key"/></svg></span>
-        <span class="stat__value<?= $mock['tokens']['active'] === 0 ? ' is-zero' : '' ?>"><?= $mock['tokens']['active'] ?></span>
+        <span class="stat__value<?= $tokenCounts['active'] === 0 ? ' is-zero' : '' ?>"><?= $tokenCounts['active'] ?></span>
         <span class="stat__body">
             <span class="stat__label">Ключи</span>
             <span class="stat__note">активны</span>
@@ -245,7 +238,7 @@ $offset = 0;
 
     <a class="card stat stat--danger access-tile" href="<?= $base ?>/tokens">
         <span class="stat__icon"><svg class="icon"><use href="#i-clock"/></svg></span>
-        <span class="stat__value<?= $mock['tokens']['expired'] === 0 ? ' is-zero' : '' ?>"><?= $mock['tokens']['expired'] ?></span>
+        <span class="stat__value<?= $tokenCounts['expired'] === 0 ? ' is-zero' : '' ?>"><?= $tokenCounts['expired'] ?></span>
         <span class="stat__body">
             <span class="stat__label">Ключи</span>
             <span class="stat__note">просрочены</span>
@@ -254,7 +247,7 @@ $offset = 0;
 
     <a class="card stat stat--brand access-tile" href="<?= $base ?>/links">
         <span class="stat__icon"><svg class="icon"><use href="#i-link"/></svg></span>
-        <span class="stat__value<?= $mock['links']['active'] === 0 ? ' is-zero' : '' ?>"><?= $mock['links']['active'] ?></span>
+        <span class="stat__value<?= $linkCounts['active'] === 0 ? ' is-zero' : '' ?>"><?= $linkCounts['active'] ?></span>
         <span class="stat__body">
             <span class="stat__label">Ссылки</span>
             <span class="stat__note">живые</span>
@@ -263,7 +256,7 @@ $offset = 0;
 
     <a class="card stat stat--warn access-tile" href="<?= $base ?>/links">
         <span class="stat__icon"><svg class="icon"><use href="#i-clock"/></svg></span>
-        <span class="stat__value<?= $mock['links']['expired'] === 0 ? ' is-zero' : '' ?>"><?= $mock['links']['expired'] ?></span>
+        <span class="stat__value<?= $linkCounts['expired'] === 0 ? ' is-zero' : '' ?>"><?= $linkCounts['expired'] ?></span>
         <span class="stat__body">
             <span class="stat__label">Ссылки</span>
             <span class="stat__note">истекли</span>

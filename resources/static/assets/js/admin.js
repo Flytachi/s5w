@@ -785,12 +785,16 @@ function onBucketCreated(bucket) {
   const row = Render.bucketRow(bucket);
   rows.prepend(row);
   toggleEmpty("buckets", false);
+  bumpCounter("buckets-total", 1);
+  bumpCounter("buckets-pending", 1);
 
   // Ответ пришёл 202: строка есть, каталога ещё нет. Спрашиваем статус, пока
   // provisioner не доложит ACTIVE — это его настоящая работа, не анимация.
   watchStatus(bucket.id, (status) => {
     row.querySelector('[data-cell="status"]').innerHTML = Render.statusCell(status);
     if (status === "ACTIVE") {
+      bumpCounter("buckets-pending", -1);
+      bumpCounter("buckets-active", 1);
       showToast(`Бакет <b>${Render.e(bucket.name)}</b> готов`, { type: "ok" });
       return true;
     }
@@ -945,7 +949,7 @@ function setCounter(name, value) {
 
 function bumpCounter(name, delta) {
   const el = document.querySelector(`[data-counter="${name}"]`);
-  if (el) setCounter(name, Number(el.textContent) + delta);
+  if (el) setCounter(name, Number(el.textContent.replace(/\D/g, "")) + delta);
 }
 
 /* ============================================================
@@ -1077,13 +1081,19 @@ async function deleteBucket(row, el, id, name) {
   el.disabled = true;
   await Api.delete(`/admin/buckets/${id}`);
 
+  const statusCell = row.querySelector('[data-cell="status"]');
+  if (statusCell.textContent.includes("ACTIVE")) bumpCounter("buckets-active", -1);
+  bumpCounter("buckets-pending", 1);
+
   row.style.opacity = ".55";
-  row.querySelector('[data-cell="status"]').innerHTML = Render.statusCell("PENDING");
+  statusCell.innerHTML = Render.statusCell("PENDING");
   showToast(`Бакет <b>${Render.e(name)}</b> удаляется`, { type: "info", detail: "каталог сносится фоном" });
 
   watchStatus(id, (status) => {
     if (status !== "GONE") return false;
     row.remove();
+    bumpCounter("buckets-pending", -1);
+    bumpCounter("buckets-total", -1);
     if (document.querySelector('[data-rows="buckets"]')?.children.length === 0) toggleEmpty("buckets", true);
     showToast(`Бакет <b>${Render.e(name)}</b> удалён`, { type: "ok" });
     return true;
@@ -1502,24 +1512,57 @@ function renderCachePreview(form) {
       </span>
     </div>`;
 
+  const words = CACHE_WORDING[form.dataset.level] || CACHE_WORDING.folder;
+
   box.innerHTML =
     `<div class="cache-preview__note">${inherited
-      ? "Ничего не задано — значения берутся выше по цепочке. Сейчас вышло бы так:"
+      ? words.empty
       : "Что уйдёт в заголовке при таких настройках:"}</div>` +
     row("o", "файл в публичной папке", true) +
     row("p", "по токену", false) +
     row("t", "по временной ссылке", false);
 }
 
+const CACHE_WORDING = {
+  folder: {
+    intro: `Когда клиент скачал файл, копия остаётся у него в браузере, а по пути — ещё и у
+            CDN, прокси и провайдера. Здесь решается, <b>кому</b> из них можно держать эту
+            копию и <b>сколько</b>. Папка перекрывает бакет, бакет — дефолт сервиса.`,
+    title: "Наследовать",
+    text: `Решает бакет, а если и там пусто — сам сервис. Обычный выбор,
+           пока у папки нет причин отличаться.`,
+    age: "наследовать",
+    empty: "Ничего не задано — значения берутся выше по цепочке. Сейчас вышло бы так:",
+  },
+  bucket: {
+    intro: `Когда клиент скачал файл, копия остаётся у него в браузере, а по пути — ещё и у
+            CDN, прокси и провайдера. Здесь решается, <b>кому</b> из них можно держать эту
+            копию и <b>сколько</b>. Бакет — верхний уровень: заданное здесь работает для всех
+            папок, пока папка не решит иначе.`,
+    title: "Не задавать",
+    text: `Тогда всё выводится из самого файла: публичный кэшируется сутки, приватный —
+           не хранится. Папка при этом может задать своё.`,
+    age: "по файлу",
+    empty: "Ничего не задано — всё выводится из самого файла. Сейчас вышло бы так:",
+  },
+};
+
 function openCacheModal(data, isFolder) {
   const modal = openModal("modal-cache");
   const form = modal.querySelector("form");
+  const words = isFolder ? CACHE_WORDING.folder : CACHE_WORDING.bucket;
 
   clearErrors(form);
   form.dataset.name = isFolder ? data.name : "";
+  form.dataset.level = isFolder ? "folder" : "bucket";
   form.dataset.api = isFolder
     ? "PATCH /admin/buckets/{bucket}/folders/{name}/cache"
     : `PATCH /admin/buckets/${data.id || bucketId()}/cache`;
+
+  form.querySelector("[data-cache-intro]").innerHTML = words.intro;
+  form.querySelector("[data-cache-none-title]").textContent = words.title;
+  form.querySelector("[data-cache-none-text]").textContent = words.text;
+  form.querySelector('[name="maxAge"]').placeholder = words.age;
 
   form.querySelector('[name="maxAge"]').value = data.maxAge || "";
   form.elements.visibility.value = { PUBLIC: "1", PRIVATE: "2", NO_STORE: "3" }[data.visibility] || "";

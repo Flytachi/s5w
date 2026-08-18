@@ -15,45 +15,88 @@ $th = static function (string $sort, string $label, string $class = '') use ($qu
         $arrow === null ? '' : ' <span class="th-sort__arrow">' . $arrow . '</span>',
     );
 };
+
+$searching = ($query->search ?? '') !== '';
 ?>
 
-<form class="row mb-3" method="get" action="/admin/ui/buckets">
-    <input type="hidden" name="sort" value="<?= Fmt::e($query->sort) ?>">
-    <input type="hidden" name="dir" value="<?= Fmt::e($query->dir) ?>">
-
-    <div class="search-pill">
-        <svg class="icon icon--sm"><use href="#i-search"/></svg>
-        <input type="search" name="search" placeholder="Поиск по имени и описанию"
-               value="<?= Fmt::e($query->search ?? '') ?>">
+<div class="grid grid--4 metrics-row mb-3">
+    <div class="card stat stat--stack stat--ok">
+        <span class="stat__icon"><svg class="icon"><use href="#i-database"/></svg></span>
+        <span class="stat__value<?= $counts->active === 0 ? ' is-zero' : '' ?>" data-counter="buckets-active"><?= Fmt::num($counts->active) ?></span>
+        <span class="stat__body">
+            <span class="stat__label">Работают</span>
+            <span class="stat__note">всего <span data-counter="buckets-total"><?= Fmt::num($counts->total) ?></span></span>
+        </span>
     </div>
 
-    <?php if ($query->search !== null && $query->search !== ''): ?>
-        <a class="btn btn--ghost btn--sm" href="/admin/ui/buckets">
-            <svg class="icon icon--sm"><use href="#i-x"/></svg> Сбросить
-        </a>
-    <?php endif ?>
+    <div class="card stat stat--stack stat--brand">
+        <span class="stat__icon"><svg class="icon"><use href="#i-layers"/></svg></span>
+        <span class="stat__value"><?= Fmt::bytes($counts->used) ?></span>
+        <span class="stat__body">
+            <span class="stat__label">Занято</span>
+            <span class="stat__note">из <?= Fmt::bytes($counts->quota) ?> выданных квот</span>
+        </span>
+    </div>
 
-    <div class="topbar__spacer"></div>
+    <div class="card stat stat--stack stat--warn">
+        <span class="stat__icon"><svg class="icon"><use href="#i-alert-triangle"/></svg></span>
+        <span class="stat__value<?= $counts->full === 0 ? ' is-zero' : '' ?>"><?= Fmt::num($counts->full) ?></span>
+        <span class="stat__body">
+            <span class="stat__label">Под завязку</span>
+            <span class="stat__note">90% квоты и выше</span>
+        </span>
+    </div>
 
-    <span class="text-sm text-muted">
-        <?= $page->meta->total ?> <?= Fmt::plural($page->meta->total, 'бакет', 'бакета', 'бакетов') ?>
-    </span>
+    <div class="card stat stat--stack stat--mute">
+        <span class="stat__icon"><svg class="icon"><use href="#i-clock"/></svg></span>
+        <span class="stat__value<?= $counts->pending === 0 ? ' is-zero' : '' ?>" data-counter="buckets-pending"><?= Fmt::num($counts->pending) ?></span>
+        <span class="stat__body">
+            <span class="stat__label">Не готовы</span>
+            <span class="stat__note">заводятся или сносятся</span>
+        </span>
+    </div>
+</div>
 
-    <button type="button" class="btn btn--dark" data-modal-open="modal-bucket">
-        <svg class="icon icon--sm"><use href="#i-plus"/></svg> Новый бакет
-    </button>
-</form>
+<div class="card panel panel--buckets">
+    <div class="card__header">
+        <div>
+            <div class="card__title">Бакеты</div>
+            <div class="card__subtitle">
+                <?= $page->meta->total ?> <?= Fmt::plural($page->meta->total, 'бакет', 'бакета', 'бакетов') ?>
+                <?= $searching ? 'по запросу' : 'в хранилище' ?>
+            </div>
+        </div>
+        <div class="card__spacer"></div>
 
-<div class="card">
-    <div class="table-wrap">
+        <div class="panel__tools">
+            <form class="search-pill" method="get" action="/admin/ui/buckets">
+                <svg class="icon icon--sm"><use href="#i-search"/></svg>
+                <input type="search" name="search" placeholder="Имя или описание" value="<?= Fmt::e($query->search ?? '') ?>">
+                <input type="hidden" name="sort" value="<?= Fmt::e($query->sort) ?>">
+                <input type="hidden" name="dir" value="<?= Fmt::e($query->dir) ?>">
+            </form>
+
+            <?php if ($searching): ?>
+                <a class="icon-btn icon-btn--ghost icon-btn--sm"
+                   href="<?= Fmt::e($query->url(['search' => null, 'page' => 1])) ?>" aria-label="Сбросить поиск">
+                    <svg class="icon icon--sm"><use href="#i-x"/></svg>
+                </a>
+            <?php endif ?>
+
+            <button class="btn btn--dark btn--sm" data-modal-open="modal-bucket">
+                <svg class="icon icon--sm"><use href="#i-plus"/></svg> Новый бакет
+            </button>
+        </div>
+    </div>
+
+    <div class="panel__scroll mt-2">
         <table class="table">
             <thead>
             <tr>
                 <?= $th('name', 'Бакет') ?>
                 <th>Статус</th>
                 <?= $th('used', 'Квота', 'col-quota') ?>
-                <th class="num">Файлов</th>
-                <th class="num">Блобов</th>
+                <th class="num nowrap">Файлы / блобы</th>
                 <th>Кэш</th>
                 <?= $th('created', 'Создан') ?>
                 <th></th>
@@ -86,8 +129,10 @@ $th = static function (string $sort, string $label, string $class = '') use ($qu
                             </div>
                         </div>
                     </td>
-                    <td class="num"><?= Fmt::num($bucket->files) ?></td>
-                    <td class="num text-muted"><?= Fmt::num($bucket->blobs) ?></td>
+                    <td class="num nowrap">
+                        <?= Fmt::num($bucket->files) ?>
+                        <span class="text-muted">/ <?= Fmt::num($bucket->blobs) ?></span>
+                    </td>
                     <td>
                         <?php if ($bucket->cacheVisibility === null): ?>
                             <span class="tone tone--mute">по умолчанию</span>

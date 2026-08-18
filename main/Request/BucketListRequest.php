@@ -13,7 +13,7 @@ final class BucketListRequest
 {
     public const array SORTS = ['name', 'used', 'quota', 'created'];
 
-    public const int PER_PAGE = 10;
+    public const int PER_PAGE = 15;
 
     public function __construct(
         #[Min(1)]

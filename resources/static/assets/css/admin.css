@@ -2361,6 +2361,35 @@ code.inline {
   .panel--tokens .table th:nth-child(2), .panel--tokens .table td:nth-child(2) { display: table-cell; }
 }
 
+/* Статус и кэш — плашки: ужимать их нельзя, текст вылезет из подложки. */
+.panel--buckets .table td:nth-child(2), .panel--buckets .table th:nth-child(2) { min-width: 104px; }
+.panel--buckets .table td:nth-child(5), .panel--buckets .table th:nth-child(5) { min-width: 132px; }
+.panel--buckets .table th.col-quota, .panel--buckets .table td.col-quota { width: 220px; }
+.panel--buckets .quota { min-width: 195px; }
+
+/* Уходят по очереди кэш и дата: имя, статус и квота — то, ради чего сюда заходят. */
+@media (max-width: 1400px) {
+  .panel--buckets .table th:nth-child(5), .panel--buckets .table td:nth-child(5) { display: none; }
+}
+
+@media (max-width: 1280px) {
+  .panel--buckets .table th:nth-child(6), .panel--buckets .table td:nth-child(6) { display: none; }
+}
+
+@media (max-width: 1150px) {
+  .panel--buckets .table th:nth-child(4), .panel--buckets .table td:nth-child(4) { display: none; }
+}
+
+@media (max-width: 1024px) {
+  .panel--buckets .table th:nth-child(2), .panel--buckets .table td:nth-child(2) { display: table-cell; }
+}
+
+/* Значение и подпись в две строки: когда в ряду есть байты, подписи иначе
+   сжимаются до трёх слогов в строку — а плитки в ряду должны быть одинаковыми. */
+.stat--stack { flex-wrap: wrap; row-gap: 6px; }
+.stat--stack .stat__body { flex: 1 1 100%; }
+.stat--stack .stat__value { font-size: 1.7rem; }
+
 .panel .table td:nth-last-child(2) {
   max-width: 180px;
   overflow: hidden;

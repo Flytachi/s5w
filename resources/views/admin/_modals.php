@@ -279,12 +279,7 @@ $folders = $folders ?? [];
             </button>
         </div>
 
-        <p class="modal__text">
-            Когда клиент скачал файл, копия остаётся у него в браузере, а по пути — ещё и у
-            CDN, прокси и провайдера. Здесь решается, <b>кому</b> из них можно держать эту
-            копию и <b>сколько</b>. Настройка наследуется снизу вверх: папка перекрывает
-            бакет, бакет — общий дефолт сервиса; «наследовать» значит «не решать здесь».
-        </p>
+        <p class="modal__text" data-cache-intro></p>
 
         <div class="cache-grid mt-2">
             <div class="stack">
@@ -305,11 +300,8 @@ $folders = $folders ?? [];
                             <input type="radio" name="visibility" value="" checked>
                             <span class="radio__dot"></span>
                             <span class="choice__body">
-                                <span class="choice__title">Наследовать</span>
-                                <span class="choice__text">
-                                    Решает бакет, а если и там пусто — сам сервис. Обычный выбор,
-                                    пока у папки нет причин отличаться.
-                                </span>
+                                <span class="choice__title" data-cache-none-title></span>
+                                <span class="choice__text" data-cache-none-text></span>
                             </span>
                         </label>
 

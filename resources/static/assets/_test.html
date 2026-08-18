@@ -572,8 +572,57 @@ async function run() {
     await api("DELETE", `/admin/buckets/${BUCKET}/tokens/${key.accessToken.id}`);
   }
 
+  // ───────────────────── обзор бакета ─────────────────────
+  await load("/admin/ui/buckets/" + BUCKET);
+  check("обзор — первый таб бакета", !!$(".card--brand") && !!$(".ring"), "место и диаграмма на месте");
+  check("место показано занятым и свободным", $$(".usage__value").length === 2,
+        $$(".usage__value").map((e) => e.textContent.trim()).join(" · "));
+
+  const donut = $(".ring__total").textContent.trim();
+  const busy = $$(".usage__value")[0].textContent.trim();
+  check("бублик сходится с занятым местом", donut === busy, donut + " ↔ " + busy);
+
+  const slices = $$(".ring__slice");
+  const shares = slices.map((e) => parseFloat(e.dataset.share));
+  check("доли расширений дают сотню", Math.abs(shares.reduce((a, b) => a + b, 0) - 100) <= 1.5,
+        shares.join(" + "));
+  check("легенда повторяет сектора", $$(".kinds tr").length === slices.length,
+        `${$$(".kinds tr").length} строк на ${slices.length} секторов`);
+
+  const num = (el) => parseInt(el.textContent.replace(/\D/g, ""), 10) || 0;
+  const filesTotal = num($$(".pair__value")[0]);
+  const blobsTotal = num($$(".pair__value")[1]);
+  check("сектора считают блобы, а не файлы",
+        slices.reduce((a, e) => a + Number(e.dataset.count), 0) === blobsTotal,
+        `${blobsTotal} блобов`);
+  check("«Где лежат» сходится с числом файлов",
+        $$(".kv-row b").reduce((a, e) => a + num(e), 0) === filesTotal,
+        `${filesTotal} файлов`);
+  check("временные папки выделены отдельно",
+        $$(".kv-row").some((r) => r.textContent.includes("Временные папки")));
+
+  $('[data-action="bucket:cache"]').click();
+  await waitFor(() => $("#modal-cache.is-open"), "политика кэша бакета");
+  check("бакету не предлагают наследовать — он верхний уровень",
+        $("[data-cache-none-title]").textContent.trim() === "Не задавать",
+        $("[data-cache-none-title]").textContent.trim());
+  $("#modal-cache [data-modal-close]").click();
+  await sleep(200);
+
+  check("плитки доступа ведут в разделы", $$("a.access-tile").length === 4);
+  check("плитки ведут в разделы", $$("a.card").length >= 3);
+  check("активен раздел «Обзор»", $(".sidebar .stack .nav-item.active").textContent.trim().startsWith("Обзор"));
+
   // ───────────────────── удаление файла и папки ─────────────────────
   await load("/admin/ui/buckets/" + BUCKET + "/files");
+
+  folderRows()[0].querySelector('[data-action="folder:cache"]').click();
+  await waitFor(() => $("#modal-cache.is-open"), "политика кэша папки");
+  check("папке наследование предлагают",
+        $("[data-cache-none-title]").textContent.trim() === "Наследовать",
+        $("[data-cache-none-title]").textContent.trim());
+  $("#modal-cache [data-modal-close]").click();
+  await sleep(200);
   rows("files")[0].querySelector('[data-action="file:delete"]').click();
   (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение файла")).click();
   await waitFor(() => rows("files").length === 0, "файл убран");
@@ -585,14 +634,27 @@ async function run() {
   await waitFor(() => folderRows().length === 0, "папка убрана");
   check("папка удалена", true);
 
-  // ───────────────────── обзор бакета ─────────────────────
+  // ───────────────────── обзор опустевшего бакета ─────────────────────
   await load("/admin/ui/buckets/" + BUCKET);
-  check("обзор — первый таб бакета", !!$(".card--brand") && !!$(".ring"), "место и диаграмма на месте");
-  check("место показано занятым и свободным", $$(".usage__value").length === 2,
-        $$(".usage__value").map((e) => e.textContent.trim()).join(" · "));
-  check("плитки доступа ведут в разделы", $$("a.access-tile").length === 4);
-  check("плитки ведут в разделы", $$("a.card").length >= 3);
-  check("активен раздел «Обзор»", $(".sidebar .stack .nav-item.active").textContent.trim().startsWith("Обзор"));
+  check("пустой бакет показывает подсказку вместо диаграммы",
+        !$(".grid--overview .ring") && !!$(".grid--overview .empty-inline"));
+  check("счётчики обнулились", $$(".pair__value").every((e) => e.textContent.trim() === "0"),
+        $$(".pair__value").map((e) => e.textContent.trim()).join(" / "));
+
+  // ───────────────────── список бакетов ─────────────────────
+  await load("/admin/ui/buckets");
+  check("сводка по хранилищу на месте", $$(".metrics-row .stat").length === 4);
+  const bucketsTotal = num($('[data-counter="buckets-total"]'));
+  check("работающих не больше, чем всего",
+        num($('[data-counter="buckets-active"]')) <= bucketsTotal && bucketsTotal >= 1,
+        `${num($('[data-counter="buckets-active"]'))} из ${bucketsTotal}`);
+  check("занятое место посчитано", /\d/.test($(".stat--brand .stat__value").textContent),
+        $(".stat--brand .stat__value").textContent.trim());
+  check("список стал панелью с поиском",
+        !!$(".panel--buckets .table") && !!$(".panel__tools .search-pill"));
+  check("таблица не уезжает вбок",
+        $(".panel__scroll").scrollWidth <= $(".panel__scroll").clientWidth + 1,
+        `${$(".panel__scroll").scrollWidth} в ${$(".panel__scroll").clientWidth}`);
 
   // ───────────────────── общий интерфейс ─────────────────────
   await load("/admin/ui/buckets?sort=used&dir=desc");
@@ -619,8 +681,19 @@ async function run() {
   check("внешних запросов нет", external.length === 0, external.length ? external[0].name : "ни одного");
 
   // ───────────────────── уборка ─────────────────────
-  const dropped = await api("DELETE", "/admin/buckets/" + BUCKET);
-  check("тестовый бакет удалён", dropped.status === 202, NAME);
+  await load("/admin/ui/buckets?search=" + NAME);
+  check("бакет находится по имени", rows("buckets").length === 1, NAME);
+
+  const totalBefore = num($('[data-counter="buckets-total"]'));
+  rows("buckets")[0].querySelector('[data-action="bucket:delete"]').click();
+  (await waitFor(() => $(".modal-backdrop.is-open [data-yes]"), "подтверждение бакета")).click();
+
+  await waitFor(() => num($('[data-counter="buckets-pending"]')) === 1, "плитка «не готовы» ожила");
+  check("удаление сразу видно в сводке", true);
+
+  await waitFor(() => rows("buckets").length === 0, "строка ушла", 20000);
+  check("тестовый бакет удалён", num($('[data-counter="buckets-total"]')) === totalBefore - 1,
+        `${totalBefore} → ${num($('[data-counter="buckets-total"]'))}`);
 
   // Выходим только из своей сессии, чужую не трогаем.
   if (ownSession) {

@@ -5,16 +5,22 @@ declare(strict_types=1);
 namespace Main\Service;
 
 use Flytachi\Winter\Base\HttpCode;
+use Flytachi\Winter\Cdo\CDOBind;
 use Flytachi\Winter\Cdo\Qb;
 use Flytachi\Winter\DI\Attribute\Autowired;
 use Flytachi\Winter\DI\Attribute\Singleton;
 use Flytachi\Winter\Kernel\Exception\ClientError;
 use Flytachi\Winter\Kernel\Unit\Pagination\WrapResult;
 use Flytachi\Winter\Kernel\Unit\Wrapper;
+use Main\Dto\BucketCounts;
 use Main\Dto\BucketRes;
+use Main\Dto\ExtUsage;
+use Main\Dto\FolderCounts;
 use Main\Dto\GroupCount;
+use Main\Dto\PlacementCounts;
 use Main\Entity\Bucket;
 use Main\Enum\BucketStatus;
+use Main\Enum\Retention;
 use Main\Repository\BlobRepository;
 use Main\Repository\BucketRepository;
 use Main\Repository\FileEntryRepository;
@@ -75,6 +81,22 @@ final class BucketService
         return $this->repo->orderBy('created_at DESC')->limit($limit)->findAll();
     }
 
+    public function counts(): BucketCounts
+    {
+        return $this->repo
+            ->select(sprintf(
+                'count(*) AS total,'
+                . ' count(*) FILTER (WHERE status = %1$d) AS active,'
+                . ' count(*) FILTER (WHERE status <> %1$d) AS pending,'
+                . ' count(*) FILTER (WHERE quota_bytes > 0'
+                . ' AND used_bytes::numeric / quota_bytes >= 0.9) AS full,'
+                . ' coalesce(sum(used_bytes), 0)::bigint AS used,'
+                . ' coalesce(sum(quota_bytes), 0)::bigint AS quota',
+                BucketStatus::ACTIVE->value,
+            ))
+            ->find(BucketCounts::class) ?? new BucketCounts();
+    }
+
     public function panelPage(BucketListRequest $request): WrapResult
     {
         if ($request->search !== null && $request->search !== '') {
@@ -128,6 +150,53 @@ final class BucketService
         }
 
         return $stats;
+    }
+
+    /**
+     * @return ExtUsage[]
+     */
+    public function usage(string $bucketId): array
+    {
+        return $this->blobs->rawFetch(
+            sprintf(
+                'SELECT coalesce(x.extension, \'\') AS ext, sum(b.size_bytes)::bigint AS bytes,'
+                . ' count(*)::int AS total FROM %s b'
+                . ' LEFT JOIN LATERAL (SELECT f.extension FROM %s f'
+                . ' WHERE f.blob_id = b.id ORDER BY f.id LIMIT 1) x ON true'
+                . ' WHERE b.bucket_id = :bucket GROUP BY 1 ORDER BY bytes DESC, total DESC',
+                $this->blobs->originTable(),
+                $this->files->originTable(),
+            ),
+            [new CDOBind('bucket', $bucketId)],
+            ExtUsage::class,
+        );
+    }
+
+    public function placement(string $bucketId): PlacementCounts
+    {
+        $folders = $this->folders->originTable();
+
+        return $this->files
+            ->select(sprintf(
+                'count(*) FILTER (WHERE folder_id IS NULL) AS root,'
+                . ' count(*) FILTER (WHERE EXISTS (SELECT 1 FROM %1$s d'
+                . ' WHERE d.id = folder_id AND d.retention = %2$d)) AS in_folders,'
+                . ' count(*) FILTER (WHERE EXISTS (SELECT 1 FROM %1$s d'
+                . ' WHERE d.id = folder_id AND d.retention <> %2$d)) AS in_temp',
+                $folders,
+                Retention::NONE->value,
+            ))
+            ->findBy(Qb::eq('bucket_id', $bucketId), PlacementCounts::class) ?? new PlacementCounts();
+    }
+
+    public function folderCounts(string $bucketId): FolderCounts
+    {
+        return $this->folders
+            ->select(sprintf(
+                'count(*) AS total, count(*) FILTER (WHERE retention <> %d) AS temp',
+                Retention::NONE->value,
+            ))
+            ->findBy(Qb::eq('bucket_id', $bucketId), FolderCounts::class) ?? new FolderCounts();
     }
 
     public function setCachePolicy(string $id, CachePolicyRequest $request): BucketRes

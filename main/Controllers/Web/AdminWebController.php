@@ -77,6 +77,7 @@ final class AdminWebController extends Controller
 
         return $this->page('buckets', 'Бакеты', 'buckets', [
             'subtitle' => 'пространства с отдельной квотой и своими блобами',
+            'counts' => $this->buckets->counts(),
             'page' => $page,
             'meta' => $page->meta,
             'query' => $request,
@@ -89,8 +90,11 @@ final class AdminWebController extends Controller
     {
         return $this->bucketPage($id, 'bucket-overview', 'overview', 'сводка по бакету', [
             'folders' => $this->folderViews($id),
+            'usage' => $this->buckets->usage($id),
+            'placement' => $this->buckets->placement($id),
+            'folderCounts' => $this->buckets->folderCounts($id),
+            'tokenCounts' => $this->tokens->counts($id),
             'linkCounts' => $this->links->counts($id),
-            'tokenCount' => $this->tokens->counts($id)['total'],
         ], withStats: true);
     }
 
