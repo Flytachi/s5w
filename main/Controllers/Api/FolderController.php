@@ -13,11 +13,13 @@ use Flytachi\Winter\Kernel\Http\Response\ResponseEntity;
 use Flytachi\Winter\Kernel\Http\Stereotype\Controller;
 use Flytachi\Winter\Kernel\Route\Annotation\DeleteMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
+use Flytachi\Winter\Kernel\Route\Annotation\PatchMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PutMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\FullTokenMiddleware;
 use Main\Http\BucketContext;
+use Main\Request\CachePolicyRequest;
 use Main\Request\FolderRequest;
 use Main\Request\PageRequest;
 use Main\Service\FolderService;
@@ -59,6 +61,16 @@ final class FolderController extends Controller
         #[RequestJson, Valid] FolderRequest $request,
     ): ResponseEntity {
         return ResponseEntity::ok($this->service->update($this->context->bucketId(), self::name($name), $request));
+    }
+
+    #[PatchMapping('{name}/cache')]
+    public function setCachePolicy(
+        #[PathVariable] string $name,
+        #[RequestJson, Valid] CachePolicyRequest $request,
+    ): ResponseEntity {
+        return ResponseEntity::ok(
+            $this->service->setCachePolicy($this->context->bucketId(), self::name($name), $request),
+        );
     }
 
     #[DeleteMapping('{name}')]

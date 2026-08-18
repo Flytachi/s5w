@@ -31,7 +31,7 @@ final class SweepLock
         try {
             $work();
         } catch (\Throwable $e) {
-            $this->log->error("{$name} failed: {$e->getMessage()}");
+            $this->log->error("sweeper \"{$name}\" failed: {$e->getMessage()}");
         } finally {
             $this->release($key);
         }

@@ -8,6 +8,8 @@ final class ContentType
 {
     public const string FALLBACK = 'application/octet-stream';
 
+    private const int EXTENSION_LIMIT = 16;
+
     private const array KNOWN = [
         'jpg', 'png', 'gif', 'webp', 'avif', 'bmp', 'tiff', 'svg', 'ico', 'heic',
         'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'rtf', 'epub',
@@ -26,19 +28,25 @@ final class ContentType
     {
         $mime = self::sniff($path);
         $extension = self::extensionFor($mime);
+        $hint = self::hintOf((string) $sourceName);
 
-        if ($mime === 'text/plain') {
-            $hint = strtolower(self::extensionOf((string) $sourceName));
-            $hinted = self::mimeFor($hint);
-            if ($hinted !== '') {
-                $extension = $hint;
-                $mime = $hinted;
-            }
+        if ($mime === 'text/plain' && $hint !== '') {
+            $extension = $hint;
+            $mime = self::mimeFor($hint) ?: $mime;
         } elseif ($extension === '') {
-            $extension = strtolower(self::extensionOf((string) $sourceName));
+            $extension = $hint;
         }
 
         return ['mime' => $mime, 'extension' => $extension];
+    }
+
+    private static function hintOf(string $name): string
+    {
+        $extension = strtolower(self::extensionOf($name));
+
+        return preg_match('/^[a-z0-9]{1,' . self::EXTENSION_LIMIT . '}$/', $extension) === 1
+            ? $extension
+            : '';
     }
 
     private static function sniff(string $path): string

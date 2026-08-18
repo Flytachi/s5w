@@ -28,7 +28,7 @@ final class BucketContext
     public function token(): AccessToken
     {
         if ($this->token === null) {
-            throw new \LogicException('BucketContext is empty — middleware did not run');
+            throw new \LogicException('Bucket context is empty: the access token middleware did not run');
         }
 
         return $this->token;
@@ -37,7 +37,7 @@ final class BucketContext
     public function bucketId(): string
     {
         if ($this->bucketId === null) {
-            throw new \LogicException('BucketContext is empty — middleware did not run');
+            throw new \LogicException('Bucket context is empty: the access token middleware did not run');
         }
 
         return $this->bucketId;

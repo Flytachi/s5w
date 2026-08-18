@@ -32,6 +32,6 @@ class AdminAuthMiddleware extends Middleware
 
     protected function reject(HttpRequest $request): void
     {
-        MiddlewareException::throw('Authorization required', HttpCode::UNAUTHORIZED);
+        MiddlewareException::throw('Authentication required', HttpCode::UNAUTHORIZED);
     }
 }

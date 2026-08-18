@@ -33,7 +33,7 @@ final class ShareLinkSweeper
         $this->lock->guard('links', function (): void {
             $removed = $this->sweep();
             if ($removed > 0) {
-                $this->log->info("removed {$removed} dead link(s)");
+                $this->log->info("removed {$removed} dead share link(s)");
             }
         });
     }

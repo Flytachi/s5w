@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Main\Enum;
 
-enum DeliveryChannel
+enum DeliveryChannel: string
 {
-    case PUBLIC;
-    case PRIVATE;
-    case TEMPORARY;
+    case PUBLIC = 'public';
+    case PRIVATE = 'private';
+    case TEMPORARY = 'temporary';
 }

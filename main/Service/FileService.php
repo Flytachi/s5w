@@ -34,6 +34,8 @@ final class FileService
 {
     private const int NAME_ATTEMPTS = 10;
 
+    private const int NAME_LIMIT = 255;
+
     #[Autowired]
     private FileEntryRepository $repo;
 
@@ -60,7 +62,7 @@ final class FileService
     ): FileRes {
         $tmpPath = $upload['tmp_name'] ?? null;
         if (!is_string($tmpPath) || !is_file($tmpPath)) {
-            ClientError::throw('Uploaded file is missing', HttpCode::BAD_REQUEST);
+            ClientError::throw('No file was uploaded', HttpCode::BAD_REQUEST);
         }
 
         $folder = $this->resolveFolder($bucketId, $request->folder);
@@ -118,7 +120,7 @@ final class FileService
                 : Qb::eq('folder_id', $this->requireFolder($bucketId, $request->folder)->id);
         }
         if ($request->search !== null && $request->search !== '') {
-            $where[] = Qb::like('name', '%' . $request->search . '%');
+            $where[] = Qb::like('name', '%' . $request->search . '%', true);
         }
 
         $page = Wrapper::paginator(
@@ -139,7 +141,9 @@ final class FileService
             data: array_map(
                 fn(FileEntry $file) => FileRes::from(
                     $file,
-                    $blobs[$file->blob_id] ?? throw new \RuntimeException("Blob missing for file {$file->id}"),
+                    $blobs[$file->blob_id] ?? throw new \RuntimeException(
+                        "File content is missing from storage, file {$file->id}",
+                    ),
                     $file->folder_id === null ? null : ($folders[$file->folder_id]->name ?? null),
                     $baseUrl,
                 ),
@@ -178,7 +182,7 @@ final class FileService
             Qb::eq('bucket_id', $bucketId),
         ));
         if ($file === null) {
-            ClientError::throw('File not found', HttpCode::NOT_FOUND);
+            ClientError::throw('File does not exist', HttpCode::NOT_FOUND);
         }
         return $file;
     }
@@ -213,7 +217,7 @@ final class FileService
             );
         } catch (\Throwable $e) {
             if (Db::isUniqueViolation($e)) {
-                ClientError::throw("Name «{$request->name}» is taken here", HttpCode::CONFLICT);
+                ClientError::throw("A file named \"{$request->name}\" already exists here", HttpCode::CONFLICT);
             }
             throw $e;
         }
@@ -318,15 +322,34 @@ final class FileService
             }
         }
 
-        ClientError::throw('Name conflict, retry limit exceeded', HttpCode::CONFLICT);
+        ClientError::throw('Could not pick a free name for this file, too many files share it', HttpCode::CONFLICT);
     }
 
     private function suffixed(string $name, int $n): string
     {
         $dot = strrpos($name, '.');
-        return $dot === false
-            ? "{$name} ({$n})"
-            : substr($name, 0, $dot) . " ({$n})" . substr($name, $dot);
+        $base = $dot === false ? $name : substr($name, 0, $dot);
+        $tail = $dot === false ? '' : substr($name, $dot);
+        $mark = " ({$n})";
+        $room = self::NAME_LIMIT - mb_strlen($mark) - mb_strlen($tail);
+
+        if (mb_strlen($base) > $room) {
+            $base = mb_substr($base, 0, max(1, $room));
+        }
+
+        return $base . $mark . $tail;
+    }
+
+    private function clamp(string $name): string
+    {
+        if (mb_strlen($name) <= self::NAME_LIMIT) {
+            return $name;
+        }
+
+        $dot = mb_strrpos($name, '.');
+        $tail = $dot === false || mb_strlen($name) - $dot > 33 ? '' : mb_substr($name, $dot);
+
+        return mb_substr($name, 0, self::NAME_LIMIT - mb_strlen($tail)) . $tail;
     }
 
     private function finalName(?string $requested, string $sourceName, string $extension): string
@@ -338,12 +361,12 @@ final class FileService
         $name = str_replace(['/', '\\', "\0"], '-', $name);
 
         if ($extension === '') {
-            return $name;
+            return $this->clamp($name);
         }
 
         $current = ContentType::extensionOf($name);
         if (ContentType::sameExtension($current, $extension)) {
-            return $name;
+            return $this->clamp($name);
         }
 
         $dot = strrpos($name, '.');
@@ -351,7 +374,7 @@ final class FileService
             $name = substr($name, 0, $dot);
         }
 
-        return $name . '.' . $extension;
+        return $this->clamp($name . '.' . $extension);
     }
 
     private function resolveFolder(string $bucketId, ?string $name): ?Folder
@@ -369,7 +392,7 @@ final class FileService
             Qb::eq('name', $name),
         ));
         if ($folder === null) {
-            ClientError::throw("Folder «{$name}» not found", HttpCode::UNPROCESSABLE_ENTITY);
+            ClientError::throw("Folder \"{$name}\" does not exist", HttpCode::UNPROCESSABLE_ENTITY);
         }
         return $folder;
     }
@@ -387,7 +410,7 @@ final class FileService
     {
         $blob = $this->blobRepo->findById($file->blob_id);
         if ($blob === null) {
-            throw new \RuntimeException("Blob missing for file {$file->id}");
+            throw new \RuntimeException("File content is missing from storage, file {$file->id}");
         }
         return $blob;
     }

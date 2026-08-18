@@ -133,7 +133,7 @@ final class DeliveryService
     ): BlobResponse {
         $blob = $this->blobs->findById($file->blob_id);
         if ($blob === null || !$this->store->blobExists($bucket->id, $blob->hash)) {
-            throw new \RuntimeException("Blob file vanished for file {$file->id}");
+            throw new \RuntimeException("File content is missing from storage, file {$file->id}");
         }
 
         return new BlobResponse(
@@ -197,6 +197,6 @@ final class DeliveryService
 
     private function notFound(): never
     {
-        ClientError::throw('Not found', HttpCode::NOT_FOUND);
+        ClientError::throw('File not found', HttpCode::NOT_FOUND);
     }
 }

@@ -88,7 +88,7 @@ final class OrphanBlobSweeper
                     $this->drop($blob);
                     $removed++;
                 } catch (\Throwable $e) {
-                    $this->log->error("blob {$blob->id} left behind: {$e->getMessage()}");
+                    $this->log->error("failed to remove unreferenced blob {$blob->id}: {$e->getMessage()}");
                 }
             }
 
@@ -134,8 +134,7 @@ final class OrphanBlobSweeper
 
             if ($known === [] && $files > 0) {
                 $this->log->warning(sprintf(
-                    'bucket %s has %d file(s) on disk and none in the database'
-                    . ' — that is a wrong database, not garbage',
+                    'skipped bucket %s: %d file(s) on disk but no blobs in the database',
                     $bucket->id,
                     $files,
                 ));

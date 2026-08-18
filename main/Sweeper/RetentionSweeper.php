@@ -63,7 +63,7 @@ final class RetentionSweeper
                     $this->files->remove($file);
                     $removed++;
                 } catch (\Throwable $e) {
-                    $this->log->error("file {$file->id} left behind: {$e->getMessage()}");
+                    $this->log->error("failed to remove expired file {$file->id}: {$e->getMessage()}");
                 }
             }
 

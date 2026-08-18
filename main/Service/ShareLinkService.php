@@ -13,6 +13,7 @@ use Flytachi\Winter\Kernel\Unit\Pagination\WrapResult;
 use Flytachi\Winter\Kernel\Unit\Wrapper;
 use Main\Dto\LinkCounts;
 use Main\Dto\ShareLinkRes;
+use Main\Entity\Bucket;
 use Main\Entity\FileEntry;
 use Main\Entity\ShareLink;
 use Main\Enum\Disposition;
@@ -56,10 +57,7 @@ final class ShareLinkService
         string $baseUrl,
     ): ShareLinkRes {
         $file = $this->files->get($bucketId, $slug);
-        $bucket = $this->buckets->findById($bucketId);
-        if ($bucket === null) {
-            ClientError::throw('Bucket not found', HttpCode::NOT_FOUND);
-        }
+        $bucket = $this->requireBucket($bucketId);
 
         $expiresAt = time() + $request->ttl;
         $stateful = $request->revocable || $request->maxDownloads !== null;
@@ -89,15 +87,7 @@ final class ShareLinkService
         $link->created_at = date('Y-m-d H:i:s P');
         $link->id = $this->repo->insert($link);
 
-        $token = $this->signer->sign(new LinkPayload(
-            fileId: $file->id,
-            expiresAt: $expiresAt,
-            attachment: $request->disposition->isAttachment(),
-            epoch: $bucket->link_epoch,
-            jti: $link->id,
-        ));
-
-        return ShareLinkRes::from($link, $this->url($baseUrl, $token));
+        return ShareLinkRes::from($link, $this->urlFor($baseUrl, $link, $bucket->link_epoch));
     }
 
     public function consume(int $id, int $fileId): ShareLink
@@ -115,7 +105,7 @@ final class ShareLinkService
                 || strtotime($link->expires_at) <= time()
                 || ($link->max_downloads !== null && $link->downloads >= $link->max_downloads)
             ) {
-                ClientError::throw('Not found', HttpCode::NOT_FOUND);
+                ClientError::throw('Share link is no longer valid', HttpCode::NOT_FOUND);
             }
 
             if ($link->max_downloads !== null) {
@@ -136,11 +126,13 @@ final class ShareLinkService
 
     public function getAll(string $bucketId, PageRequest $request, string $baseUrl): WrapResult
     {
+        $epoch = $this->requireBucket($bucketId)->link_epoch;
+
         return Wrapper::paginator(
             $this->repo->where(Qb::eq('bucket_id', $bucketId))->orderBy('created_at DESC'),
             $request->limit,
             $request->page,
-            mapper: fn(ShareLink $link) => ShareLinkRes::from($link, ''),
+            mapper: fn(ShareLink $link) => ShareLinkRes::from($link, $this->urlFor($baseUrl, $link, $epoch)),
         );
     }
 
@@ -187,13 +179,7 @@ final class ShareLinkService
             fn(ShareLink $link) => [
                 'link' => $link,
                 'file' => $files[$link->file_id] ?? null,
-                'url' => $baseUrl === '' ? '' : $this->url($baseUrl, $this->signer->sign(new LinkPayload(
-                    fileId: $link->file_id,
-                    expiresAt: (int) strtotime($link->expires_at),
-                    attachment: Disposition::from($link->disposition)->isAttachment(),
-                    epoch: $epoch,
-                    jti: $link->id,
-                ))),
+                'url' => $baseUrl === '' ? '' : $this->urlFor($baseUrl, $link, $epoch),
             ],
             $links,
         );
@@ -225,10 +211,7 @@ final class ShareLinkService
     public function forFile(string $bucketId, string $slug, string $baseUrl, int $limit = 20): array
     {
         $file = $this->files->get($bucketId, $slug);
-        $bucket = $this->buckets->findById($bucketId);
-        if ($bucket === null) {
-            ClientError::throw('Bucket not found', HttpCode::NOT_FOUND);
-        }
+        $epoch = $this->requireBucket($bucketId)->link_epoch;
 
         $links = $this->repo
             ->where(Qb::and(Qb::eq('bucket_id', $bucketId), Qb::eq('file_id', $file->id)))
@@ -237,15 +220,7 @@ final class ShareLinkService
             ->findAll();
 
         return array_map(
-            fn(ShareLink $link) => ShareLinkRes::from($link, $this->url($baseUrl, $this->signer->sign(
-                new LinkPayload(
-                    fileId: $link->file_id,
-                    expiresAt: (int) strtotime($link->expires_at),
-                    attachment: Disposition::from($link->disposition)->isAttachment(),
-                    epoch: $bucket->link_epoch,
-                    jti: $link->id,
-                ),
-            ))),
+            fn(ShareLink $link) => ShareLinkRes::from($link, $this->urlFor($baseUrl, $link, $epoch)),
             $links,
         );
     }
@@ -296,7 +271,7 @@ final class ShareLinkService
     {
         $link = $this->repo->findBy(Qb::and(Qb::eq('id', $id), Qb::eq('bucket_id', $bucketId)));
         if ($link === null) {
-            ClientError::throw('Link not found', HttpCode::NOT_FOUND);
+            ClientError::throw('Share link does not exist', HttpCode::NOT_FOUND);
         }
 
         $this->repo->update(['revoked' => true], Qb::eq('id', $id));
@@ -316,6 +291,27 @@ final class ShareLinkService
         );
 
         return $epoch;
+    }
+
+    private function requireBucket(string $bucketId): Bucket
+    {
+        $bucket = $this->buckets->findById($bucketId);
+        if ($bucket === null) {
+            ClientError::throw('Bucket not found', HttpCode::NOT_FOUND);
+        }
+
+        return $bucket;
+    }
+
+    private function urlFor(string $baseUrl, ShareLink $link, int $epoch): string
+    {
+        return $this->url($baseUrl, $this->signer->sign(new LinkPayload(
+            fileId: $link->file_id,
+            expiresAt: (int) strtotime($link->expires_at),
+            attachment: Disposition::from($link->disposition)->isAttachment(),
+            epoch: $epoch,
+            jti: $link->id,
+        )));
     }
 
     private function url(string $baseUrl, string $token): string

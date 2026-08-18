@@ -33,25 +33,25 @@ class AccessTokenMiddleware extends Middleware
     {
         $token = Header::getBearerToken();
         if ($token === null || $token === '') {
-            MiddlewareException::throw('Token required', HttpCode::UNAUTHORIZED);
+            MiddlewareException::throw('Access token required', HttpCode::UNAUTHORIZED);
         }
 
         $model = $this->repo->findBy(Qb::eq('hash', TokenGenerator::hash($token)));
         if ($model === null) {
-            MiddlewareException::throw('Invalid token', HttpCode::UNAUTHORIZED);
+            MiddlewareException::throw('Access token is invalid', HttpCode::UNAUTHORIZED);
         }
 
         if ($model->status !== TokenStatus::ACTIVE->value) {
-            MiddlewareException::throw('Token is inactive', HttpCode::FORBIDDEN);
+            MiddlewareException::throw('Access token is disabled', HttpCode::FORBIDDEN);
         }
         if ($model->expires_at !== null && strtotime($model->expires_at) <= time()) {
-            MiddlewareException::throw('Token expired', HttpCode::FORBIDDEN);
+            MiddlewareException::throw('Access token has expired', HttpCode::FORBIDDEN);
         }
 
         $required = $this->required();
         if (!TokenAccess::from($model->access)->allows($required)) {
             MiddlewareException::throw(
-                sprintf('Token access "%s" required', strtolower($required->name)),
+                sprintf('This endpoint requires a token with "%s" access', strtolower($required->name)),
                 HttpCode::FORBIDDEN,
             );
         }

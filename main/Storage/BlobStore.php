@@ -34,7 +34,7 @@ final class BlobStore
             return;
         }
         if (!@mkdir($path, 0775, true) && !is_dir($path)) {
-            throw new \RuntimeException("Failed to create bucket dir \"{$path}\"");
+            throw new \RuntimeException("Failed to create the storage directory of bucket {$bucketId}");
         }
     }
 
@@ -55,7 +55,7 @@ final class BlobStore
         }
 
         if (!@rmdir($path) && is_dir($path)) {
-            throw new \RuntimeException("Failed to remove bucket dir \"{$path}\"");
+            throw new \RuntimeException("Failed to remove the storage directory of bucket {$bucketId}");
         }
     }
 
@@ -87,11 +87,11 @@ final class BlobStore
         $staging = $target . '.' . bin2hex(random_bytes(4)) . '.part';
         if (!@copy($srcPath, $staging)) {
             @unlink($staging);
-            throw new \RuntimeException("Failed to copy blob to \"{$staging}\"");
+            throw new \RuntimeException("Failed to stage file content in storage");
         }
         if (!@rename($staging, $target)) {
             @unlink($staging);
-            throw new \RuntimeException("Failed to store blob at \"{$target}\"");
+            throw new \RuntimeException("Failed to move file content into storage");
         }
         @chmod($target, 0664);
         @unlink($srcPath);

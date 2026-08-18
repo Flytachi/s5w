@@ -38,7 +38,10 @@ final class ImageProcessor
 
         $info = @getimagesize($srcPath);
         if ($info === false) {
-            ClientError::throw('Image processing is not applicable to this file', HttpCode::UNPROCESSABLE_ENTITY);
+            ClientError::throw(
+                'Image options were given, but this file is not an image',
+                HttpCode::UNPROCESSABLE_ENTITY,
+            );
         }
 
         [$width, $height] = $info;
@@ -46,7 +49,7 @@ final class ImageProcessor
 
         if (!in_array($mime, self::DECODABLE, true)) {
             ClientError::throw(
-                "Image processing is not applicable to {$mime}",
+                "Images of type {$mime} cannot be processed",
                 HttpCode::UNPROCESSABLE_ENTITY,
             );
         }
@@ -55,7 +58,13 @@ final class ImageProcessor
         }
         if ($width * $height > self::MAX_PIXELS) {
             ClientError::throw(
-                sprintf('Image exceeds pixel limit: %d px (max %d)', $width * $height, self::MAX_PIXELS),
+                sprintf(
+                    'Image is too large: %dx%d is %d pixels, the limit is %d',
+                    $width,
+                    $height,
+                    $width * $height,
+                    self::MAX_PIXELS,
+                ),
                 HttpCode::UNPROCESSABLE_ENTITY,
             );
         }
@@ -195,7 +204,10 @@ final class ImageProcessor
             default => false,
         };
         if ($image === false) {
-            ClientError::throw("Image is corrupted or unsupported: {$mime}", HttpCode::UNPROCESSABLE_ENTITY);
+            ClientError::throw(
+                "Image could not be decoded, the {$mime} file is corrupted",
+                HttpCode::UNPROCESSABLE_ENTITY,
+            );
         }
         return $image;
     }
@@ -213,7 +225,7 @@ final class ImageProcessor
 
         if (!$ok || !is_file($path) || filesize($path) === 0) {
             @unlink($path);
-            ServerError::throw("Image encoding to {$mime} produced no output");
+            ServerError::throw("Failed to encode the image to {$mime}");
         }
     }
 
@@ -228,7 +240,7 @@ final class ImageProcessor
             default => false,
         };
         if (!$available) {
-            ServerError::throw("Encoding to {$mime} is not supported on this server", HttpCode::NOT_IMPLEMENTED);
+            ServerError::throw("Encoding images to {$mime} is not supported on this server", HttpCode::NOT_IMPLEMENTED);
         }
     }
 

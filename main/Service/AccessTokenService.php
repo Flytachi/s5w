@@ -37,7 +37,7 @@ final class AccessTokenService
     {
         $where = [Qb::eq('bucket_id', $bucketId)];
         if ($request->search !== null && $request->search !== '') {
-            $where[] = Qb::like('name', '%' . $request->search . '%');
+            $where[] = Qb::like('name', '%' . $request->search . '%', true);
         }
 
         return Wrapper::paginator(
@@ -57,7 +57,7 @@ final class AccessTokenService
     {
         $where = [Qb::eq('bucket_id', $bucketId)];
         if ($request->search !== null && $request->search !== '') {
-            $where[] = Qb::like('name', '%' . $request->search . '%');
+            $where[] = Qb::like('name', '%' . $request->search . '%', true);
         }
 
         return Wrapper::paginator(
@@ -125,7 +125,7 @@ final class AccessTokenService
             Qb::eq('bucket_id', $bucketId),
         ));
         if ($token === null) {
-            ClientError::throw('Token not found', HttpCode::NOT_FOUND);
+            ClientError::throw('Access token does not exist', HttpCode::NOT_FOUND);
         }
         return $token;
     }
@@ -169,7 +169,7 @@ final class AccessTokenService
     {
         $token = $this->get($bucketId, $id);
         if ($token->status === $status->value) {
-            ClientError::throw('Token already has this status', HttpCode::CONFLICT);
+            ClientError::throw('Access token already has this status', HttpCode::CONFLICT);
         }
 
         $token->status = $status->value;

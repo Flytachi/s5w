@@ -41,7 +41,7 @@ final class FolderService
     {
         $where = [Qb::eq('bucket_id', $bucketId)];
         if ($request->search !== null && $request->search !== '') {
-            $where[] = Qb::like('name', '%' . $request->search . '%');
+            $where[] = Qb::like('name', '%' . $request->search . '%', true);
         }
 
         return Wrapper::paginator(
@@ -93,7 +93,7 @@ final class FolderService
             Qb::eq('name', $name),
         ));
         if ($folder === null) {
-            ClientError::throw("Folder «{$name}» not found", HttpCode::NOT_FOUND);
+            ClientError::throw("Folder \"{$name}\" does not exist", HttpCode::NOT_FOUND);
         }
         return $folder;
     }
@@ -116,7 +116,7 @@ final class FolderService
             $folder->id = $this->repo->insert($folder);
         } catch (\Throwable $e) {
             if (Db::isUniqueViolation($e)) {
-                ClientError::throw("Folder «{$request->name}» already exists", HttpCode::CONFLICT);
+                ClientError::throw("Folder \"{$request->name}\" already exists", HttpCode::CONFLICT);
             }
             throw $e;
         }
@@ -148,7 +148,7 @@ final class FolderService
             );
         } catch (\Throwable $e) {
             if (Db::isUniqueViolation($e)) {
-                ClientError::throw("Folder «{$request->name}» already exists", HttpCode::CONFLICT);
+                ClientError::throw("Folder \"{$request->name}\" already exists", HttpCode::CONFLICT);
             }
             throw $e;
         }
@@ -197,7 +197,7 @@ final class FolderService
         $bucket = $this->buckets->get($bucketId);
         if ($bucket->status !== BucketStatus::ACTIVE->value) {
             ClientError::throw(
-                'Bucket is not active: ' . BucketStatus::from($bucket->status)->name,
+                'Bucket is not active, its status is ' . BucketStatus::from($bucket->status)->name,
                 HttpCode::CONFLICT,
             );
         }

@@ -55,8 +55,8 @@ final class BucketService
         if ($request->search !== null && $request->search !== '') {
             $like = '%' . $request->search . '%';
             $this->repo->where(Qb::or(
-                Qb::like('name', $like),
-                Qb::like('description', $like),
+                Qb::like('name', $like, true),
+                Qb::like('description', $like, true),
             ));
         }
 
@@ -102,8 +102,8 @@ final class BucketService
         if ($request->search !== null && $request->search !== '') {
             $like = '%' . $request->search . '%';
             $this->repo->where(Qb::or(
-                Qb::like('name', $like, insensitive: true),
-                Qb::like('description', $like, insensitive: true),
+                Qb::like('name', $like, true),
+                Qb::like('description', $like, true),
             ));
         }
 
@@ -222,7 +222,7 @@ final class BucketService
     {
         $bucket = $this->repo->findById($id);
         if ($bucket === null) {
-            ClientError::throw("Bucket {$id} not found", HttpCode::NOT_FOUND);
+            ClientError::throw("Bucket \"{$id}\" does not exist", HttpCode::NOT_FOUND);
         }
         return $bucket;
     }
@@ -259,7 +259,7 @@ final class BucketService
 
         if ($request->quotaBytes < $bucket->used_bytes) {
             ClientError::throw(
-                "Quota {$request->quotaBytes} is below used {$bucket->used_bytes}",
+                "New quota of {$request->quotaBytes} bytes is below the {$bucket->used_bytes} bytes already stored",
                 HttpCode::UNPROCESSABLE_ENTITY,
             );
         }

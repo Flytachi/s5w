@@ -36,7 +36,7 @@ final class BlobService
     public function store(string $bucketId, string $srcPath, ?string $sourceName = null): StoredBlob
     {
         if (!is_file($srcPath)) {
-            ClientError::throw('Upload source is missing', HttpCode::BAD_REQUEST);
+            ClientError::throw('Uploaded file could not be read', HttpCode::BAD_REQUEST);
         }
 
         $hash = hash_file('sha256', $srcPath);
@@ -68,12 +68,17 @@ final class BlobService
 
                 $bucket = $this->buckets->where(Qb::eq('id', $bucketId))->forBy('UPDATE')->find();
                 if ($bucket === null) {
-                    ClientError::throw('Bucket not found', HttpCode::NOT_FOUND);
+                    ClientError::throw('Bucket does not exist', HttpCode::NOT_FOUND);
                 }
 
                 if ($bucket->used_bytes + $size > $bucket->quota_bytes) {
                     ClientError::throw(
-                        "Quota exceeded: {$bucket->used_bytes} + {$size} > {$bucket->quota_bytes}",
+                        sprintf(
+                            'Bucket quota exceeded: this upload needs %d bytes, %d of %d bytes are free',
+                            $size,
+                            max(0, $bucket->quota_bytes - $bucket->used_bytes),
+                            $bucket->quota_bytes,
+                        ),
                         HttpCode::REQUEST_ENTITY_TOO_LARGE,
                     );
                 }
@@ -114,7 +119,7 @@ final class BlobService
                 return new StoredBlob($blob, false, $type['mime'], $type['extension']);
             }
 
-            throw new \RuntimeException("Blob store gave up after a dedup race on {$hash}");
+            throw new \RuntimeException("Failed to store file content: deduplication conflict on hash {$hash}");
         } catch (\Throwable $e) {
             if ($owns && $db->inTransaction()) {
                 $db->rollBack();

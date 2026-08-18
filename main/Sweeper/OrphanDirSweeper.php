@@ -36,7 +36,7 @@ final class OrphanDirSweeper
         $this->lock->guard('dirs', function (): void {
             $removed = $this->sweep();
             if ($removed > 0) {
-                $this->log->info("removed {$removed} bucket dir(s) without a bucket");
+                $this->log->info("removed {$removed} orphaned bucket dir(s)");
             }
         });
     }
@@ -73,8 +73,8 @@ final class OrphanDirSweeper
         $limit = max(self::MIN_KEEP, (int) ceil($total * self::MAX_SHARE));
         if (!$force && count($orphans) > $limit) {
             $this->log->warning(sprintf(
-                '%d of %d dirs look orphaned — that is a wrong database, not garbage;'
-                . ' run it by hand with --force if it is not',
+                'skipped: %d of %d bucket directories have no bucket in the database;'
+                . ' re-run with --force to delete them anyway',
                 count($orphans),
                 $total,
             ));
@@ -87,7 +87,7 @@ final class OrphanDirSweeper
                 $this->store->removeBucketDir($name);
                 $removed++;
             } catch (\Throwable $e) {
-                $this->log->error("{$name} left behind: {$e->getMessage()}");
+                $this->log->error("failed to remove orphaned bucket directory {$name}: {$e->getMessage()}");
             }
         }
 

@@ -19,7 +19,7 @@ final class AdminPageMiddleware extends AdminAuthMiddleware
             $next .= '?' . http_build_query($query);
         }
 
-        throw (new MiddlewareException('Authorization required', HttpCode::FOUND))
+        throw (new MiddlewareException('Authentication required', HttpCode::FOUND))
             ->withHeader('Location', '/admin/ui/login?next=' . rawurlencode($next));
     }
 }

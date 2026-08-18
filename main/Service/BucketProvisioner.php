@@ -37,10 +37,10 @@ class BucketProvisioner
         try {
             $this->store->createBucketDir($bucketId);
             $this->setStatus($bucketId, BucketStatus::ACTIVE);
-            $this->log->info("Bucket {$bucketId} provisioned");
+            $this->log->info("bucket {$bucketId} provisioned");
         } catch (\Throwable $e) {
             $this->setStatus($bucketId, BucketStatus::INACTIVE);
-            $this->log->error("Bucket {$bucketId} provisioning failed: {$e->getMessage()}");
+            $this->log->error("bucket {$bucketId} provisioning failed: {$e->getMessage()}");
         }
     }
 
@@ -50,9 +50,9 @@ class BucketProvisioner
         try {
             $this->repo->delete(Qb::eq('id', $bucketId));
             $this->store->removeBucketDir($bucketId);
-            $this->log->info("Bucket {$bucketId} purged");
+            $this->log->info("bucket {$bucketId} purged");
         } catch (\Throwable $e) {
-            $this->log->error("Bucket {$bucketId} purge failed: {$e->getMessage()}");
+            $this->log->error("bucket {$bucketId} purge failed: {$e->getMessage()}");
         }
     }
 

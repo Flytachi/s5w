@@ -41,8 +41,8 @@ final class AdminAuthService
         $password = (string) env('ADMIN_PASSWORD', '');
 
         if (!$this->isConfigured()) {
-            $this->log->error('ADMIN_LOGIN or ADMIN_PASSWORD is missing: admin is locked');
-            ClientError::throw('Админка заперта: не заданы ADMIN_LOGIN и ADMIN_PASSWORD', HttpCode::SERVICE_UNAVAILABLE);
+            $this->log->error('admin panel is locked: ADMIN_LOGIN and ADMIN_PASSWORD are not set');
+            ClientError::throw('Admin access is not configured on this server', HttpCode::SERVICE_UNAVAILABLE);
         }
 
         $loginOk = hash_equals($login, $request->login);
@@ -50,12 +50,12 @@ final class AdminAuthService
 
         if (!$loginOk || !$passwordOk) {
             $this->remember($ip);
-            $this->log->warning("Failed admin login from {$ip}");
-            ClientError::throw('Неверный логин или пароль', HttpCode::UNAUTHORIZED);
+            $this->log->warning("failed admin login from {$ip}");
+            ClientError::throw('Invalid login or password', HttpCode::UNAUTHORIZED);
         }
 
         unset($this->attempts[$ip]);
-        $this->log->info("Admin logged in from {$ip}");
+        $this->log->info("admin logged in from {$ip}");
 
         return AdminSession::issue($this->fingerprint($login, $password));
     }
@@ -81,7 +81,10 @@ final class AdminAuthService
     {
         $state = $this->attempts[$ip] ?? null;
         if ($state !== null && $state['until'] > time()) {
-            throw (new ResponseException('Слишком много попыток, подождите', HttpCode::TOO_MANY_REQUESTS))
+            throw (new ResponseException(
+                'Too many failed login attempts, try again later',
+                HttpCode::TOO_MANY_REQUESTS,
+            ))
                 ->withHeader('Retry-After', (string) ($state['until'] - time()));
         }
     }
