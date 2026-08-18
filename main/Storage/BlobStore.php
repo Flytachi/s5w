@@ -12,9 +12,14 @@ final class BlobStore
 {
     private const string ROOT = 'chest';
 
+    public function rootPath(): string
+    {
+        return Kernel::$pathStorage . '/' . self::ROOT;
+    }
+
     public function bucketPath(string $bucketId): string
     {
-        return Kernel::$pathStorage . '/' . self::ROOT . '/' . $bucketId;
+        return $this->rootPath() . '/' . $bucketId;
     }
 
     public function bucketExists(string $bucketId): bool

@@ -223,14 +223,17 @@ final class FileService
 
     public function delete(string $bucketId, string $slug): void
     {
-        $file = $this->get($bucketId, $slug);
+        $this->remove($this->get($bucketId, $slug));
+    }
 
+    public function remove(FileEntry $file): void
+    {
         $db = $this->repo->db();
         $db->beginTransaction();
 
         try {
             $this->repo->delete(Qb::eq('id', $file->id));
-            $orphan = $this->blobs->release($bucketId, $file->blob_id);
+            $orphan = $this->blobs->release($file->bucket_id, $file->blob_id);
             $db->commit();
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
