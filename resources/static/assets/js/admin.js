@@ -1667,7 +1667,18 @@ function syncCacheTtl(form, switched = false) {
 
 /* ============================================================
    Загрузка файлов
+
+   Мелкое уходит одним запросом, тяжёлое — кусками по 8 МиБ. Порог не
+   косметический: одним запросом сервер держит в памяти всё тело целиком,
+   кусками — только кусок, сколько бы ни весил файл. Плюс обрыв на середине
+   гигабайта стоит одного куска, а не всей загрузки.
    ============================================================ */
+
+const CHUNK_THRESHOLD = 16 * 1024 * 1024;
+
+const CHUNK_SIZE = 8 * 1024 * 1024;
+
+const CHUNK_RETRIES = 3;
 
 function initUpload() {
   const drop = document.querySelector("[data-upload-drop]");
@@ -1716,9 +1727,12 @@ function initUpload() {
           ${image ? imageOptionsMarkup() : ""}
         </div>`);
 
-      const item = { file, card, done: false, options: card.querySelector("[data-image-options]") };
+      const item = { file, card, done: false, upload: null, xhr: null, options: card.querySelector("[data-image-options]") };
       card.querySelector("[data-drop-item]").addEventListener("click", () => {
         queue = queue.filter((q) => q !== item);
+        // Убрали карточку на полпути — снимаем и запрос, и недокачанное на сервере.
+        if (item.xhr) item.xhr.abort();
+        if (item.upload) Api.delete(`/admin/buckets/${bucketId()}/uploads/${item.upload}`).catch(() => {});
         card.remove();
         refresh();
       });
@@ -1770,10 +1784,168 @@ function initUpload() {
     for (const item of waiting) {
       // последовательно, а не пачкой: у бакета одна квота, и по одному
       // понятнее, на каком файле она кончилась
-      await send(item, folder, item.options ? readImageOptions(item.options) : {});
+      const options = item.options ? readImageOptions(item.options) : {};
+      // Тяжёлое уходит кусками: одним запросом такое не вместит ни лимит,
+      // ни память, а оборванная загрузка продолжится с места разрыва.
+      await (item.file.size > CHUNK_THRESHOLD || item.upload
+        ? sendChunked(item, folder, options)
+        : send(item, folder, options));
     }
 
     refresh();
+  }
+
+  /** Кусками: сессия → PATCH по смещению → complete. Прогресс идёт внутри куска. */
+  async function sendChunked(item, folder, options) {
+    const ui = itemUi(item);
+    const base = `/admin/buckets/${bucketId()}/uploads`;
+    const size = item.file.size;
+
+    ui.working("подготовка");
+
+    try {
+      let session;
+
+      if (item.upload) {
+        // Продолжаем оборванную: сервер помнит, сколько байт уже дошло.
+        session = (await Api.get(`${base}/${item.upload}`)).data;
+        ui.working("докачка");
+      } else {
+        session = (await Api.post(base, {
+          name: item.file.name,
+          size,
+          folder: folder || null,
+          format: options.format || "ORIGINAL",
+          quality: options.quality === null || options.quality === undefined ? null : Number(options.quality),
+          maxWidth: options.maxWidth ? Number(options.maxWidth) : null,
+          maxHeight: options.maxHeight ? Number(options.maxHeight) : null,
+        })).data;
+
+        // Содержимое нашлось по хешу — загружать нечего.
+        if (session.file) {
+          ui.done(session.file);
+          item.done = true;
+          return;
+        }
+
+        item.upload = session.id;
+        ui.working("загрузка");
+      }
+
+      const step = session.chunkSize || CHUNK_SIZE;
+      let offset = session.offset;
+      ui.progress(offset, size);
+
+      while (offset < size) {
+        const end = Math.min(offset + step, size);
+        const slice = item.file.slice(offset, end);
+        const sent = offset;
+
+        const res = await withRetries(
+          () => xhrSend("PATCH", `${base}/${item.upload}`, slice, {
+            headers: { "Upload-Offset": String(sent), "Content-Type": "application/octet-stream" },
+            onProgress: (loaded) => ui.progress(sent + loaded, size),
+            item,
+          }),
+          async () => {
+            // Перед повтором спрашиваем сервер, сколько он на самом деле принял.
+            const fresh = (await Api.get(`${base}/${item.upload}`)).data;
+            offset = fresh.offset;
+            return fresh.offset === sent;
+          },
+        );
+
+        offset = res.offset;
+        ui.progress(offset, size);
+      }
+
+      ui.working("сборка");
+      const file = (await Api.post(`${base}/${item.upload}/complete`)).data;
+
+      item.upload = null;
+      item.done = true;
+      ui.done(file);
+    } catch (e) {
+      if (e && e.status === -1) return; // отменили руками
+      item.done = false;
+      ui.failed(e, item.upload ? "оборвалось — нажмите «Загрузить», чтобы продолжить" : null);
+    }
+  }
+
+  /** Три попытки на кусок: обрыв сети сам по себе не повод терять гигабайт. */
+  async function withRetries(attempt, resync) {
+    for (let tries = 1; ; tries++) {
+      try {
+        return await attempt();
+      } catch (e) {
+        if (tries >= CHUNK_RETRIES || (e.status !== 0 && e.status !== 409)) throw e;
+        const same = await resync();
+        if (!same) throw e;
+        await new Promise((r) => setTimeout(r, 400 * tries));
+      }
+    }
+  }
+
+  function xhrSend(method, url, body, { headers = {}, onProgress, item } = {}) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, url);
+      Object.entries(headers).forEach(([name, value]) => xhr.setRequestHeader(name, value));
+
+      // Прогресс отдаёт только XHR — у fetch его нет.
+      if (onProgress) {
+        xhr.upload.addEventListener("progress", (e) => e.lengthComputable && onProgress(e.loaded));
+      }
+
+      const fail = (status, message) => reject(Object.assign(new Error(message), { status }));
+
+      xhr.addEventListener("load", () => {
+        const data = parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+        else fail(xhr.status, (data && data.message) || "сервер отказал");
+      });
+      xhr.addEventListener("error", () => fail(0, "соединение оборвалось"));
+      xhr.addEventListener("abort", () => fail(-1, "отменено"));
+
+      if (item) item.xhr = xhr;
+      xhr.send(body);
+    });
+  }
+
+  /** Одна карточка очереди: полоса, бейдж и подпись под именем. */
+  function itemUi(item) {
+    const bar = item.card.querySelector(".progress__bar");
+    const badge = item.card.querySelector("[data-badge]");
+    const state = item.card.querySelector("[data-state]");
+
+    return {
+      working(text) {
+        badge.className = "tone tone--brand";
+        badge.textContent = "0%";
+        state.textContent = text;
+      },
+      progress(loaded, size) {
+        const percent = Math.min(100, Math.round((loaded / size) * 100));
+        bar.style.width = percent + "%";
+        badge.textContent = percent + "%";
+      },
+      done(file) {
+        bar.style.width = "100%";
+        badge.className = "tone tone--ok";
+        badge.textContent = "готово";
+        state.textContent = describe(file);
+        addFileRow(file);
+        setTimeout(() => { item.card.remove(); refresh(); }, 2500);
+      },
+      failed(e, hint) {
+        bar.style.width = "100%";
+        bar.style.background = "var(--danger)";
+        badge.className = "tone tone--danger";
+        badge.textContent = e.status > 0 ? String(e.status) : "сеть";
+        state.textContent = hint || e.message;
+        showToast(`<b>${Render.e(item.file.name)}</b> не загрузился`, { type: "error", detail: e.message });
+      },
+    };
   }
 
   function send(item, folder, options) {

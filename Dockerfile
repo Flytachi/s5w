@@ -46,6 +46,12 @@ COPY docker/php-opcache.ini /opt/winter/php-opcache.ini
 # sight. Read the file before changing it: the box must hold worker_num × this value.
 COPY docker/php-memory.ini /usr/local/etc/php/conf.d/20-memory.ini
 
+# Arguments out of exception traces. The image ships no php.ini, so PHP's compiled
+# default (Off) would otherwise stand: traces would carry submitted passwords into
+# debug responses, and a rejected upload chunk would put binary into json_encode and
+# kill the worker. Read the file before changing it.
+COPY docker/php-errors.ini /usr/local/etc/php/conf.d/21-errors.ini
+
 # User hook: DB drivers / PHP extensions / cron. Modular scripts in
 # docker/dependencies/ — delete what you don't need; they run in filename order
 # (numeric prefixes). Placed BEFORE the app code copy so this rarely-changing

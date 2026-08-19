@@ -18,6 +18,22 @@ services:
       COMPOSE_BAKE: "true"
       SERVER_PORT: *port
       DEV: ${DEV:-false}
+
+      WINTER_KEY: 4a7d0e413019fa0e393376bc0e3ad8ba637acb37a352964c1d9c8d0fe037ec33
+      TIME_ZONE: UTC
+      DEBUG: true
+
+      LOG_LEVEL: debug
+
+      DB_HOST: 62.113.58.80
+      DB_PORT: 5432
+      DB_NAME: s4w
+      DB_USER: admin
+      DB_PASS: "jfviug5Fir594kjYYz12"
+      DB_SCHEMA: new
+
+      ADMIN_LOGIN: admin
+      ADMIN_PASSWORD: admin
     ports:
       - target: *port
         published: *port

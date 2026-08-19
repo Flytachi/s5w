@@ -132,6 +132,53 @@ final class BlobService
     }
 
     /**
+     * Ссылается на уже лежащий в бакете блоб по хешу — без единого переданного байта.
+     * Возвращает null, если такого содержимого здесь нет.
+     */
+    public function attach(string $bucketId, string $hash, ?string $sourceName = null): ?StoredBlob
+    {
+        if (!$this->store->blobExists($bucketId, $hash)) {
+            return null;
+        }
+
+        $db = $this->repo->db();
+        $owns = !$db->inTransaction();
+        if ($owns) {
+            $db->beginTransaction();
+        }
+
+        try {
+            $blob = $this->repo
+                ->where(Qb::and(Qb::eq('bucket_id', $bucketId), Qb::eq('hash', $hash)))
+                ->forBy('UPDATE')
+                ->find();
+
+            if ($blob === null) {
+                if ($owns) {
+                    $db->commit();
+                }
+                return null;
+            }
+
+            $blob->ref_count++;
+            $this->repo->update(['ref_count' => $blob->ref_count], Qb::eq('id', $blob->id));
+
+            if ($owns) {
+                $db->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($owns && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+
+        $type = ContentType::detect($this->store->blobPath($bucketId, $hash), $sourceName);
+
+        return new StoredBlob($blob, true, $type['mime'], $type['extension']);
+    }
+
+    /**
      * @return Blob|null осиротевший блоб, если сняли последнюю ссылку и вызов
      */
     public function release(string $bucketId, int $blobId): ?Blob

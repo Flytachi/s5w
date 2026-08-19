@@ -13,11 +13,13 @@ use Flytachi\Winter\Kernel\Exception\ClientError;
 use Flytachi\Winter\Kernel\Unit\Pagination\WrapResult;
 use Flytachi\Winter\Kernel\Unit\Wrapper;
 use Main\Dto\FileRes;
+use Main\Dto\StoredBlob;
 use Main\Entity\Blob;
 use Main\Entity\FileEntry;
 use Main\Entity\Folder;
 use Main\Enum\Retention;
 use Main\Image\ImageProcessor;
+use Main\Image\ProcessedImage;
 use Main\Repository\BlobRepository;
 use Main\Repository\FileEntryRepository;
 use Main\Repository\FolderRepository;
@@ -65,10 +67,23 @@ final class FileService
             ClientError::throw('No file was uploaded', HttpCode::BAD_REQUEST);
         }
 
-        $folder = $this->resolveFolder($bucketId, $request->folder);
-        $sourceName = (string) ($upload['name'] ?? '');
+        return $this->ingest($bucketId, $tmpPath, (string) ($upload['name'] ?? ''), $request, $baseUrl);
+    }
 
-        $processed = $this->images->process($tmpPath, $request);
+    /**
+     * Общий хвост любой загрузки: обработка картинки, укладка содержимого, запись файла.
+     * Содержимое уезжает в хранилище переименованием, то есть $srcPath исчезает.
+     */
+    public function ingest(
+        string $bucketId,
+        string $srcPath,
+        string $sourceName,
+        FileUploadRequest $request,
+        string $baseUrl,
+    ): FileRes {
+        $folder = $this->resolveFolder($bucketId, $request->folder);
+
+        $processed = $this->images->process($srcPath, $request);
 
         $db = $this->repo->db();
         $db->beginTransaction();
@@ -76,25 +91,8 @@ final class FileService
 
         try {
             $stored = $this->blobs->store($bucketId, $processed->path, $sourceName);
-            $blob = $stored->blob;
 
-            $file = new FileEntry();
-            $file->bucket_id = $bucketId;
-            $file->folder_id = $folder?->id;
-            $file->blob_id = $blob->id;
-            $file->mime_type = $stored->mimeType;
-            $file->extension = $stored->extension;
-            $file->name = $this->finalName($request->name, $sourceName, $stored->extension);
-            $file->public = $folder === null ? true : $folder->public;
-            $file->expires_at = $this->expiryFor($folder);
-            $file->created_at = date('Y-m-d H:i:s P');
-            $file->updated_at = $file->created_at;
-
-            $this->insertWithRetries($file);
-
-            $db->commit();
-
-            return FileRes::from($file, $blob, $folder?->name, $baseUrl, $stored->deduplicated, $processed);
+            return $this->place($bucketId, $stored, $folder, $sourceName, $request, $baseUrl, $processed);
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
                 $db->rollBack();
@@ -108,6 +106,74 @@ final class FileService
                 @unlink($processed->path);
             }
         }
+    }
+
+    /**
+     * Заводит файл на содержимом, которое в бакете уже лежит: ни байта по сети.
+     * Возвращает null, если блоба с таким хешем здесь нет.
+     */
+    public function adopt(
+        string $bucketId,
+        string $hash,
+        string $sourceName,
+        FileUploadRequest $request,
+        string $baseUrl,
+    ): ?FileRes {
+        $folder = $this->resolveFolder($bucketId, $request->folder);
+
+        $db = $this->repo->db();
+        $db->beginTransaction();
+
+        try {
+            $stored = $this->blobs->attach($bucketId, $hash, $sourceName);
+            if ($stored === null) {
+                $db->commit();
+                return null;
+            }
+
+            return $this->place($bucketId, $stored, $folder, $sourceName, $request, $baseUrl);
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /** Заводит строку файла на уже уложенном блобе и закрывает транзакцию. */
+    private function place(
+        string $bucketId,
+        StoredBlob $stored,
+        ?Folder $folder,
+        string $sourceName,
+        FileUploadRequest $request,
+        string $baseUrl,
+        ?ProcessedImage $processed = null,
+    ): FileRes {
+        $file = new FileEntry();
+        $file->bucket_id = $bucketId;
+        $file->folder_id = $folder?->id;
+        $file->blob_id = $stored->blob->id;
+        $file->mime_type = $stored->mimeType;
+        $file->extension = $stored->extension;
+        $file->name = $this->finalName($request->name, $sourceName, $stored->extension);
+        $file->public = $folder === null ? true : $folder->public;
+        $file->expires_at = $this->expiryFor($folder);
+        $file->created_at = date('Y-m-d H:i:s P');
+        $file->updated_at = $file->created_at;
+
+        $this->insertWithRetries($file);
+
+        $this->repo->db()->commit();
+
+        return FileRes::from(
+            $file,
+            $stored->blob,
+            $folder?->name,
+            $baseUrl,
+            $stored->deduplicated,
+            $processed,
+        );
     }
 
     public function getAll(string $bucketId, FileListRequest $request, string $baseUrl): WrapResult
@@ -377,7 +443,7 @@ final class FileService
         return $this->clamp($name . '.' . $extension);
     }
 
-    private function resolveFolder(string $bucketId, ?string $name): ?Folder
+    public function resolveFolder(string $bucketId, ?string $name): ?Folder
     {
         if ($name === null || $name === '') {
             return null;

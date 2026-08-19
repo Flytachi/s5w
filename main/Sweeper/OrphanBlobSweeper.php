@@ -111,44 +111,80 @@ final class OrphanBlobSweeper
                 continue;
             }
 
-            $known = array_flip(array_column(
-                $this->repo->select('hash')->findAllBy(Qb::eq('bucket_id', $bucket->id)),
-                'hash',
-            ));
-
-            $files = 0;
-            $stray = [];
-
-            foreach (new \FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS) as $entry) {
-                /** @var \SplFileInfo $entry */
-                if (!$entry->isFile()) {
-                    continue;
+            // Пустая таблица при непустой директории — признак сбоя, а не мусора:
+            // без этой проверки проход стёр бы бакет целиком.
+            if (!$this->repo->where(Qb::eq('bucket_id', $bucket->id))->exists()) {
+                $files = $this->countFiles($path);
+                if ($files > 0) {
+                    $this->log->warning(sprintf(
+                        'skipped bucket %s: %d file(s) on disk but no blobs in the database',
+                        $bucket->id,
+                        $files,
+                    ));
                 }
-                $files++;
-
-                if (isset($known[$entry->getFilename()]) || $entry->getMTime() > $edge) {
-                    continue;
-                }
-                $stray[] = $entry->getPathname();
-            }
-
-            if ($known === [] && $files > 0) {
-                $this->log->warning(sprintf(
-                    'skipped bucket %s: %d file(s) on disk but no blobs in the database',
-                    $bucket->id,
-                    $files,
-                ));
                 continue;
             }
 
-            foreach ($stray as $pathname) {
-                if (@unlink($pathname)) {
-                    $removed++;
+            $chunk = [];
+
+            foreach (new \FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS) as $entry) {
+                /** @var \SplFileInfo $entry */
+                if (!$entry->isFile() || $entry->getMTime() > $edge) {
+                    continue;
                 }
+
+                $chunk[$entry->getFilename()] = $entry->getPathname();
+
+                if (count($chunk) >= self::BATCH) {
+                    $removed += $this->dropStray($bucket->id, $chunk);
+                    $chunk = [];
+                }
+            }
+
+            if ($chunk !== []) {
+                $removed += $this->dropStray($bucket->id, $chunk);
             }
         }
 
         return $removed;
+    }
+
+    /**
+     * @param array<string, string> $chunk hash => pathname
+     */
+    private function dropStray(string $bucketId, array $chunk): int
+    {
+        $known = array_flip(array_column(
+            $this->repo->select('hash')->findAllBy(Qb::and(
+                Qb::eq('bucket_id', $bucketId),
+                Qb::in('hash', array_keys($chunk)),
+            )),
+            'hash',
+        ));
+
+        $removed = 0;
+
+        foreach ($chunk as $hash => $pathname) {
+            if (!isset($known[$hash]) && @unlink($pathname)) {
+                $removed++;
+            }
+        }
+
+        return $removed;
+    }
+
+    private function countFiles(string $path): int
+    {
+        $files = 0;
+
+        foreach (new \FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS) as $entry) {
+            /** @var \SplFileInfo $entry */
+            if ($entry->isFile()) {
+                $files++;
+            }
+        }
+
+        return $files;
     }
 
     private function drop(Blob $blob): void

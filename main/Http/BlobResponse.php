@@ -11,6 +11,11 @@ use Flytachi\Winter\Kernel\Http\Response\Sendable;
 
 final class BlobResponse implements Sendable
 {
+    /**
+     * @param \Closure|null $onServe вызывается ровно тогда, когда в ответ пойдут байты:
+     *   ни ревалидация с 304, ни отказ по диапазону содержимого не передают, и учитывать
+     *   их как выдачу нельзя.
+     */
     public function __construct(
         private readonly string $path,
         private readonly string $fileName,
@@ -18,6 +23,7 @@ final class BlobResponse implements Sendable
         private readonly bool $attachment,
         private readonly string $cacheControl,
         private readonly bool $acceptRanges = true,
+        private readonly ?\Closure $onServe = null,
     ) {
     }
 
@@ -45,6 +51,10 @@ final class BlobResponse implements Sendable
             $response->header('Content-Range', "bytes */{$size}");
             $response->end('');
             return;
+        }
+
+        if ($this->onServe !== null) {
+            ($this->onServe)();
         }
 
         if ($range === null) {

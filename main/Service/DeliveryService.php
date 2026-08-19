@@ -91,11 +91,19 @@ final class DeliveryService
 
         $attachment = $payload->attachment;
         $limited = false;
+        $onServe = null;
 
         if ($payload->jti !== null) {
-            $link = $this->links->consume($payload->jti, $file->id);
+            // Проверяем сейчас, чтобы мёртвая ссылка получила 404 до всякого ответа,
+            // а списываем скачивание только когда байты реально пойдут: ревалидация
+            // с 304 ничего не передаёт и лимит тратить не должна.
+            $link = $this->links->peek($payload->jti, $file->id);
             $attachment = Disposition::from($link->disposition)->isAttachment();
             $limited = $link->max_downloads !== null;
+
+            if ($limited) {
+                $onServe = fn() => $this->links->consume($payload->jti, $file->id);
+            }
         }
 
         return $this->response(
@@ -110,6 +118,7 @@ final class DeliveryService
                 linkTtl: $payload->expiresAt - time(),
             ),
             acceptRanges: !$limited,
+            onServe: $onServe,
         );
     }
 
@@ -132,6 +141,7 @@ final class DeliveryService
         bool $download,
         string $cacheControl,
         bool $acceptRanges = true,
+        ?\Closure $onServe = null,
     ): BlobResponse {
         $blob = $this->blobs->findById($file->blob_id);
         if ($blob === null || !$this->store->blobExists($bucket->id, $blob->hash)) {
@@ -145,6 +155,7 @@ final class DeliveryService
             attachment: $download || !$this->isInline($file),
             cacheControl: $cacheControl,
             acceptRanges: $acceptRanges,
+            onServe: $onServe,
         );
     }
 

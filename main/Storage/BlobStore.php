@@ -12,6 +12,8 @@ final class BlobStore
 {
     private const string ROOT = 'chest';
 
+    private const string UPLOADS = 'uploads';
+
     public function rootPath(): string
     {
         return Kernel::$pathStorage . '/' . self::ROOT;
@@ -103,5 +105,88 @@ final class BlobStore
         if (is_file($path)) {
             @unlink($path);
         }
+    }
+
+    /**
+     * Недокачанные файлы лежат вне chest: там их сочли бы мусором и стёрли
+     * ближайшим ночным проходом.
+     */
+    public function uploadRoot(): string
+    {
+        return Kernel::$pathStorage . '/' . self::UPLOADS;
+    }
+
+    public function uploadPath(string $uploadId): string
+    {
+        return $this->uploadRoot() . '/' . $uploadId;
+    }
+
+    public function uploadCreate(string $uploadId): void
+    {
+        $root = $this->uploadRoot();
+        if (!is_dir($root) && !@mkdir($root, 0775, true) && !is_dir($root)) {
+            throw new \RuntimeException('Failed to create the upload staging directory');
+        }
+
+        if (@file_put_contents($this->uploadPath($uploadId), '') === false) {
+            throw new \RuntimeException('Failed to create the staging file of this upload');
+        }
+    }
+
+    /**
+     * Дописывает кусок, предварительно обрезав файл до принятого смещения: так
+     * повтор куска не удваивает байты, а запись, не дожившая до обновления базы,
+     * не оставляет хвоста.
+     *
+     * @return int размер файла после записи
+     */
+    public function uploadAppend(string $uploadId, int $offset, string $bytes): int
+    {
+        $handle = @fopen($this->uploadPath($uploadId), 'c+b');
+        if ($handle === false) {
+            throw new \RuntimeException('Failed to open the staging file of this upload');
+        }
+
+        try {
+            if (!ftruncate($handle, $offset) || fseek($handle, $offset) !== 0) {
+                throw new \RuntimeException('Failed to position the staging file of this upload');
+            }
+            if (fwrite($handle, $bytes) !== strlen($bytes)) {
+                throw new \RuntimeException('Failed to write the chunk into storage');
+            }
+            fflush($handle);
+
+            return (int) ftell($handle);
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    public function uploadSize(string $uploadId): int
+    {
+        $path = $this->uploadPath($uploadId);
+
+        return is_file($path) ? (int) filesize($path) : 0;
+    }
+
+    public function uploadDelete(string $uploadId): void
+    {
+        $path = $this->uploadPath($uploadId);
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
+
+    /**
+     * Staging и хранилище на одном устройстве — тогда финал это переименование.
+     * На разных пришлось бы копировать, а на гигабайтах это уже заметно.
+     */
+    public function uploadRenames(): bool
+    {
+        $chestPath = $this->rootPath();
+        $staging = @stat($this->uploadRoot());
+        $chest = @stat(is_dir($chestPath) ? $chestPath : Kernel::$pathStorage);
+
+        return $staging === false || $chest === false || $staging['dev'] === $chest['dev'];
     }
 }

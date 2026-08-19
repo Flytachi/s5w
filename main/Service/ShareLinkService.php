@@ -93,6 +93,21 @@ final class ShareLinkService
         return ShareLinkRes::from($link, $this->urlFor($baseUrl, $link, $bucket->link_epoch));
     }
 
+    /**
+     * Проверяет ссылку, ничего не списывая: ответом может оказаться 304, а он
+     * ни байта не передаёт и скачиванием не считается.
+     */
+    public function peek(int $id, int $fileId): ShareLink
+    {
+        $link = $this->repo->findBy(Qb::eq('id', $id));
+
+        if ($link === null || !$this->usable($link, $fileId)) {
+            ClientError::throw('Link has been revoked or has reached its download limit', HttpCode::NOT_FOUND);
+        }
+
+        return $link;
+    }
+
     public function consume(int $id, int $fileId): ShareLink
     {
         $db = $this->repo->db();
@@ -101,13 +116,7 @@ final class ShareLinkService
         try {
             $link = $this->repo->where(Qb::eq('id', $id))->forBy('UPDATE')->find();
 
-            if (
-                $link === null
-                || $link->file_id !== $fileId
-                || $link->revoked
-                || strtotime($link->expires_at) <= time()
-                || ($link->max_downloads !== null && $link->downloads >= $link->max_downloads)
-            ) {
+            if ($link === null || !$this->usable($link, $fileId)) {
                 ClientError::throw('Link has been revoked or has reached its download limit', HttpCode::NOT_FOUND);
             }
 
@@ -125,6 +134,14 @@ final class ShareLinkService
             }
             throw $e;
         }
+    }
+
+    private function usable(ShareLink $link, int $fileId): bool
+    {
+        return $link->file_id === $fileId
+            && !$link->revoked
+            && strtotime($link->expires_at) > time()
+            && ($link->max_downloads === null || $link->downloads < $link->max_downloads);
     }
 
     public function getAll(string $bucketId, PageRequest $request, string $baseUrl): WrapResult
