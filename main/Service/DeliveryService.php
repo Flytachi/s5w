@@ -9,12 +9,12 @@ use Flytachi\Winter\Cdo\Qb;
 use Flytachi\Winter\DI\Attribute\Autowired;
 use Flytachi\Winter\DI\Attribute\Singleton;
 use Flytachi\Winter\Kernel\Exception\ClientError;
+use Flytachi\Winter\Kernel\Http\Response\ResponseStreamFile;
 use Main\Entity\Bucket;
 use Main\Entity\FileEntry;
 use Main\Entity\Folder;
 use Main\Enum\DeliveryChannel;
 use Main\Enum\Disposition;
-use Main\Http\BlobResponse;
 use Main\Repository\BlobRepository;
 use Main\Repository\BucketRepository;
 use Main\Repository\FileEntryRepository;
@@ -49,7 +49,7 @@ final class DeliveryService
     #[Autowired]
     private ShareLinkService $links;
 
-    public function public(string $bucketId, string $slug, bool $download): BlobResponse
+    public function public(string $bucketId, string $slug, bool $download): ResponseStreamFile
     {
         $file = $this->findBySlug($bucketId, $slug);
         if (!$file->public) {
@@ -59,7 +59,7 @@ final class DeliveryService
         return $this->serve($file, DeliveryChannel::PUBLIC, $download);
     }
 
-    public function private(string $bucketId, string $slug, bool $download): BlobResponse
+    public function private(string $bucketId, string $slug, bool $download): ResponseStreamFile
     {
         return $this->serve(
             $this->findBySlug($bucketId, $slug),
@@ -68,7 +68,7 @@ final class DeliveryService
         );
     }
 
-    public function temporary(string $token): BlobResponse
+    public function temporary(string $token): ResponseStreamFile
     {
         $payload = $this->signer->verify($token);
         if ($payload === null || $payload->expiresAt <= time()) {
@@ -122,7 +122,7 @@ final class DeliveryService
         );
     }
 
-    private function serve(FileEntry $file, DeliveryChannel $channel, bool $download): BlobResponse
+    private function serve(FileEntry $file, DeliveryChannel $channel, bool $download): ResponseStreamFile
     {
         $this->assertAlive($file);
         $bucket = $this->bucketOf($file);
@@ -142,21 +142,25 @@ final class DeliveryService
         string $cacheControl,
         bool $acceptRanges = true,
         ?\Closure $onServe = null,
-    ): BlobResponse {
+    ): ResponseStreamFile {
         $blob = $this->blobs->findById($file->blob_id);
         if ($blob === null || !$this->store->blobExists($bucket->id, $blob->hash)) {
             throw new \RuntimeException("File content is missing from storage, file {$file->id}");
         }
 
-        return new BlobResponse(
-            path: $this->store->blobPath($bucket->id, $blob->hash),
-            fileName: $file->name,
-            mimeType: $file->mime_type,
-            attachment: $download || !$this->isInline($file),
-            cacheControl: $cacheControl,
-            acceptRanges: $acceptRanges,
-            onServe: $onServe,
-        );
+        return ResponseStreamFile::open(
+            $this->store->blobPath($bucket->id, $blob->hash),
+            isAttachment: $download || !$this->isInline($file),
+        )
+            // На диске лежит sha256 без расширения, а показать надо имя и тип из базы:
+            // выводить их из пути тут нечего, да и незачем пересниффливать содержимое.
+            ->fileName($file->name)
+            ->contentType($file->mime_type)
+            // Правило кэширования у нас своё — не только max-age, но и private,
+            // no-store, immutable. Заголовок пишется после вычисленного и перекрывает его.
+            ->header('Cache-Control', $cacheControl)
+            ->acceptRanges($acceptRanges)
+            ->beforeSend($onServe);
     }
 
     private function isInline(FileEntry $file): bool

@@ -7,10 +7,10 @@ namespace Main\Controllers\Delivery;
 use Flytachi\Winter\DI\Attribute\Autowired;
 use Flytachi\Winter\Kernel\Http\Request\Annotation\PathVariable;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Size;
+use Flytachi\Winter\Kernel\Http\Response\ResponseStreamFile;
 use Flytachi\Winter\Kernel\Http\Stereotype\Controller;
 use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
-use Main\Http\BlobResponse;
 use Main\Service\DeliveryService;
 
 #[RequestMapping('t')]
@@ -22,7 +22,7 @@ final class TemporaryController extends Controller
     #[GetMapping('{token}')]
     public function download(
         #[PathVariable, Size(min: 40, max: 128)] string $token,
-    ): BlobResponse {
+    ): ResponseStreamFile {
         return $this->service->temporary($token);
     }
 }
