@@ -46,20 +46,19 @@ COPY docker/php-opcache.ini /opt/winter/php-opcache.ini
 # sight. Read the file before changing it: the box must hold worker_num × this value.
 COPY docker/php-memory.ini /usr/local/etc/php/conf.d/20-memory.ini
 
-# Arguments out of exception traces. The image ships no php.ini, so PHP's compiled
-# default (Off) would otherwise stand: traces would carry submitted passwords into
-# debug responses, and a rejected upload chunk would put binary into json_encode and
-# kill the worker. Read the file before changing it.
-COPY docker/php-errors.ini /usr/local/etc/php/conf.d/21-errors.ini
-
 # User hook: DB drivers / PHP extensions / cron. Modular scripts in
 # docker/dependencies/ — delete what you don't need; they run in filename order
 # (numeric prefixes). Placed BEFORE the app code copy so this rarely-changing
-# layer stays cached across code edits.
+# layer stays cached across code edits. Each script is self-contained: it installs
+# its own build dependencies and drops them again.
+#
+# `|| exit 1` is what fails the build on a broken script. Without it the loop keeps
+# going and RUN reports the status of the last iteration, so an image can come out
+# green with the extension missing — found out at runtime instead.
 COPY docker/dependencies/ /tmp/dependencies/
 RUN for f in /tmp/dependencies/*.sh; do \
         [ -e "$f" ] || continue; \
-        echo "→ deps: $f"; sh "$f"; \
+        echo "→ deps: $f"; sh "$f" || exit 1; \
     done \
     && rm -rf /tmp/dependencies /var/cache/apk/* /tmp/pear
 
