@@ -31,14 +31,14 @@ final class AuthController extends Controller
         $session = $this->service->login($request, $http->getClientIp());
 
         return ResponseEntity::ok(['expiresAt' => date('Y-m-d H:i:s P', $session['expiresAt'])])
-            ->header('Set-Cookie', AdminCookie::set($http, $session['token']));
+            ->cookie(AdminCookie::issue($session['token']));
     }
 
     #[AdminAuthMiddleware]
     #[PostMapping('logout')]
-    public function logout(HttpRequest $http): ResponseEntity
+    public function logout(): ResponseEntity
     {
         return ResponseEntity::ok(['ok' => true])
-            ->header('Set-Cookie', AdminCookie::clear($http));
+            ->cookie(AdminCookie::drop());
     }
 }

@@ -22,7 +22,7 @@ class AdminAuthMiddleware extends Middleware
 
     public function before(HttpRequest $request, HttpResponse $response): void
     {
-        $token = Header::getBearerToken() ?? AdminCookie::read($request);
+        $token = Header::getBearerToken() ?? AdminCookie::read();
         if ($this->auth->verify($token)) {
             return;
         }

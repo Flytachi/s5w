@@ -6,7 +6,7 @@ namespace Main\Console;
 
 use Flytachi\Winter\Console\Inc\Cmd;
 use Flytachi\Winter\DI\Attribute\Autowired;
-use Flytachi\Winter\Kernel\Ppa\Pool\PpaConnectionPool;
+use Flytachi\Winter\Ppa\Pool\PpaConnectionPool;
 use Main\Configuration\MainDbConfig;
 use Main\Storage\BlobStore;
 use Main\Sweeper\OrphanBlobSweeper;

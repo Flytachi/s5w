@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Main\Repository;
 
-use Flytachi\Winter\Kernel\Ppa\Stereotype\Repository;
+use Flytachi\Winter\Ppa\Stereotype\Repository;
 use Main\Configuration\MainDbConfig;
 use Main\Entity\Upload;
 

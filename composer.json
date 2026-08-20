@@ -10,6 +10,8 @@
     "require": {
         "php": ">=8.5",
         "flytachi/winter-kernel": "^4.0",
+        "flytachi/winter-ppa": "^1.0",
+        "flytachi/winter-redis": "^1.0",
         "monolog/monolog": "@stable",
         "ext-fileinfo": "*"
     },

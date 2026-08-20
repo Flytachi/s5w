@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Main\Entity;
 
-use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Constraint\CheckEnum;
-use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Entity\Table;
-use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Hybrid\UuidPk;
-use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Idx\Unique;
-use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\BigInteger;
-use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\Integer;
-use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\SmallInteger;
-use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\Timestamp;
-use Flytachi\Winter\Kernel\Ppa\Mapping\Attributes\Primal\Varchar;
+use Flytachi\Winter\Ppa\Mapping\Attributes\Constraint\CheckEnum;
+use Flytachi\Winter\Ppa\Mapping\Attributes\Entity\Table;
+use Flytachi\Winter\Ppa\Mapping\Attributes\Hybrid\UuidPk;
+use Flytachi\Winter\Ppa\Mapping\Attributes\Idx\Unique;
+use Flytachi\Winter\Ppa\Mapping\Attributes\Primal\BigInteger;
+use Flytachi\Winter\Ppa\Mapping\Attributes\Primal\Integer;
+use Flytachi\Winter\Ppa\Mapping\Attributes\Primal\SmallInteger;
+use Flytachi\Winter\Ppa\Mapping\Attributes\Primal\Timestamp;
+use Flytachi\Winter\Ppa\Mapping\Attributes\Primal\Varchar;
 use Main\Enum\BucketStatus;
 use Main\Enum\CacheVisibility;
 

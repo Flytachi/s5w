@@ -3,6 +3,7 @@
 namespace Main\Configuration;
 
 use Flytachi\Winter\Kernel\App\ApplicationArguments;
+use Flytachi\Winter\Kernel\App\Config\Profile;
 use Flytachi\Winter\Kernel\App\Config\ServerSettings;
 use Flytachi\Winter\Kernel\App\Config\WebConfigurerAdapter;
 use Main\Service\UploadService;
@@ -25,8 +26,16 @@ class WebConfiguration extends WebConfigurerAdapter
 
     public function configureServer(ServerSettings $server, ApplicationArguments $args): void
     {
-        $server->maxRequestSize(self::MAX_BODY);
+        // Запрос здесь тяжёлый: кусок загрузки — это мегабайты в куче, обработка
+        // картинки — ещё столько же. Профиль отвечает ровно на этот вопрос и уже из
+        // ответа выводит потолок одновременных запросов, размер пула соединений и то,
+        // когда воркер отдаёт память системе. Потолок памяти воркера тут не задаётся:
+        // он приходит из docker/php-memory.ini, и профиль считает от него.
+        $server->profile(Profile::Stable)
+            ->maxRequestSize(self::MAX_BODY);
 
+        // Разбор кук ядро делает само — одинаково под Swoole и FPM, — так что
+        // встроенный в Swoole разбор только дублировал бы работу.
         $server->staticPath('resources/static')
             ->set('static_handler_locations', ['/assets', '/favicon.ico'])
             ->set('http_parse_cookie', false);

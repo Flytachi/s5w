@@ -26,7 +26,7 @@ final class AdminAuthWebController extends Controller
     public function login(HttpRequest $request): ResponseView
     {
         $next = $this->next($request);
-        if ($this->auth->verify(Header::getBearerToken() ?? AdminCookie::read($request))) {
+        if ($this->auth->verify(Header::getBearerToken() ?? AdminCookie::read())) {
             throw (new ResponseException('', HttpCode::FOUND))->withHeader('Location', $next);
         }
 

@@ -9,8 +9,8 @@ use Flytachi\Winter\Cdo\Qb;
 use Flytachi\Winter\DI\Attribute\Autowired;
 use Flytachi\Winter\DI\Attribute\Singleton;
 use Flytachi\Winter\Kernel\Exception\ClientError;
-use Flytachi\Winter\Kernel\Unit\Pagination\WrapResult;
-use Flytachi\Winter\Kernel\Unit\Wrapper;
+use Flytachi\Winter\Ppa\Pagination\WrapResult;
+use Flytachi\Winter\Ppa\Pagination\Wrapper;
 use Main\Dto\LinkCounts;
 use Main\Dto\ShareLinkRes;
 use Main\Entity\Bucket;
@@ -157,7 +157,7 @@ final class ShareLinkService
     }
 
     /**
-     * @return array{meta: \Flytachi\Winter\Kernel\Unit\Pagination\WrapMeta, items: array<int, array{link: ShareLink, file: ?FileEntry, url: string}>}
+     * @return array{meta: \Flytachi\Winter\Ppa\Pagination\WrapMeta, items: array<int, array{link: ShareLink, file: ?FileEntry, url: string}>}
      */
     public function panelPage(string $bucketId, LinkListRequest $request, string $baseUrl = ''): array
     {

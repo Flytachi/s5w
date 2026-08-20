@@ -4,54 +4,46 @@ declare(strict_types=1);
 
 namespace Main\Http;
 
-use Flytachi\Winter\Kernel\Http\Contracts\HttpRequest;
+use Flytachi\Winter\Kernel\Http\Cookie\Cookie;
+use Flytachi\Winter\Kernel\Http\Cookie\SameSite;
+use Flytachi\Winter\Kernel\Http\Cookie\SetCookie;
 use Main\Support\AdminSession;
 
+/**
+ * Кука сессии панели.
+ *
+ * Разбор заголовка и сборка `Set-Cookie` — дело ядра ({@see Cookie}); здесь остаётся
+ * только то, что ядро знать не может: имя, срок жизни и то, что кука предназначена
+ * одному сайту. `Secure` выставляет {@see Cookie::make()} по схеме запроса — сам по
+ * себе объект куки её не видит, а угаданный не в ту сторону флаг браузер молча
+ * выбрасывает.
+ */
 final class AdminCookie
 {
     public const string NAME = 's5w_admin';
 
-    public static function set(HttpRequest $request, string $token): string
+    /** Кука на сессию: значение и срок совпадают с выданным токеном. */
+    public static function issue(string $token): SetCookie
     {
-        return self::build($token, AdminSession::TTL, $request);
+        return self::base()->value($token)->expiresIn(AdminSession::TTL);
     }
 
-    public static function clear(HttpRequest $request): string
+    /** Та же кука с нулевым сроком — браузеру этого достаточно, чтобы её забыть. */
+    public static function drop(): SetCookie
     {
-        return self::build('', 0, $request);
+        return self::base()->expiresIn(0);
     }
 
-    public static function read(HttpRequest $request): ?string
+    public static function read(): ?string
     {
-        $header = $request->getHeader('cookie') ?? $request->getHeader('Cookie');
-        if ($header === null || $header === '') {
-            return null;
-        }
-
-        foreach (explode(';', $header) as $part) {
-            [$name, $value] = array_pad(explode('=', trim($part), 2), 2, '');
-            if ($name === self::NAME) {
-                return urldecode($value);
-            }
-        }
-
-        return null;
+        return Cookie::get(self::NAME);
     }
 
-    private static function build(string $token, int $maxAge, HttpRequest $request): string
+    private static function base(): SetCookie
     {
-        $parts = [
-            self::NAME . '=' . $token,
-            'Path=/',
-            'Max-Age=' . $maxAge,
-            'HttpOnly',
-            'SameSite=Strict',
-        ];
-
-        if ($request->getScheme() === 'https') {
-            $parts[] = 'Secure';
-        }
-
-        return implode('; ', $parts);
+        return Cookie::make(self::NAME)
+            ->path('/')
+            ->httpOnly()
+            ->sameSite(SameSite::Strict);
     }
 }

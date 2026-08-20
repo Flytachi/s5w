@@ -6,12 +6,12 @@ namespace Main\Http;
 
 use Flytachi\Winter\Base\HttpCode;
 use Flytachi\Winter\Cdo\Connection\CDOException;
-use Flytachi\Winter\Kernel\ConnectionPool\PoolException;
+use Flytachi\Winter\CPool\PoolException;
 use Flytachi\Winter\Kernel\Http\Response\AdviceException;
 use Flytachi\Winter\Kernel\Http\Stereotype\ExceptionResponseBase;
-use Flytachi\Winter\Kernel\Ppa\Entity\EntityException;
-use Flytachi\Winter\Kernel\Ppa\Pool\PpaPoolException;
-use Flytachi\Winter\Kernel\Ppa\Repository\RepositoryException;
+use Flytachi\Winter\Ppa\Entity\EntityException;
+use Flytachi\Winter\Ppa\Pool\PpaPoolException;
+use Flytachi\Winter\Ppa\Repository\RepositoryException;
 
 #[AdviceException(
     \PDOException::class,

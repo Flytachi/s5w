@@ -13,8 +13,8 @@ final class BlobResponse implements Sendable
 {
     /**
      * @param \Closure|null $onServe вызывается ровно тогда, когда в ответ пойдут байты:
-     *   ни ревалидация с 304, ни отказ по диапазону содержимого не передают, и учитывать
-     *   их как выдачу нельзя.
+     *   ни ревалидация с 304, ни отказ по диапазону, ни HEAD содержимого не передают,
+     *   и учитывать их как выдачу нельзя.
      */
     public function __construct(
         private readonly string $path,
@@ -53,7 +53,10 @@ final class BlobResponse implements Sendable
             return;
         }
 
-        if ($this->onServe !== null) {
+        // HEAD ядро раздаёт тем же обработчиком, что и GET, снимая тело уже в адаптере
+        // (RFC 9110 §9.3.2). Заголовки клиент получит те же, но байтов не увидит — значит
+        // и списывать с лимитированной ссылки нечего.
+        if ($this->onServe !== null && $request->getMethod() !== 'HEAD') {
             ($this->onServe)();
         }
 

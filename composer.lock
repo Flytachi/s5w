@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d627dbbe8094b4c21a77069660a0862a",
+    "content-hash": "5d6ccb73dac584a9f7f84fbc444f3b10",
     "packages": [
         {
             "name": "flytachi/file-store",
@@ -105,50 +105,6 @@
             "time": "2026-05-15T13:34:07+00:00"
         },
         {
-            "name": "flytachi/winter-cache",
-            "version": "v1.0.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/Flytachi/winter-cache.git",
-                "reference": "e3754771a9fda4f2c58d29d819998497e37903c8"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/Flytachi/winter-cache/zipball/e3754771a9fda4f2c58d29d819998497e37903c8",
-                "reference": "e3754771a9fda4f2c58d29d819998497e37903c8",
-                "shasum": ""
-            },
-            "require": {
-                "ext-redis": "*",
-                "php": ">=8.1"
-            },
-            "require-dev": {
-                "squizlabs/php_codesniffer": "@stable"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Flytachi\\Winter\\Cache\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Flytachi",
-                    "email": "jasur.rakhmatov03@gmail.com"
-                }
-            ],
-            "description": "Winter framework 'Entity of Cache objects' component",
-            "support": {
-                "issues": "https://github.com/Flytachi/winter-cache/issues",
-                "source": "https://github.com/Flytachi/winter-cache/tree/v1.0.1"
-            },
-            "time": "2026-02-01T09:25:33+00:00"
-        },
-        {
             "name": "flytachi/winter-cdo",
             "version": "v4.0.1",
             "source": {
@@ -211,17 +167,75 @@
             "time": "2026-08-17T14:00:10+00:00"
         },
         {
-            "name": "flytachi/winter-di",
-            "version": "v2.1.2",
+            "name": "flytachi/winter-cpool",
+            "version": "v1.0.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/Flytachi/winter-di.git",
-                "reference": "031131ba3b3d5b39f63b11e4d20592cf16251342"
+                "url": "https://github.com/Flytachi/winter-cpool.git",
+                "reference": "3feb6bdd0dd71a306770f32e024f92a6b72ed042"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Flytachi/winter-di/zipball/031131ba3b3d5b39f63b11e4d20592cf16251342",
-                "reference": "031131ba3b3d5b39f63b11e4d20592cf16251342",
+                "url": "https://api.github.com/repos/Flytachi/winter-cpool/zipball/3feb6bdd0dd71a306770f32e024f92a6b72ed042",
+                "reference": "3feb6bdd0dd71a306770f32e024f92a6b72ed042",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "@stable",
+                "squizlabs/php_codesniffer": "@stable",
+                "swoole/ide-helper": "^6.0"
+            },
+            "suggest": {
+                "ext-swoole": "Required for coroutine-safe pooling; without it the pool degrades to a single shared connection"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Flytachi\\Winter\\CPool\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Flytachi",
+                    "email": "jason.khan.x@gmail.com"
+                }
+            ],
+            "description": "Driver-agnostic connection pool for PHP — coroutine-safe under Swoole, single-connection fallback everywhere else.",
+            "homepage": "https://winterframe.net",
+            "keywords": [
+                "connection-pool",
+                "coroutine",
+                "php",
+                "pool",
+                "swoole",
+                "winter"
+            ],
+            "support": {
+                "docs": "https://winterframe.net/packages/cpool",
+                "issues": "https://github.com/flytachi/winter-cpool/issues",
+                "source": "https://github.com/flytachi/winter-cpool"
+            },
+            "time": "2026-08-19T08:35:57+00:00"
+        },
+        {
+            "name": "flytachi/winter-di",
+            "version": "v2.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Flytachi/winter-di.git",
+                "reference": "bfcedfbc0e578e05d641511d661004485883b83e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Flytachi/winter-di/zipball/bfcedfbc0e578e05d641511d661004485883b83e",
+                "reference": "bfcedfbc0e578e05d641511d661004485883b83e",
                 "shasum": ""
             },
             "require": {
@@ -230,7 +244,8 @@
             },
             "require-dev": {
                 "phpunit/phpunit": "@stable",
-                "squizlabs/php_codesniffer": "@stable"
+                "squizlabs/php_codesniffer": "@stable",
+                "swoole/ide-helper": "^6.0"
             },
             "suggest": {
                 "ext-swoole": "Required for request scope coroutine isolation in Swoole runtime"
@@ -266,20 +281,20 @@
                 "issues": "https://github.com/flytachi/winter-di/issues",
                 "source": "https://github.com/flytachi/winter-di"
             },
-            "time": "2026-08-17T11:48:26+00:00"
+            "time": "2026-08-20T09:13:01+00:00"
         },
         {
             "name": "flytachi/winter-kernel",
-            "version": "v4.0.8",
+            "version": "v4.0.93",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Flytachi/winter-kernel.git",
-                "reference": "2eac2317825a78378d328ae063dad41616734adb"
+                "reference": "d3760bf58c3edcfa67580f3e1a369cfb11dd66e6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Flytachi/winter-kernel/zipball/2eac2317825a78378d328ae063dad41616734adb",
-                "reference": "2eac2317825a78378d328ae063dad41616734adb",
+                "url": "https://api.github.com/repos/Flytachi/winter-kernel/zipball/d3760bf58c3edcfa67580f3e1a369cfb11dd66e6",
+                "reference": "d3760bf58c3edcfa67580f3e1a369cfb11dd66e6",
                 "shasum": ""
             },
             "require": {
@@ -288,7 +303,6 @@
                 "ext-posix": "*",
                 "flytachi/file-store": "^2.0",
                 "flytachi/winter-base": "^3.0",
-                "flytachi/winter-cache": "^1.0",
                 "flytachi/winter-cdo": "^4.0",
                 "flytachi/winter-di": "^2.0",
                 "flytachi/winter-logger": "^1.0",
@@ -297,6 +311,8 @@
                 "vlucas/phpdotenv": "^5.6"
             },
             "require-dev": {
+                "flytachi/winter-ppa": "^1.0",
+                "flytachi/winter-redis": "^1.0",
                 "monolog/monolog": "@stable",
                 "phpunit/phpunit": "@stable",
                 "squizlabs/php_codesniffer": "@stable",
@@ -308,7 +324,9 @@
                 "ext-pdo": "Required for database access",
                 "ext-shmop": "Recommended for Swoole mode — enables PAYLOAD_SHM in Thread dispatch, avoiding fd conflicts with proc_open (fallback: PAYLOAD_PIPE)",
                 "ext-simplexml": "Required for XML file operations and XML body parsing in HTTP parameter resolution",
-                "ext-swoole": "Required for coroutine-based connection pooling (Swoole mode)"
+                "ext-swoole": "Required for coroutine-based connection pooling (Swoole mode)",
+                "flytachi/winter-ppa": "The database layer: repositories, entity mapping, migrations and a coroutine connection pool.",
+                "flytachi/winter-redis": "Pooled Redis: prefixed stores, hashes, lists and streams, with a coroutine-safe connection pool."
             },
             "bin": [
                 "wKernelRunner"
@@ -345,7 +363,7 @@
                 "issues": "https://github.com/flytachi/winter-kernel/issues",
                 "source": "https://github.com/flytachi/winter-kernel"
             },
-            "time": "2026-08-16T13:20:12+00:00"
+            "time": "2026-08-20T12:45:19+00:00"
         },
         {
             "name": "flytachi/winter-logger",
@@ -407,6 +425,138 @@
                 "source": "https://github.com/flytachi/winter-logger"
             },
             "time": "2026-08-17T15:17:19+00:00"
+        },
+        {
+            "name": "flytachi/winter-ppa",
+            "version": "v1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Flytachi/winter-ppa.git",
+                "reference": "26a7f37a493c009c658f19cdebdbc99e2f216e5f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Flytachi/winter-ppa/zipball/26a7f37a493c009c658f19cdebdbc99e2f216e5f",
+                "reference": "26a7f37a493c009c658f19cdebdbc99e2f216e5f",
+                "shasum": ""
+            },
+            "require": {
+                "flytachi/file-store": "^2.0",
+                "flytachi/winter-base": "^3.0",
+                "flytachi/winter-cdo": "^4.0",
+                "flytachi/winter-cpool": "^1.0",
+                "flytachi/winter-di": "^2.0",
+                "php": ">=8.4",
+                "psr/log": "^3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "@stable",
+                "squizlabs/php_codesniffer": "@stable",
+                "swoole/ide-helper": "^6.0"
+            },
+            "suggest": {
+                "ext-pdo": "Required by the CDO driver this layer works through.",
+                "ext-swoole": "Enables the coroutine connection pool; without it one self-maintaining connection per config is used."
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Flytachi\\Winter\\Ppa\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Flytachi",
+                    "email": "jason.khan.x@gmail.com"
+                }
+            ],
+            "description": "PHP Persistence API — a pooled, coroutine-safe data layer for PHP: repositories, entity mapping and schema declarations over CDO.",
+            "homepage": "https://winterframe.net",
+            "keywords": [
+                "connection-pool",
+                "coroutine",
+                "database",
+                "migrations",
+                "mysql",
+                "orm",
+                "php",
+                "postgresql",
+                "repository",
+                "swoole",
+                "winter"
+            ],
+            "support": {
+                "docs": "https://winterframe.net/docs/ppa",
+                "issues": "https://github.com/flytachi/winter-ppa/issues",
+                "source": "https://github.com/flytachi/winter-ppa"
+            },
+            "time": "2026-08-19T18:34:44+00:00"
+        },
+        {
+            "name": "flytachi/winter-redis",
+            "version": "v1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Flytachi/winter-redis.git",
+                "reference": "39281d350b8c2c98e67dc3fa51679735b6bce5fa"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Flytachi/winter-redis/zipball/39281d350b8c2c98e67dc3fa51679735b6bce5fa",
+                "reference": "39281d350b8c2c98e67dc3fa51679735b6bce5fa",
+                "shasum": ""
+            },
+            "require": {
+                "ext-redis": "*",
+                "flytachi/winter-cpool": "^1.0",
+                "php": ">=8.4",
+                "psr/log": "^3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "@stable",
+                "squizlabs/php_codesniffer": "@stable",
+                "swoole/ide-helper": "^6.0"
+            },
+            "suggest": {
+                "ext-swoole": "Enables real connection pooling; without it a single self-maintaining connection is used."
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Flytachi\\Winter\\Redis\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Flytachi",
+                    "email": "jason.khan.x@gmail.com"
+                }
+            ],
+            "description": "Pooled Redis for long-running PHP — coroutine-safe connections, typed stores and an optional PSR-16 adapter.",
+            "homepage": "https://winterframe.net",
+            "keywords": [
+                "cache",
+                "coroutine",
+                "php",
+                "pool",
+                "redis",
+                "swoole",
+                "winter"
+            ],
+            "support": {
+                "docs": "https://winterframe.net/docs/redis",
+                "issues": "https://github.com/flytachi/winter-redis/issues",
+                "source": "https://github.com/flytachi/winter-redis"
+            },
+            "time": "2026-08-19T12:52:15+00:00"
         },
         {
             "name": "flytachi/winter-thread",
