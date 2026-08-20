@@ -20,7 +20,7 @@ final class CacheRegistry
 {
     private static ?SharedCache $tokens = null;
 
-    private static ?SharedCounters $egress = null;
+    private static ?SharedCounters $traffic = null;
 
     private function __construct()
     {
@@ -30,7 +30,7 @@ final class CacheRegistry
     public static function boot(): void
     {
         self::tokens()->create();
-        self::egress()->create();
+        self::traffic()->create();
     }
 
     /**
@@ -47,14 +47,15 @@ final class CacheRegistry
     }
 
     /**
-     * Счётчики отданных байт по бакету.
+     * Счётчики расхода бакетов.
      *
-     * Ключей столько же, сколько бакетов, и живут они до ближайшего слива — 4096 строк
-     * (полезных около 2600) хватает с большим запасом. Переполнение не молчаливое:
-     * {@see SharedCounters::add()} скажет в лог, что учёт по ключу встал.
+     * Ключей четыре на бакет — по одному на метрику, — а Swoole\Table наполняется
+     * примерно на 69% от заявленного. 16384 строки это около 10 600 полезных, то есть
+     * 2 600 бакетов. При переполнении счёт по новому ключу молча встанет, поэтому
+     * {@see SharedCounters::add()} про это говорит в лог.
      */
-    public static function egress(): SharedCounters
+    public static function traffic(): SharedCounters
     {
-        return self::$egress ??= new SharedCounters('egress', 4096);
+        return self::$traffic ??= new SharedCounters('traffic', 16384);
     }
 }

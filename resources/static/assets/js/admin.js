@@ -4,6 +4,8 @@
    обновляет страницу на месте — перезагрузок нет. */
 
 document.addEventListener("DOMContentLoaded", () => {
+  reportTimezone();
+  initChartTips();
   initSidebar();
   initFloatingMenus();
   initDropdowns();
@@ -2270,6 +2272,74 @@ function initImageOptions(box, sourceMime, onApplyAll) {
 /* ============================================================
    Копирование
    ============================================================ */
+
+// Подсказка графика. Родной title показывается через секунду, серой системной
+// плашкой и без цветов рядов — по нему не понять, где какой. Здесь всё сразу и
+// с теми же метками, что в легенде.
+function initChartTips() {
+  const charts = document.querySelectorAll("[data-tchart]");
+  if (!charts.length) return;
+
+  const tip = document.createElement("div");
+  tip.className = "ttip";
+  tip.innerHTML =
+    '<div class="ttip__title"></div>' +
+    '<div class="ttip__row"><span class="ttip__dot" data-dot="a"></span>' +
+    '<span class="ttip__name" data-name="a"></span><span class="ttip__value" data-value="a"></span></div>' +
+    '<div class="ttip__row"><span class="ttip__dot" data-dot="b"></span>' +
+    '<span class="ttip__name" data-name="b"></span><span class="ttip__value" data-value="b"></span></div>';
+  document.body.appendChild(tip);
+
+  const set = (key, col, chart) => {
+    tip.querySelector(`[data-dot="${key}"]`).style.background = chart.dataset[key + "Color"];
+    tip.querySelector(`[data-name="${key}"]`).textContent = chart.dataset[key + "Label"];
+    tip.querySelector(`[data-value="${key}"]`).textContent = col.dataset[key + "Value"];
+  };
+
+  const place = (col) => {
+    const box = col.getBoundingClientRect();
+    const own = tip.getBoundingClientRect();
+    // Держим подсказку в окне: у крайних столбцов она иначе уезжает за край, а у
+    // верхних — под шапку.
+    const left = Math.min(
+      Math.max(8, box.left + box.width / 2 - own.width / 2),
+      window.innerWidth - own.width - 8,
+    );
+    const above = box.top - own.height - 10;
+    tip.style.left = left + "px";
+    tip.style.top = (above < 8 ? box.bottom + 10 : above) + "px";
+  };
+
+  charts.forEach((chart) => {
+    chart.addEventListener("pointerover", (e) => {
+      const col = e.target.closest(".tchart__col");
+      if (!col) return;
+      tip.querySelector(".ttip__title").textContent = col.dataset.title;
+      set("a", col, chart);
+      set("b", col, chart);
+      tip.classList.add("is-open");
+      place(col);
+    });
+    chart.addEventListener("pointermove", (e) => {
+      const col = e.target.closest(".tchart__col");
+      if (col) place(col);
+    });
+    chart.addEventListener("pointerleave", () => tip.classList.remove("is-open"));
+  });
+}
+
+// Сутки в статистике нарезаются по поясу смотрящего, а в базе всё лежит по часам в
+// UTC. Обычная навигация заголовков не шлёт, поэтому пояс кладём в куку — сервер
+// читает её при отрисовке страницы. Заголовок Timezone, который разбирает ядро,
+// остаётся для запросов из скрипта.
+function reportTimezone() {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (!tz) return;
+  if (document.cookie.split("; ").includes("tz=" + tz)) return;
+  document.cookie =
+    "tz=" + tz + "; path=/; max-age=31536000; samesite=strict" +
+    (location.protocol === "https:" ? "; secure" : "");
+}
 
 function initCopy() {
   document.addEventListener("click", (e) => {

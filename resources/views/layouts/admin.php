@@ -52,7 +52,7 @@ $bucketAttrs = $bucket === null ? '' : sprintf(
         <span class="nav-section">Бакет</span>
 
         <!-- Переключатель: раздел при смене бакета сохраняется. -->
-        <div class="cselect" data-bucket-switch data-section="<?= Fmt::e(in_array($nav, ['files', 'tokens', 'links'], true) ? $nav : 'overview') ?>">
+        <div class="cselect" data-bucket-switch data-section="<?= Fmt::e(in_array($nav, ['files', 'tokens', 'links', 'stats'], true) ? $nav : 'overview') ?>">
             <button type="button" class="cselect__btn">
                 <span class="cselect__value">
                     <?php if ($bucket === null): ?>
@@ -92,6 +92,9 @@ $bucketAttrs = $bucket === null ? '' : sprintf(
                 </a>
                 <a class="nav-item <?= $active('links') ?>" href="<?= $base ?>/links">
                     <svg class="icon"><use href="#i-link"/></svg> Ссылки
+                </a>
+                <a class="nav-item <?= $active('stats') ?>" href="<?= $base ?>/stats">
+                    <svg class="icon"><use href="#i-chart"/></svg> Статистика
                 </a>
             </div>
 
@@ -139,9 +142,14 @@ $bucketAttrs = $bucket === null ? '' : sprintf(
                     демо-данные
                 </span>
             <?php else: ?>
-                <span class="mock-note mock-note--live">
-                    <svg class="icon"><use href="#i-database"/></svg>
-                    данные из базы
+                <?php /* Пояс, а не «данные из базы»: последнее верно всегда и потому
+                         ничего не сообщает, а пояс объясняет, почему у даты именно
+                         такое число — его тянет браузер, и он может не совпасть
+                         с поясом сервера. */ ?>
+                <span class="mock-note mock-note--live" data-tz-chip
+                      title="Даты и сутки в статистике показаны в этом поясе. Определяется браузером; в базе всё лежит в UTC.">
+                    <svg class="icon"><use href="#i-clock"/></svg>
+                    <?= Fmt::e(wrData('timezone') ?? 'UTC') ?>
                 </span>
             <?php endif ?>
 

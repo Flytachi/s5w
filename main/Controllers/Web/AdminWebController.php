@@ -6,6 +6,8 @@ namespace Main\Controllers\Web;
 
 use Flytachi\Winter\DI\Attribute\Autowired;
 use Flytachi\Winter\Kernel\Http\Contracts\HttpRequest;
+use Flytachi\Winter\Kernel\Http\Cookie\Cookie;
+use Flytachi\Winter\Kernel\Http\Header;
 use Flytachi\Winter\Kernel\Http\Request\Annotation\PathVariable;
 use Flytachi\Winter\Kernel\Http\Request\Annotation\RequestQuery;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Uuid;
@@ -20,8 +22,10 @@ use Main\Request\BucketListRequest;
 use Main\Request\LinkListRequest;
 use Main\Request\PanelListRequest;
 use Main\Request\TokenListRequest;
+use Main\Request\TrafficRangeRequest;
 use Main\Service\AccessTokenService;
 use Main\Service\BucketService;
+use Main\Service\BucketTrafficService;
 use Main\Service\FileService;
 use Main\Service\FolderService;
 use Main\Service\ShareLinkService;
@@ -50,6 +54,9 @@ final class AdminWebController extends Controller
 
     #[Autowired]
     private ShareLinkService $links;
+
+    #[Autowired]
+    private BucketTrafficService $traffic;
 
     #[GetMapping]
     public function dashboard(): ResponseView
@@ -88,7 +95,14 @@ final class AdminWebController extends Controller
     #[GetMapping('buckets/{id}')]
     public function overview(#[PathVariable, Uuid] string $id): ResponseView
     {
+        $tz = $this->timezone();
+        $month = (new \DateTimeImmutable('now', $tz))->format('Y-m-01');
+        $today = (new \DateTimeImmutable('now', $tz))->format('Y-m-d');
+        $series = $this->traffic->daily($id, $month, $today, $tz->getName());
+
         return $this->bucketPage($id, 'bucket-overview', 'overview', 'сводка по бакету', [
+            'series' => $series,
+            'totals' => $this->traffic->totals($series),
             'folders' => $this->folderViews($id),
             'usage' => $this->buckets->usage($id),
             'placement' => $this->buckets->placement($id),
@@ -96,6 +110,24 @@ final class AdminWebController extends Controller
             'tokenCounts' => $this->tokens->counts($id),
             'linkCounts' => $this->links->counts($id),
         ], withStats: true);
+    }
+
+    #[GetMapping('buckets/{id}/stats')]
+    public function stats(
+        #[PathVariable, Uuid] string $id,
+        #[RequestQuery, Valid] TrafficRangeRequest $request,
+    ): ResponseView {
+        $tz = $this->timezone();
+        [$from, $to] = $request->resolve($tz);
+        $series = $this->traffic->daily($id, $from, $to, $tz->getName());
+
+        return $this->bucketPage($id, 'bucket-stats', 'stats', 'расход бакета по дням', [
+            'series' => $series,
+            'totals' => $this->traffic->totals($series),
+            'from' => $from,
+            'to' => $to,
+            'timezone' => $tz->getName(),
+        ]);
     }
 
     #[GetMapping('buckets/{id}/files')]
@@ -201,8 +233,36 @@ final class AdminWebController extends Controller
         return ResponseView::render('layouts/admin', 'admin/' . $resource, $data + [
             'title' => $title,
             'nav' => $nav,
+            'timezone' => $this->timezone()->getName(),
             'buckets' => $this->switcherBuckets(),
         ]);
+    }
+
+    /**
+     * Часовой пояс, в котором пользователю показываются даты.
+     *
+     * Час в базе записан в UTC, а «20 августа» в UTC и в Ташкенте — разные сутки, так
+     * что пояс решает, как лягут столбики и что написано под каждой датой в панели.
+     * Берём его в трёх попытках: заголовок `Timezone`, который панель шлёт своими
+     * запросами; кука `tz`, которую ставит браузер при первой отрисовке страницы
+     * (обычная навигация заголовков не шлёт); и наконец `TIME_ZONE` окружения.
+     */
+    private function timezone(): \DateTimeZone
+    {
+        $candidates = [
+            Header::get('Timezone'),
+            Header::get('X-Timezone'),
+            Cookie::get('tz'),
+            (string) env('TIME_ZONE', 'UTC'),
+        ];
+
+        foreach ($candidates as $name) {
+            if (is_string($name) && $name !== '' && in_array($name, timezone_identifiers_list(), true)) {
+                return new \DateTimeZone($name);
+            }
+        }
+
+        return new \DateTimeZone('UTC');
     }
 
     private function baseUrl(HttpRequest $http): string

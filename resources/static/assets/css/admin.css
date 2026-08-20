@@ -2785,3 +2785,194 @@ code.inline {
 @media (max-width: 1200px) {
   .grid--overview { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* --- График расхода бакета (рисуется разметкой, без библиотек) ------------- */
+/* Имена с префиксом tchart: в шаблонной части файла уже заняты и .bars, и .chart-box,
+   и пересечение с ними ловилось бы не ошибкой, а поехавшей геометрией.
+
+   Цвета рядов — синий и янтарный. Не из вкуса: пара «синий + оранжевый» остаётся
+   различимой при всех распространённых видах дальтонизма, а прежняя пара brand+temp
+   (#3b5bdb и #7048e8) — два оттенка сине-фиолетового, они сливались и у людей с
+   обычным зрением. */
+
+.tchart-wrap { display: flex; gap: 12px; }
+
+.tchart-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: var(--tchart-h, 180px);
+  padding-bottom: 22px;          /* место под подписи дней */
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--gray-5);
+  white-space: nowrap;
+  text-align: right;
+  flex: 0 0 auto;
+}
+
+.tchart {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: var(--tchart-h, 180px);
+  padding-bottom: 22px;
+}
+
+/* Сетка рисуется фоном самого поля, а не элементами: столбики должны лежать
+   поверх линий, и лишние узлы под каждым делением тут ни к чему. */
+.tchart::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 22px 0;
+  background-image: repeating-linear-gradient(
+    to top,
+    var(--gray-3) 0 1px,
+    transparent 1px 25%
+  );
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.tchart__col {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  cursor: default;
+}
+/* Подсветка колонки целиком, а не столбика: попасть мышью в столбик высотой
+   в три пикселя нельзя, а в колонку — всегда. */
+.tchart__col::before {
+  content: "";
+  position: absolute;
+  inset: -6px -1px 16px -1px;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+.tchart__col:hover::before { opacity: 1; }
+
+.tchart__stack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+  border-radius: 5px 5px 0 0;
+  overflow: hidden;
+}
+
+.tchart__bar { width: 100%; }
+/* Ненулевое значение обязано быть видно. Без этого день с одним скачиванием на фоне
+   миллиона рисуется в ноль пикселей и читается как «ничего не было», что неправда. */
+.tchart__bar--set { min-height: 3px; }
+.tchart__bar--out { background: var(--brand); }
+.tchart__bar--in  { background: var(--chart-4); }
+.tchart__col:hover .tchart__bar--out { background: var(--brand-600); }
+.tchart__col:hover .tchart__bar--in  { background: #d98600; }
+
+/* Пустой день: тонкая риска по базовой линии — чтобы день читался как прожитый,
+   а не как дырка в оси. */
+.tchart__zero {
+  height: 2px;
+  background: var(--gray-3);
+  border-radius: 2px;
+}
+
+.tchart__label {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--gray-5);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tchart-empty {
+  height: var(--tchart-h, 180px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  background: var(--gray-2);
+  color: var(--gray-5);
+  font-size: 0.85rem;
+}
+
+/* --- Подсказка графика ------------------------------------------------------ */
+
+.ttip {
+  position: fixed;
+  z-index: 120;
+  min-width: 172px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--dark);
+  color: var(--white);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.ttip.is-open { opacity: 1; transform: translateY(0); }
+.ttip__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-4);
+  margin-bottom: 7px;
+}
+.ttip__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+.ttip__dot { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
+.ttip__name { color: var(--gray-3); }
+.ttip__value { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.legend__hint { color: var(--gray-5); font-weight: 400; }
+
+/* --- Строка выбора периода --------------------------------------------------- */
+/* Управление, а не содержимое: карточки вокруг нет намеренно — рамка съедала высоту
+   у графиков, ради которых на страницу и приходят. */
+
+.drange {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+.drange__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--gray-6);
+  margin-right: 2px;
+}
+.drange__dash { color: var(--gray-5); }
+/* Поле даты ровно под своё содержимое: у type="date" ширина по умолчанию тянется
+   на всю строку и разгоняет ряд. */
+.drange__date { width: auto; min-width: 0; flex: 0 0 auto; }
+.drange__spacer { flex: 1 1 auto; }
+
+@media (max-width: 720px) {
+  .drange__spacer { flex-basis: 100%; height: 0; }
+}

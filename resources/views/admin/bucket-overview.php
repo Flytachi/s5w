@@ -2,6 +2,7 @@
 
 use Main\Dto\ExtUsage;
 use Main\Web\Fmt;
+use Main\Web\TrafficChart;
 
 $base = '/admin/ui/buckets/' . $bucket->id;
 
@@ -19,6 +20,10 @@ $dedup = max(0, $bucket->files - $bucket->blobs);
 
 $circle = 2 * M_PI * 54;
 $offset = 0;
+
+$chart = TrafficChart::of($series);
+$monthName = ['', 'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+    'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'][(int) date('n')];
 ?>
 
 <div class="grid grid--3 mb-3">
@@ -106,6 +111,54 @@ $offset = 0;
             и <span class="mono">/t</span> отдаётся <span class="mono">private</span>.</div>
     </div>
 </div>
+
+<div class="card mb-3">
+    <div class="card__header">
+        <div class="card__title">Расход за <?= Fmt::e($monthName) ?></div>
+        <div class="card__spacer"></div>
+        <a class="text-sm text-muted" href="<?= $base ?>/stats">за период →</a>
+    </div>
+
+    <?php if ($chart->isEmpty()): ?>
+        <div class="tchart-empty" style="--tchart-h: 240px">В этом месяце бакет ещё ничего не отдавал и не принимал</div>
+    <?php else: ?>
+        <div class="tchart-wrap" style="--tchart-h: 240px">
+            <div class="tchart-axis">
+                <?php foreach ($chart->grid as $line): ?><span><?= Fmt::e($line) ?></span><?php endforeach; ?>
+                <span>0</span>
+            </div>
+            <div class="tchart" data-tchart
+                 data-a-label="<?= Fmt::e($chart->topLabel) ?>" data-a-color="var(--brand)"
+                 data-b-label="<?= Fmt::e($chart->bottomLabel) ?>" data-b-color="var(--chart-4)">
+                <?php foreach ($chart->columns as $col): ?>
+                    <div class="tchart__col" data-title="<?= Fmt::e($col->dayTitle) ?>"
+                         data-a-value="<?= Fmt::e($col->topValue) ?>" data-b-value="<?= Fmt::e($col->bottomValue) ?>">
+                        <div class="tchart__stack">
+                            <?php if ($col->isEmpty): ?>
+                                <div class="tchart__zero"></div>
+                            <?php else: ?>
+                                <?php if ($col->bottomPercent > 0): ?>
+                                    <div class="tchart__bar tchart__bar--in tchart__bar--set" style="height: <?= $col->bottomPercent ?>%"></div>
+                                <?php endif; ?>
+                                <?php if ($col->topPercent > 0): ?>
+                                    <div class="tchart__bar tchart__bar--out tchart__bar--set" style="height: <?= $col->topPercent ?>%"></div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                        <span class="tchart__label"><?= Fmt::e($col->label) ?></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <div class="legend mt-2">
+        <span class="legend__item"><span class="legend__swatch" style="background: var(--brand)"></span>
+            Egress <span class="legend__hint">· исходящий</span> <b><?= Fmt::bytes($totals->egress) ?></b></span>
+        <span class="legend__item"><span class="legend__swatch" style="background: var(--chart-4)"></span>
+            Ingress <span class="legend__hint">· входящий</span> <b><?= Fmt::bytes($totals->ingress) ?></b></span>
+        <span class="legend__item legend__hint"><?= Fmt::num($totals->deliveries) ?> <?= Fmt::plural($totals->deliveries, 'запрос', 'запроса', 'запросов') ?> к раздаче</span>
+    </div>
 
 <div class="grid grid--overview mb-3">
     <div class="card">

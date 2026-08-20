@@ -11,7 +11,7 @@ use Main\Enum\CacheVisibility;
 final class BucketRes
 {
     /**
-     * @param array{quota: int, used: int, free: int, egress: int} $bytes
+     * @param array{quota: int, used: int, free: int} $bytes
      * @param array{id: int, name: string} $status
      * @param array{maxAge: int|null, visibility: array{id: int, name: string}} $cache
      */
@@ -36,7 +36,6 @@ final class BucketRes
             bytes: [
                 'quota' => $model->quota_bytes,
                 'used' => $model->used_bytes,
-                'egress' => $model->egress_bytes,
                 'free' => max(0, $model->quota_bytes - $model->used_bytes),
             ],
             status: BucketStatus::from($model->status)->toArray(),

@@ -50,7 +50,7 @@ final class DeliveryService
     private ShareLinkService $links;
 
     #[Autowired]
-    private EgressMeter $egress;
+    private TrafficMeter $traffic;
 
     public function public(string $bucketId, string $slug, bool $download): ResponseStreamFile
     {
@@ -151,6 +151,11 @@ final class DeliveryService
             throw new \RuntimeException("File content is missing from storage, file {$file->id}");
         }
 
+        // Обращение засчитывается здесь — запрос дошёл до файла, а пойдёт содержимое
+        // или уйдёт 304, ещё неизвестно. Ненайденные файлы сюда не доходят и не
+        // считаются: это не нагрузка на раздачу, а промах по имени.
+        $this->traffic->deliveryHit($bucket->id);
+
         return ResponseStreamFile::open(
             $this->store->blobPath($bucket->id, $blob->hash),
             isAttachment: $download || !$this->isInline($file),
@@ -163,11 +168,13 @@ final class DeliveryService
             // no-store, immutable. Заголовок пишется после вычисленного и перекрывает его.
             ->header('Cache-Control', $cacheControl)
             ->acceptRanges($acceptRanges)
-            // Крючок один на всех, а дел у него два: считать трафик — всегда, списывать
-            // скачивание — только у лимитированной ссылки. Аргумент это длина тела,
+            // Крючок один на всех, а дел у него два: считать байты — когда они пошли,
+            // списывать скачивание — только у лимитированной ссылки. Само обращение
+            // считается не здесь: сюда не доходят ни 304, ни HEAD, ни 416, а запрос
+            // при этом был. Аргумент это длина тела,
             // которую объявит Content-Length: у 206 размер куска, а не файла.
             ->beforeSend(function (int $bytes) use ($bucket, $onServe): void {
-                $this->egress->count($bucket->id, $bytes);
+                $this->traffic->egress($bucket->id, $bytes);
                 if ($onServe !== null) {
                     $onServe();
                 }

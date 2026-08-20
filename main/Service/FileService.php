@@ -34,6 +34,9 @@ use Main\Support\Slug;
 #[Singleton]
 final class FileService
 {
+    #[Autowired]
+    private TrafficMeter $traffic;
+
     private const int NAME_ATTEMPTS = 10;
 
     private const int NAME_LIMIT = 255;
@@ -66,6 +69,10 @@ final class FileService
         if (!is_string($tmpPath) || !is_file($tmpPath)) {
             ClientError::throw('No file was uploaded', HttpCode::BAD_REQUEST);
         }
+
+        // Считаем принятое, а не сохранённое: у дубликата содержимого хранение не
+        // вырастет ни на байт, а канал потрачен полностью.
+        $this->traffic->ingress($bucketId, (int) filesize($tmpPath));
 
         return $this->ingest($bucketId, $tmpPath, (string) ($upload['name'] ?? ''), $request, $baseUrl);
     }

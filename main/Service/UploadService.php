@@ -51,6 +51,9 @@ final class UploadService
     private BucketRepository $buckets;
 
     #[Autowired]
+    private TrafficMeter $traffic;
+
+    #[Autowired]
     private FolderRepository $folders;
 
     #[Autowired]
@@ -143,6 +146,11 @@ final class UploadService
         if ($length === 0) {
             ClientError::throw('Chunk is empty', HttpCode::BAD_REQUEST);
         }
+
+        // Канал потрачен независимо от того, чем кончится загрузка: кусок уже принят,
+        // а сессию могут и бросить. Именно это входящий трафик и должен показывать —
+        // по `used_bytes` брошенная загрузка не видна вовсе.
+        $this->traffic->ingress($bucketId, $length);
         if ($length > self::CHUNK_MAX) {
             ClientError::throw(
                 sprintf('Chunk is too large: %d bytes, the limit is %d', $length, self::CHUNK_MAX),

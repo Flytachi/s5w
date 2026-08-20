@@ -17,6 +17,7 @@ use Main\Enum\TokenStatus;
 use Main\Cacheable\TokenCache;
 use Main\Entity\AccessToken;
 use Main\Http\BucketContext;
+use Main\Service\TrafficMeter;
 use Main\Repository\AccessTokenRepository;
 use Main\Support\TokenGenerator;
 
@@ -33,6 +34,9 @@ class AccessTokenMiddleware extends Middleware
 
     #[Autowired]
     private TokenCache $cache;
+
+    #[Autowired]
+    private TrafficMeter $traffic;
 
     public function before(HttpRequest $request, HttpResponse $response): void
     {
@@ -70,6 +74,10 @@ class AccessTokenMiddleware extends Middleware
         }
 
         $this->touch($model);
+        // Приватная выдача `/p/{slug}` предъявляет токен и отдаёт файл, поэтому попадёт
+        // и сюда, и в счётчик раздачи. Это не двойной учёт: числа отвечают на разные
+        // вопросы и складывать их в одно не предполагается.
+        $this->traffic->apiHit($model->bucket_id);
         $this->context->setToken($model);
     }
 

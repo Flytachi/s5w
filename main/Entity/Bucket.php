@@ -35,16 +35,6 @@ class Bucket
     #[BigInteger]
     public int $used_bytes = 0;
 
-    /**
-     * Сколько байт бакет отдал наружу за всё время.
-     *
-     * Единственный ресурс сервиса, который не был ограничен и не был виден: хранение
-     * держит {@see $quota_bytes}, диск — резерв в UploadService, а трафик не считал
-     * никто. Копится в общей памяти и сливается сюда пачкой — см. {@see \Main\Service\EgressMeter}.
-     */
-    #[BigInteger]
-    public int $egress_bytes = 0;
-
     #[SmallInteger]
     #[CheckEnum(BucketStatus::class)]
     public int $status = BucketStatus::CREATED->value;

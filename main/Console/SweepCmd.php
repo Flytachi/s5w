@@ -14,6 +14,7 @@ use Main\Sweeper\OrphanDirSweeper;
 use Main\Sweeper\QuotaReconciler;
 use Main\Sweeper\RetentionSweeper;
 use Main\Sweeper\ShareLinkSweeper;
+use Main\Sweeper\TrafficSweeper;
 use Main\Sweeper\UploadSweeper;
 
 final class SweepCmd extends Cmd
@@ -41,6 +42,9 @@ final class SweepCmd extends Cmd
     #[Autowired]
     private UploadSweeper $uploads;
 
+    #[Autowired]
+    private TrafficSweeper $traffic;
+
     public function handle(): void
     {
         $only = $this->args['arguments'][1] ?? 'all';
@@ -56,6 +60,7 @@ final class SweepCmd extends Cmd
             'dirs' => fn() => $this->dirs->sweep($this->forced()),
             'quota' => fn() => $this->quota->sweep(),
             'uploads' => fn() => $this->uploads->sweep(),
+            'traffic' => fn() => $this->traffic->sweep(),
         ];
 
         if ($only !== 'all' && !isset($jobs[$only])) {
@@ -79,6 +84,6 @@ final class SweepCmd extends Cmd
 
     public static function help(): void
     {
-        self::printInfo('call sc main.Console.SweepCmd [retention|links|blobs|blobs-disk|dirs|quota|uploads] [--force]');
+        self::printInfo('call sc main.Console.SweepCmd [retention|links|blobs|blobs-disk|dirs|quota|uploads|traffic] [--force]');
     }
 }
