@@ -19,6 +19,7 @@ use Main\Dto\FolderCounts;
 use Main\Dto\GroupCount;
 use Main\Dto\PlacementCounts;
 use Main\Entity\Bucket;
+use Main\Cacheable\TokenCache;
 use Main\Enum\BucketStatus;
 use Main\Enum\CacheVisibility;
 use Main\Enum\Retention;
@@ -36,6 +37,9 @@ use Main\Web\BucketView;
 #[Singleton]
 final class BucketService
 {
+    #[Autowired]
+    private TokenCache $tokenCache;
+
     #[Autowired]
     private BucketRepository $repo;
 
@@ -297,6 +301,10 @@ final class BucketService
             ['status' => BucketStatus::PENDING->value, 'updated_at' => date('Y-m-d H:i:s P')],
             Qb::eq('id', $id),
         );
+        // Токены бакета уходят каскадом в базе, но кэш по бакету не индексирован —
+        // а токен удалённого бакета, живущий ещё минуту, это доступ к тому, чего нет.
+        // Выбрасываем всё: токенов немного, а удаление бакета редкое.
+        $this->tokenCache->flush();
         $this->provisioner->purge($id);
     }
 }

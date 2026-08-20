@@ -6,6 +6,7 @@ use Flytachi\Winter\Kernel\App\ApplicationArguments;
 use Flytachi\Winter\Kernel\App\Config\Profile;
 use Flytachi\Winter\Kernel\App\Config\ServerSettings;
 use Flytachi\Winter\Kernel\App\Config\WebConfigurerAdapter;
+use Main\Cacheable\CacheRegistry;
 use Main\Service\UploadService;
 
 class WebConfiguration extends WebConfigurerAdapter
@@ -26,6 +27,11 @@ class WebConfiguration extends WebConfigurerAdapter
 
     public function configureServer(ServerSettings $server, ApplicationArguments $args): void
     {
+        // Общая память под кэши отводится здесь, потому что это последняя точка перед
+        // запуском сервера: Swoole\Table, созданная после форка, достаётся одному
+        // воркеру, и отзыв токена в нём до остальных не дошёл бы.
+        CacheRegistry::boot();
+
         // Запрос здесь тяжёлый: кусок загрузки — это мегабайты в куче, обработка
         // картинки — ещё столько же. Профиль отвечает ровно на этот вопрос и уже из
         // ответа выводит потолок одновременных запросов, размер пула соединений и то,

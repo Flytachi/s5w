@@ -49,6 +49,9 @@ final class DeliveryService
     #[Autowired]
     private ShareLinkService $links;
 
+    #[Autowired]
+    private EgressMeter $egress;
+
     public function public(string $bucketId, string $slug, bool $download): ResponseStreamFile
     {
         $file = $this->findBySlug($bucketId, $slug);
@@ -160,7 +163,15 @@ final class DeliveryService
             // no-store, immutable. Заголовок пишется после вычисленного и перекрывает его.
             ->header('Cache-Control', $cacheControl)
             ->acceptRanges($acceptRanges)
-            ->beforeSend($onServe);
+            // Крючок один на всех, а дел у него два: считать трафик — всегда, списывать
+            // скачивание — только у лимитированной ссылки. Аргумент это длина тела,
+            // которую объявит Content-Length: у 206 размер куска, а не файла.
+            ->beforeSend(function (int $bytes) use ($bucket, $onServe): void {
+                $this->egress->count($bucket->id, $bytes);
+                if ($onServe !== null) {
+                    $onServe();
+                }
+            });
     }
 
     private function isInline(FileEntry $file): bool

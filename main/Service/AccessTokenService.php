@@ -17,6 +17,7 @@ use Main\Dto\CheckRes;
 use Main\Dto\TokenCounts;
 use Main\Entity\AccessToken;
 use Main\Enum\TokenAccess;
+use Main\Cacheable\TokenCache;
 use Main\Enum\TokenStatus;
 use Main\Repository\AccessTokenRepository;
 use Main\Request\AccessTokenRequest;
@@ -27,6 +28,9 @@ use Main\Support\TokenGenerator;
 #[Singleton]
 final class AccessTokenService
 {
+    #[Autowired]
+    private TokenCache $cache;
+
     #[Autowired]
     private AccessTokenRepository $repo;
 
@@ -155,12 +159,16 @@ final class AccessTokenService
         $token = $this->get($bucketId, $id);
         $generated = TokenGenerator::generate();
 
+        $previous = $token->hash;
         $token->hash = $generated['hash'];
         $token->tail = $generated['tail'];
         $this->repo->update(
             ['hash' => $token->hash, 'tail' => $token->tail],
             Qb::eq('id', $token->id),
         );
+        // Ротация выдаёт новый секрет взамен старого; старый обязан перестать работать
+        // сейчас, а не по истечении срока жизни кэша.
+        $this->cache->forget($previous);
 
         return new AccessTokenSecretRes($generated['token'], AccessTokenRes::from($token));
     }
@@ -174,6 +182,7 @@ final class AccessTokenService
 
         $token->status = $status->value;
         $this->repo->update(['status' => $token->status], Qb::eq('id', $token->id));
+        $this->cache->forget($token->hash);
 
         return AccessTokenRes::from($token);
     }
@@ -182,6 +191,7 @@ final class AccessTokenService
     {
         $token = $this->get($bucketId, $id);
         $this->repo->delete(Qb::eq('id', $token->id));
+        $this->cache->forget($token->hash);
     }
 
     private function expiryFrom(?int $days): ?string
