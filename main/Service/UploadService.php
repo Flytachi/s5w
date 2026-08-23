@@ -11,6 +11,7 @@ use Flytachi\Winter\DI\Attribute\Singleton;
 use Flytachi\Winter\Kernel\Exception\ClientError;
 use Flytachi\Winter\Kernel\Exception\ServerError;
 use Main\Dto\FileRes;
+use Main\Dto\UploadCounts;
 use Main\Dto\UploadRes;
 use Main\Entity\Upload;
 use Main\Enum\ImageFormat;
@@ -286,6 +287,17 @@ final class UploadService
     }
 
     /** @return int число снятых сессий */
+    public function counts(): UploadCounts
+    {
+        return $this->repo
+            ->select(
+                'count(*) AS total,'
+                . ' coalesce(sum(offset_bytes), 0)::bigint AS staged,'
+                . ' count(*) FILTER (WHERE expires_at <= now()) AS expired'
+            )
+            ->find(UploadCounts::class) ?? new UploadCounts();
+    }
+
     public function purgeExpired(int $limit): int
     {
         $expired = $this->repo

@@ -246,16 +246,19 @@ final class ShareLinkService
     }
 
     /** @return array{total: int, active: int, revoked: int, expired: int} */
-    public function counts(string $bucketId): array
+    public function counts(?string $bucketId = null): array
     {
-        $row = $this->repo
+        $query = $this->repo
             ->select(
                 'count(*) AS total,'
                 . ' count(*) FILTER (WHERE ' . self::ALIVE . ') AS active,'
                 . ' count(*) FILTER (WHERE revoked) AS revoked,'
                 . ' count(*) FILTER (WHERE NOT revoked AND expires_at <= now()) AS expired'
-            )
-            ->findBy(Qb::eq('bucket_id', $bucketId), LinkCounts::class) ?? new LinkCounts();
+            );
+
+        $row = ($bucketId === null
+            ? $query->find(LinkCounts::class)
+            : $query->findBy(Qb::eq('bucket_id', $bucketId), LinkCounts::class)) ?? new LinkCounts();
 
         return [
             'total' => $row->total,

@@ -1,151 +1,199 @@
 <?php
 
+use Main\Dto\TrafficBucket;
+use Main\Web\BucketView;
 use Main\Web\Fmt;
+use Main\Web\TrafficChart;
+use Main\Web\Trend;
 
+$chart = TrafficChart::of($series, 'bytes');
 
-[$usedPercent, $usedState] = Fmt::quotaState($overview['used'], $overview['quota']);
+$egressTrend = Trend::of($series, static fn($day) => $day->egress);
+$hitsTrend = Trend::of($series, static fn($day) => $day->deliveries);
 
-// спарклайн загрузок: точки считаем здесь, чтобы на клиенте не было библиотек
-$series = $overview['uploads'];
-$max = max($series) ?: 1;
-$stepX = 100 / (count($series) - 1);
-$points = [];
-foreach ($series as $i => $value) {
-    $points[] = sprintf('%.2f,%.2f', $i * $stepX, 30 - $value / $max * 26);
-}
-$line = implode(' ', $points);
-$area = "0,30 {$line} 100,30";
+[$usedPercent, $usedState] = Fmt::quotaState($counts->used, $counts->quota);
+$free = max(0, $counts->quota - $counts->used);
+
+$topEgress = $top === [] ? 0 : max(array_map(static fn(TrafficBucket $row) => $row->egress, $top));
+
+$quietShown = array_slice($quiet, 0, 4);
+$quietRest = count($quiet) - count($quietShown);
+
+$days = $window . ' ' . Fmt::plural($window, 'день', 'дня', 'дней');
+
+$delta = static function (Trend $trend): string {
+    if (!$trend->known) {
+        return '<span class="metric__delta metric__delta--flat">' . Fmt::e($trend->label()) . '</span>';
+    }
+
+    return '<span class="metric__delta metric__delta--' . ($trend->up() ? 'up' : 'down') . '">'
+        . '<svg class="icon icon--sm"><use href="#i-trending"/></svg> ' . Fmt::e($trend->label()) . '</span>';
+};
 ?>
 
-<div class="grid grid--4 mb-3">
-    <div class="card">
-        <div class="metric">
-            <span class="metric__label">Бакетов</span>
-            <span class="metric__value"><?= $overview['buckets'] ?></span>
-            <span class="metric__delta metric__delta--up">
-                <svg class="icon icon--sm"><use href="#i-trending"/></svg> +1 за неделю
-            </span>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="metric">
-            <span class="metric__label">Файлов</span>
-            <span class="metric__value"><?= Fmt::num($overview['files']) ?></span>
-            <span class="metric__delta metric__delta--up">
-                <svg class="icon icon--sm"><use href="#i-trending"/></svg> +410 за сутки
-            </span>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="metric">
-            <span class="metric__label">Блобов</span>
-            <span class="metric__value"><?= Fmt::num($overview['blobs']) ?></span>
-            <span class="metric__delta metric__delta--up">
-                <svg class="icon icon--sm"><use href="#i-layers"/></svg>
-                <?= Fmt::num($overview['files'] - $overview['blobs']) ?> <?= Fmt::plural($overview['files'] - $overview['blobs'], 'дубль', 'дубля', 'дублей') ?> свёрнуто
-            </span>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="metric">
-            <span class="metric__label">Сэкономлено дедупликацией</span>
-            <span class="metric__value"><?= Fmt::bytes($overview['saved']) ?></span>
-            <span class="metric__delta metric__delta--up">
-                <svg class="icon icon--sm"><use href="#i-check-circle"/></svg> квота не тратится
-            </span>
-        </div>
-    </div>
-</div>
-
-<div class="grid grid--2 mb-3">
-    <div class="card card--dark">
+<div class="dashtop mb-3">
+    <div class="card card--brand">
         <div class="card__header">
-            <div>
-                <div class="card__title" style="color:#fff">Занято места</div>
-                <div class="card__subtitle">по всем бакетам</div>
-            </div>
+            <div class="card__title">Место</div>
             <div class="card__spacer"></div>
-            <span class="tone <?= $usedState === 'is-danger' ? 'tone--danger' : ($usedState === 'is-warn' ? 'tone--warn' : 'tone--ok') ?>">
-                <?= round($usedPercent) ?>% квоты
-            </span>
+            <span class="tone"><?= round($usedPercent) ?>% квоты</span>
         </div>
 
-        <div class="stat-hero">
-            <div class="stat-hero__num"><?= Fmt::bytes($overview['used']) ?></div>
-            <div class="stat-hero__sep"></div>
-            <div class="stat-hero__label">из <?= Fmt::bytes($overview['quota']) ?> выделенных</div>
+        <div class="usage">
+            <div class="usage__part">
+                <span class="usage__label">Занято</span>
+                <span class="usage__value"><?= Fmt::bytes($counts->used) ?></span>
+            </div>
+            <div class="usage__sep"></div>
+            <div class="usage__part">
+                <span class="usage__label">Свободно</span>
+                <span class="usage__value usage__value--free"><?= Fmt::bytes($free) ?></span>
+            </div>
         </div>
 
         <div class="quota <?= $usedState ?>">
             <div class="quota__bar"><div class="quota__fill" style="width: <?= $usedPercent ?>%"></div></div>
-        </div>
-
-        <div class="mt-3">
-            <div class="text-sm text-muted mb-1">Загрузки за две недели</div>
-            <svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none">
-                <defs>
-                    <linearGradient id="spark-grad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="rgba(255,255,255,.35)"/>
-                        <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-                    </linearGradient>
-                </defs>
-                <polygon class="spark__area" points="<?= $area ?>"/>
-                <polyline class="spark__line" style="stroke:#fff" points="<?= $line ?>"/>
-            </svg>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card__header">
-            <div>
-                <div class="card__title">Что лежит</div>
-                <div class="card__subtitle">по типам содержимого</div>
+            <div class="quota__meta">
+                <span>выделено <?= Fmt::bytes($counts->quota) ?></span>
+                <span><?= Fmt::num($counts->total) ?> <?= Fmt::plural($counts->total, 'бакет', 'бакета', 'бакетов') ?></span>
             </div>
         </div>
 
-        <div class="split mt-2">
-            <?php foreach ($overview['types'] as $type): ?>
-                <div class="split__part split__part--<?= $type['kind'] ?>" style="width: <?= $type['share'] ?>%"></div>
-            <?php endforeach ?>
+        <?php if ($counts->full > 0): ?>
+            <div class="mt-2">
+                <span class="tone">
+                    <svg class="icon"><use href="#i-alert-triangle"/></svg>
+                    <?= Fmt::num($counts->full) ?> <?= Fmt::plural($counts->full, 'бакет', 'бакета', 'бакетов') ?> у предела
+                </span>
+            </div>
+        <?php endif; ?>
+
+        <?php /* Экономия дедупликацией — про место, а не про трафик, и стоять ей
+                 рядом с занятым, а не в ряду с egress. */ ?>
+        <div class="text-sm mt-3">
+            Дедупликация бережёт <b><?= Fmt::bytes($blobs->saved) ?></b>
+            — <?= round($blobs->ratio()) ?>% от того, что легло бы без неё
+        </div>
+    </div>
+
+    <div class="grid grid--2">
+        <div class="card">
+            <div class="metric">
+                <span class="metric__label">Egress за <?= Fmt::e($days) ?></span>
+                <span class="metric__value"><?= Fmt::bytes($totals->egress) ?></span>
+                <?= $delta($egressTrend) ?>
+            </div>
         </div>
 
-        <div class="stack mt-3">
-            <?php foreach ($overview['types'] as $type): ?>
-                <div class="row" style="gap: 10px">
-                    <span class="legend__swatch" style="background: var(--<?= match ($type['kind']) {
-                        'image' => 'brand', 'video' => 'temp', 'audio' => 'ok', 'doc' => 'warn', default => 'gray-4',
-                    } ?>)"></span>
-                    <span class="text-sm" style="font-weight:500"><?= Fmt::e($type['label']) ?></span>
-                    <span class="ml-auto text-sm text-muted"><?= Fmt::bytes($type['bytes']) ?></span>
-                    <b class="text-sm nowrap" style="width:38px; text-align:right"><?= $type['share'] ?>%</b>
-                </div>
-            <?php endforeach ?>
-        </div>
-
-        <hr class="divider">
-
-        <div class="card__title mb-2" style="font-size:.95rem">Отдача по каналам</div>
-        <div class="stack">
-            <?php foreach ($overview['channels'] as $channel): ?>
-                <div class="row" style="gap: 10px">
-                    <span class="tone chan chan--<?= $channel['channel'] ?>">/<?= $channel['channel'] ?></span>
-                    <span class="text-sm"><?= Fmt::e($channel['label']) ?></span>
-                    <span class="ml-auto text-sm text-muted"><?= Fmt::num($channel['hits']) ?> <?= Fmt::plural($channel['hits'], 'запрос', 'запроса', 'запросов') ?></span>
-                </div>
-            <?php endforeach ?>
+        <div class="card">
+            <div class="metric">
+                <span class="metric__label">Запросов к раздаче за <?= Fmt::e($days) ?></span>
+                <span class="metric__value"><?= Fmt::num($totals->deliveries) ?></span>
+                <?= $delta($hitsTrend) ?>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="grid grid--2">
+<div class="card mb-3">
+    <div class="card__header">
+        <div>
+            <div class="card__title">Трафик</div>
+            <div class="card__subtitle">все бакеты, <?= Fmt::e($from) ?> — <?= Fmt::e($to) ?></div>
+        </div>
+    </div>
+
+    <?php if ($chart->isEmpty()): ?>
+        <div class="tchart-empty" style="--tchart-h: 240px">За этот период трафика не было</div>
+    <?php else: ?>
+        <div class="tchart-wrap" style="--tchart-h: 240px">
+            <div class="tchart-axis">
+                <?php foreach ($chart->grid as $line): ?><span><?= Fmt::e($line) ?></span><?php endforeach; ?>
+                <span>0</span>
+            </div>
+            <div class="tchart" data-tchart
+                 data-a-label="<?= Fmt::e($chart->topLabel) ?>" data-a-color="var(--brand)"
+                 data-b-label="<?= Fmt::e($chart->bottomLabel) ?>" data-b-color="var(--chart-4)">
+                <?php foreach ($chart->columns as $col): ?>
+                    <div class="tchart__col" data-title="<?= Fmt::e($col->dayTitle) ?>"
+                         data-a-value="<?= Fmt::e($col->topValue) ?>" data-b-value="<?= Fmt::e($col->bottomValue) ?>">
+                        <div class="tchart__stack">
+                            <?php if ($col->isEmpty): ?>
+                                <div class="tchart__zero"></div>
+                            <?php else: ?>
+                                <?php if ($col->bottomPercent > 0): ?>
+                                    <div class="tchart__bar tchart__bar--in tchart__bar--set" style="height: <?= $col->bottomPercent ?>%"></div>
+                                <?php endif; ?>
+                                <?php if ($col->topPercent > 0): ?>
+                                    <div class="tchart__bar tchart__bar--out tchart__bar--set" style="height: <?= $col->topPercent ?>%"></div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                        <span class="tchart__label"><?= Fmt::e($col->label) ?></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <div class="legend mt-2">
+        <span class="legend__item"><span class="legend__swatch" style="background: var(--brand)"></span>
+            <?= Fmt::e($chart->topLabel) ?> <span class="legend__hint">· <?= Fmt::e($chart->topHint) ?></span></span>
+        <span class="legend__item"><span class="legend__swatch" style="background: var(--chart-4)"></span>
+            <?= Fmt::e($chart->bottomLabel) ?> <span class="legend__hint">· <?= Fmt::e($chart->bottomHint) ?></span></span>
+        <?php if (!$chart->isEmpty()): ?>
+            <span class="legend__item legend__hint">пик за сутки — <?= Fmt::e($chart->peakLabel()) ?></span>
+            <span class="legend__item legend__hint">в среднем на отдачу — <?= Fmt::bytes($totals->averageServed()) ?></span>
+            <span class="legend__item legend__hint">запросов с токеном — <?= Fmt::num($totals->api) ?></span>
+        <?php endif; ?>
+    </div>
+</div>
+
+<div class="grid grid--2 mb-3">
+    <div class="card" style="display: flex; flex-direction: column">
+        <div class="card__header">
+            <div>
+                <div class="card__title">Кто ест канал</div>
+                <div class="card__subtitle">по исходящему за <?= Fmt::e($days) ?><?php if ($topTotal > count($top)): ?>,
+                    первые <?= Fmt::num(count($top)) ?> из <?= Fmt::num($topTotal) ?><?php endif; ?></div>
+            </div>
+        </div>
+
+        <?php if ($top === []): ?>
+            <p class="text-sm text-muted mt-3">За этот период ни один бакет ничего не отдавал.</p>
+        <?php else: ?>
+            <div class="tbrank mt-2">
+                <?php foreach ($top as $row): ?>
+                    <a class="tbrank__row" href="/admin/ui/buckets/<?= Fmt::e($row->bucket_id) ?>/stats">
+                        <span class="tbrank__name"><?= Fmt::e($row->name) ?></span>
+                        <span class="tbrank__value"><?= Fmt::bytes($row->egress) ?></span>
+                        <span class="tbrank__meter">
+                            <i style="width: <?= $topEgress > 0 ? round($row->egress / $topEgress * 100, 2) : 0 ?>%"></i>
+                        </span>
+                        <span class="tbrank__meta">
+                            <?= Fmt::num($row->deliveries) ?> <?= Fmt::plural($row->deliveries, 'отдача', 'отдачи', 'отдач') ?>
+                            <span class="dot-sep"></span><?= Fmt::bytes($row->averageServed()) ?> на отдачу
+                            <span class="dot-sep"></span>принято <?= Fmt::bytes($row->ingress) ?>
+                        </span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($quiet !== []): ?>
+            <div class="text-sm text-muted" style="margin-top: auto; padding-top: 18px">
+                Молчали: <?= Fmt::e(implode(', ', $quietShown)) ?><?php if ($quietRest > 0): ?>
+                    и ещё <?= Fmt::num($quietRest) ?><?php endif; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+
     <div class="card">
         <div class="card__header">
             <div>
-                <div class="card__title">Бакеты</div>
-                <div class="card__subtitle">заполнение квоты</div>
+                <div class="card__title">Заполнение квоты</div>
+                <div class="card__subtitle">самые полные
+                    <?= Fmt::num(count($fill)) ?> из <?= Fmt::num($fillTotal) ?></div>
             </div>
             <div class="card__spacer"></div>
             <a class="btn btn--ghost btn--sm" href="/admin/ui/buckets">
@@ -153,55 +201,74 @@ $area = "0,30 {$line} 100,30";
             </a>
         </div>
 
-        <div class="stack mt-2">
-            <?php foreach ($cards as $bucket): ?>
-                <a class="card card--tile" href="/admin/ui/buckets/<?= Fmt::e($bucket->id) ?>" style="padding:14px 16px">
-                    <div class="row" style="justify-content:space-between; flex-wrap:nowrap">
-                        <div class="fileline">
-                            <div class="ftype ftype--<?= $bucket->isActive() ? 'image' : 'doc' ?>">
-                                <svg class="icon"><use href="#i-database"/></svg>
-                            </div>
-                            <div class="fileline__body">
-                                <div class="fileline__name"><?= Fmt::e($bucket->name) ?></div>
-                                <div class="fileline__meta">
-                                    <?= Fmt::num($bucket->files) ?> <?= Fmt::plural($bucket->files, 'файл', 'файла', 'файлов') ?><span class="dot-sep"></span><?= $bucket->folders ?> <?= Fmt::plural($bucket->folders, 'папка', 'папки', 'папок') ?>
-                                </div>
-                            </div>
-                        </div>
+        <?php if ($fill === []): ?>
+            <p class="text-sm text-muted mt-3">Ни одному бакету не выделена квота.</p>
+        <?php else: ?>
+            <div class="tbrank mt-3">
+                <?php foreach ($fill as $card): ?>
+                    <a class="tbrank__row <?= $card->quotaState() ?>" href="/admin/ui/buckets/<?= Fmt::e($card->id) ?>">
+                        <span class="tbrank__name"><?= Fmt::e($card->name) ?></span>
+                        <span class="tbrank__value"><?= round($card->percent()) ?>%</span>
+                        <span class="tbrank__meter"><i style="width: <?= $card->percent() ?>%"></i></span>
+                        <span class="tbrank__meta">
+                            <?= Fmt::bytes($card->used) ?> из <?= Fmt::bytes($card->quota) ?>
+                            <span class="dot-sep"></span><?= Fmt::num($card->files) ?> <?= Fmt::plural($card->files, 'файл', 'файла', 'файлов') ?>
+                        </span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
 
-                        <div class="quota <?= $bucket->quotaState() ?>">
-                            <div class="quota__bar"><div class="quota__fill" style="width: <?= $bucket->percent() ?>%"></div></div>
-                            <div class="quota__meta">
-                                <span><b><?= Fmt::bytes($bucket->used) ?></b> из <?= Fmt::bytes($bucket->quota) ?></span>
-                                <span><?= round($bucket->percent()) ?>%</span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-            <?php endforeach ?>
+<div class="grid grid--3">
+    <div class="card">
+        <div class="card__header">
+            <div class="card__title">Токены</div>
+            <div class="card__spacer"></div>
+            <span class="tone tone--brand"><svg class="icon"><use href="#i-key"/></svg> <?= Fmt::num($tokenCounts['active']) ?></span>
         </div>
+        <dl class="kv mt-2">
+            <dt>Всего выпущено</dt><dd><?= Fmt::num($tokenCounts['total']) ?></dd>
+            <dt>Действуют</dt><dd><?= Fmt::num($tokenCounts['active']) ?></dd>
+            <dt>С полным доступом</dt><dd><?= Fmt::num($tokenCounts['full']) ?></dd>
+            <dt>Истекли</dt>
+            <dd><?= $tokenCounts['expired'] > 0
+                ? '<span class="tone tone--warn">' . Fmt::num($tokenCounts['expired']) . '</span>'
+                : '0' ?></dd>
+            <dt>Отключены</dt><dd><?= Fmt::num($tokenCounts['inactive']) ?></dd>
+        </dl>
     </div>
 
     <div class="card">
         <div class="card__header">
-            <div>
-                <div class="card__title">Последнее</div>
-                <div class="card__subtitle">загрузки, ссылки, уборка</div>
-            </div>
+            <div class="card__title">Временные ссылки</div>
+            <div class="card__spacer"></div>
+            <span class="tone tone--temp"><svg class="icon"><use href="#i-link"/></svg> <?= Fmt::num($linkCounts['active']) ?></span>
         </div>
+        <dl class="kv mt-2">
+            <dt>Всего выпущено</dt><dd><?= Fmt::num($linkCounts['total']) ?></dd>
+            <dt>Живы</dt><dd><?= Fmt::num($linkCounts['active']) ?></dd>
+            <dt>Истекли</dt><dd><?= Fmt::num($linkCounts['expired']) ?></dd>
+            <dt>Отозваны</dt><dd><?= Fmt::num($linkCounts['revoked']) ?></dd>
+        </dl>
+        <div class="text-sm text-muted mt-3">Погашенные ссылки убираются уборщиком, место они не занимают.</div>
+    </div>
 
-        <div class="stack mt-2" style="gap: 18px">
-            <?php foreach ($events as $event): ?>
-                <div class="row" style="gap: 12px; flex-wrap: nowrap; align-items: flex-start">
-                    <span class="tone tone--<?= $event['tone'] ?>" style="width:30px;height:30px;padding:0;justify-content:center;border-radius:10px">
-                        <svg class="icon"><use href="#<?= $event['icon'] ?>"/></svg>
-                    </span>
-                    <div style="min-width:0">
-                        <div class="text-sm"><?= $event['text'] ?></div>
-                        <div class="text-sm text-muted"><?= Fmt::e($event['meta']) ?><span class="dot-sep"></span><?= Fmt::ago($event['at']) ?></div>
-                    </div>
-                </div>
-            <?php endforeach ?>
+    <div class="card">
+        <div class="card__header">
+            <div class="card__title">Незавершённые загрузки</div>
+            <div class="card__spacer"></div>
+            <span class="tone <?= $uploadCounts->expired > 0 ? 'tone--warn' : 'tone--mute' ?>">
+                <svg class="icon"><use href="#i-upload"/></svg> <?= Fmt::num($uploadCounts->total) ?>
+            </span>
         </div>
+        <dl class="kv mt-2">
+            <dt>В работе</dt><dd><?= Fmt::num($uploadCounts->total - $uploadCounts->expired) ?></dd>
+            <dt>Просрочены</dt><dd><?= Fmt::num($uploadCounts->expired) ?></dd>
+            <dt>Занято в staging</dt><dd><?= Fmt::bytes($uploadCounts->staged) ?></dd>
+        </dl>
+        <div class="text-sm text-muted mt-3">Брошенный кусок держит место, но в квоту бакета не входит — до квоты
+            он доедет только на завершении.</div>
     </div>
 </div>

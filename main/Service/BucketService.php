@@ -12,6 +12,7 @@ use Flytachi\Winter\DI\Attribute\Singleton;
 use Flytachi\Winter\Kernel\Exception\ClientError;
 use Flytachi\Winter\Ppa\Pagination\WrapResult;
 use Flytachi\Winter\Ppa\Pagination\Wrapper;
+use Main\Dto\BlobCounts;
 use Main\Dto\BucketCounts;
 use Main\Dto\BucketRes;
 use Main\Dto\ExtUsage;
@@ -100,6 +101,18 @@ final class BucketService
                 BucketStatus::ACTIVE->value,
             ))
             ->find(BucketCounts::class) ?? new BucketCounts();
+    }
+
+    public function blobCounts(): BlobCounts
+    {
+        return $this->blobs
+            ->select(
+                'count(*) AS blobs,'
+                . ' coalesce(sum(size_bytes), 0)::bigint AS stored,'
+                . ' coalesce(sum(ref_count - 1) FILTER (WHERE ref_count > 1), 0)::bigint AS copies,'
+                . ' coalesce(sum(size_bytes * (ref_count - 1)) FILTER (WHERE ref_count > 1), 0)::bigint AS saved'
+            )
+            ->find(BlobCounts::class) ?? new BlobCounts();
     }
 
     public function panelPage(BucketListRequest $request): WrapResult

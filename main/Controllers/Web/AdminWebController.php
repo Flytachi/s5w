@@ -29,12 +29,12 @@ use Main\Service\BucketTrafficService;
 use Main\Service\FileService;
 use Main\Service\FolderService;
 use Main\Service\ShareLinkService;
+use Main\Service\UploadService;
 use Main\Web\BucketView;
 use Main\Web\FileView;
 use Main\Web\FolderView;
 use Main\Web\LinkView;
 use Main\Web\Query;
-use Main\Web\MockData;
 
 #[AdminPageMiddleware]
 #[RequestMapping('admin/ui')]
@@ -58,21 +58,56 @@ final class AdminWebController extends Controller
     #[Autowired]
     private BucketTrafficService $traffic;
 
+    #[Autowired]
+    private UploadService $uploads;
+
+    private const int WINDOW = 30;
+
+    private const int TOP = 6;
+
     #[GetMapping]
     public function dashboard(): ResponseView
     {
+        $tz = $this->timezone();
+        $today = new \DateTimeImmutable('now', $tz);
+        $from = $today->modify('-' . (self::WINDOW - 1) . ' days')->format('Y-m-d');
+        $to = $today->format('Y-m-d');
+
+        $series = $this->traffic->daily(null, $from, $to, $tz->getName());
         $buckets = $this->buckets->all();
         $stats = $this->buckets->stats(array_column($buckets, 'id'));
 
+        $cards = array_map(
+            static fn($bucket) => BucketView::from($bucket, $stats[$bucket->id]),
+            $buckets,
+        );
+        usort($cards, static fn(BucketView $a, BucketView $b) => $b->percent() <=> $a->percent());
+
+        $withQuota = array_values(array_filter($cards, static fn(BucketView $card) => $card->quota > 0));
+
+        $served = $this->traffic->topBuckets($from, $to, $tz->getName());
+        $loud = array_column($served, 'bucket_id');
+        $quiet = array_values(array_filter(
+            array_map(static fn(BucketView $card) => in_array($card->id, $loud, true) ? null : $card->name, $cards),
+        ));
+
         return $this->page('dashboard', 'Обзор', 'dashboard', [
             'subtitle' => 'всё хранилище целиком',
-            'mocked' => true,
-            'overview' => MockData::overview(),
-            'events' => MockData::events(),
-            'cards' => array_map(
-                static fn($bucket) => BucketView::from($bucket, $stats[$bucket->id]),
-                $buckets,
-            ),
+            'window' => self::WINDOW,
+            'from' => $from,
+            'to' => $to,
+            'series' => $series,
+            'totals' => $this->traffic->totals($series),
+            'top' => array_slice($served, 0, self::TOP),
+            'topTotal' => count($served),
+            'quiet' => $quiet,
+            'fill' => array_slice($withQuota, 0, self::TOP),
+            'fillTotal' => count($withQuota),
+            'counts' => $this->buckets->counts(),
+            'blobs' => $this->buckets->blobCounts(),
+            'tokenCounts' => $this->tokens->counts(),
+            'linkCounts' => $this->links->counts(),
+            'uploadCounts' => $this->uploads->counts(),
         ]);
     }
 

@@ -73,14 +73,14 @@ final class AccessTokenService
     }
 
     /** @return array{total: int, active: int, full: int, inactive: int, expired: int} */
-    public function counts(string $bucketId): array
+    public function counts(?string $bucketId = null): array
     {
         $active = sprintf(
             'status = %d AND (expires_at IS NULL OR expires_at > now())',
             TokenStatus::ACTIVE->value,
         );
 
-        $row = $this->repo
+        $query = $this->repo
             ->select(sprintf(
                 'count(*) AS total,'
                 . ' count(*) FILTER (WHERE %1$s) AS active,'
@@ -90,8 +90,11 @@ final class AccessTokenService
                 $active,
                 TokenAccess::FULL->value,
                 TokenStatus::ACTIVE->value,
-            ))
-            ->findBy(Qb::eq('bucket_id', $bucketId), TokenCounts::class) ?? new TokenCounts();
+            ));
+
+        $row = ($bucketId === null
+            ? $query->find(TokenCounts::class)
+            : $query->findBy(Qb::eq('bucket_id', $bucketId), TokenCounts::class)) ?? new TokenCounts();
 
         return [
             'total' => $row->total,

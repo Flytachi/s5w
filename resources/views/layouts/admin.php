@@ -136,22 +136,14 @@ $bucketAttrs = $bucket === null ? '' : sprintf(
 
             <div class="topbar__spacer"></div>
 
-            <?php if (wrData('mocked')): ?>
-                <span class="mock-note">
-                    <svg class="icon"><use href="#i-zap"/></svg>
-                    демо-данные
-                </span>
-            <?php else: ?>
-                <?php /* Пояс, а не «данные из базы»: последнее верно всегда и потому
-                         ничего не сообщает, а пояс объясняет, почему у даты именно
-                         такое число — его тянет браузер, и он может не совпасть
-                         с поясом сервера. */ ?>
-                <span class="mock-note mock-note--live" data-tz-chip
-                      title="Даты и сутки в статистике показаны в этом поясе. Определяется браузером; в базе всё лежит в UTC.">
-                    <svg class="icon"><use href="#i-clock"/></svg>
-                    <?= Fmt::e(wrData('timezone') ?? 'UTC') ?>
-                </span>
-            <?php endif ?>
+            <?php /* Пояс, а не «данные из базы»: последнее верно всегда и потому
+                     ничего не сообщает, а пояс объясняет, почему у даты именно такое
+                     число — его тянет браузер, и он может не совпасть с поясом сервера. */ ?>
+            <span class="tzchip" data-tz-chip
+                  title="Даты и сутки в статистике показаны в этом поясе. Определяется браузером; в базе всё лежит в UTC.">
+                <svg class="icon"><use href="#i-clock"/></svg>
+                <?= Fmt::e(wrData('timezone') ?? 'UTC') ?>
+            </span>
 
             <button class="icon-btn" data-theme-toggle aria-label="Тема">
                 <svg class="icon"><use href="#i-moon"/></svg>

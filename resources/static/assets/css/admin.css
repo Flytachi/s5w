@@ -46,6 +46,7 @@
   --temp-soft: #ece5fd;
 
   --tile: #dfe6f3;
+  --scroll-shade: rgba(14, 22, 38, 0.18);
   --glass: rgba(255, 255, 255, 0.20);
   --glass-strong: rgba(255, 255, 255, 0.58);
   --glass-border: rgba(255, 255, 255, 0.70);
@@ -1171,7 +1172,10 @@ code.inline {
 }
 
 @media (max-width: 768px) {
-  .grid--2, .grid--3, .grid--4 { grid-template-columns: 1fr; }
+  .grid--2, .grid--3 { grid-template-columns: 1fr; }
+  /* Четвёрка — это мелкие числа; в одну колонку они занимают целый экран
+     до содержимого, а парами читаются так же. */
+  .grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .topbar__title { font-size: 1.4rem; }
   .topbar__search { display: none; }
   .chat-layout { grid-template-columns: 1fr; }
@@ -1181,6 +1185,7 @@ code.inline {
   .stat-hero__num { font-size: 2.6rem; }
   .toast-container { left: 24px; right: 24px; max-width: none; }
 }
+
 
 /* ============ Dark theme ============
    The palette is monochrome, so dark mode is a controlled inversion:
@@ -1216,6 +1221,7 @@ code.inline {
   --temp-soft: #271c47;
 
   --tile: #24314a;
+  --scroll-shade: rgba(0, 0, 0, 0.45);
   --glass: rgba(9, 14, 26, 0.45);
   --glass-strong: rgba(9, 14, 26, 0.66);
   --glass-border: rgba(150, 175, 220, 0.24);
@@ -1476,7 +1482,18 @@ code.inline {
   text-overflow: ellipsis;
   max-width: 320px;
 }
-.fileline__meta { display: block; font-size: 0.8rem; color: var(--gray-5); margin-top: 2px; }
+/* Вторая строка ужимается так же, как первая. Без этого описание бакета в
+   несколько десятков слов вылезало из ячейки и ложилось поверх квоты, файлов
+   и кэша — `max-width: 0` у ячейки ужимает саму ячейку, но не её содержимое. */
+.fileline__meta {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--gray-5);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .dot-sep::before { content: "·"; margin: 0 6px; }
 
 /* --- Моноширинные значения (хэши, slug, токены) ------------- */
@@ -1538,6 +1555,87 @@ code.inline {
 .metric__delta--up { color: var(--ok); }
 .metric__delta--down { color: var(--danger); }
 .card--dark .metric__label { color: var(--gray-4); }
+.metric__delta--flat { color: var(--gray-5); font-weight: 500; }
+.metric__delta--down .icon { transform: scaleY(-1); }
+
+/* --- Шапка обзора --------------------------------------------
+   Место отдельной карточкой и шире плиток: на обзоре чаще всего смотрят
+   именно на потребление, а в ряду из четырёх равных оно тонет. */
+
+.dashtop {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 2fr);
+  gap: 20px;
+}
+
+/* Плитки тянутся по высоте карточки места; без этого число прижато к верху,
+   а под ним остаётся пустая треть. */
+.dashtop .grid--2 > .card { display: flex; }
+.dashtop .metric { flex: 1; justify-content: center; }
+
+/* На обзоре бакета `.card--brand .quota` прижата к низу карточки (margin-top: auto),
+   и она же перебивает утилиту mt-*. Здесь под полосой ещё две строки, прижимать
+   нечего — нужен обычный отступ, иначе полоса липнет к цифрам. */
+.dashtop .card--brand .quota { margin-top: 24px; }
+
+@media (max-width: 1200px) {
+  .dashtop { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 700px) {
+  .dashtop .grid--2 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* --- Рейтинг бакетов на обзоре -------------------------------
+   Свои имена: .bars и .rank в шаблонной части уже заняты, а .quota
+   рассчитана на одну широкую полосу, не на список из шести. */
+
+.tbrank { display: flex; flex-direction: column; gap: 14px; }
+
+.tbrank__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  margin: -10px -12px;
+  border-radius: var(--r-md);
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.tbrank__row:hover { background: var(--gray-2); }
+
+.tbrank__name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tbrank__value { font-size: 0.92rem; font-weight: 600; white-space: nowrap; }
+
+.tbrank__meter {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--gray-2);
+  overflow: hidden;
+}
+
+.tbrank__meter i {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: 3px;
+  background: var(--brand);
+}
+
+.tbrank__row.is-warn .tbrank__meter i { background: var(--warn); }
+.tbrank__row.is-danger .tbrank__meter i { background: var(--danger); }
+
+.tbrank__meta { grid-column: 1 / -1; font-size: 0.8rem; color: var(--gray-5); }
 
 /* --- Спарклайн (рисуется в разметке, без библиотек) --------- */
 
@@ -1573,21 +1671,22 @@ code.inline {
 /* --- Хлебные крошки ----------------------------------------- */
 
 
-/* --- Заглушка «моков» --------------------------------------- */
+/* --- Пояс в шапке -------------------------------------------- */
 
-.mock-note {
+.tzchip {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
   border-radius: var(--r-pill);
-  background: var(--warn-soft);
-  color: var(--warn);
+  background: var(--gray-2);
+  color: var(--gray-6);
   font-size: 0.82rem;
   font-weight: 600;
+  cursor: default;
 }
 
-.mock-note .icon { width: 16px; height: 16px; }
+.tzchip .icon { width: 16px; height: 16px; }
 
 /* --- Экран входа -------------------------------------------- */
 
@@ -2135,8 +2234,8 @@ code.inline {
    ============================================================ */
 
 @media (max-width: 900px) {
-  /* Пометка про источник данных — справочная, на телефоне занимает пол-шапки. */
-  .mock-note { display: none; }
+  /* Пояс — справочная пометка, на телефоне занимает пол-шапки. */
+  .tzchip { display: none; }
 }
 
 @media (max-width: 768px) {
@@ -2179,13 +2278,19 @@ code.inline {
   /* Оставляем главное: файл, размер и действия. Остальное — в карточке. */
   .table th:nth-child(4), .table td:nth-child(4),
   .table th:nth-child(5), .table td:nth-child(5) { display: none; }
-  /* Фиксированная раскладка и снятый min-width: иначе таблица держит свои
-     640px и обрезка имени ни на что не влияет — она уезжает в прокрутку. */
-  .table { table-layout: fixed; width: 100%; min-width: 0; }
-  .table th, .table td { padding: 12px 10px; overflow: hidden; }
+
+  /* Ужимать столбцы дальше нечем: у плашек текст не переносится, и на 390px
+     «просрочен» превращался в «просроче», а имя бакета — в одну букву. Поэтому
+     оставшиеся столбцы держат свою ширину, а лишнее уезжает в прокрутку: свайп
+     честнее обрубка. Имя при этом всё равно с многоточием — иначе прокрутка
+     растянулась бы на пол-экрана из-за одного длинного файла. */
+  .table { table-layout: auto; width: 100%; }
+  .panel .table { min-width: 520px; }
+  .table th, .table td { padding: 12px 10px; }
   .table th:last-child, .table td:last-child { width: 60px; }
+  .panel .table td:first-child { min-width: 0; }
   .fileline__name, .fileline__meta {
-    max-width: 40vw;
+    max-width: 44vw;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2238,7 +2343,7 @@ code.inline {
 .stat__icon .icon { width: 23px; height: 23px; }
 .stat__body { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
 .stat__value { font-size: 2.1rem; font-weight: 700; line-height: 1; flex: 0 0 auto; letter-spacing: -0.02em; }
-.stat__label { font-size: 0.95rem; font-weight: 600; }
+.stat__label { font-size: 0.95rem; font-weight: 600; overflow-wrap: anywhere; }
 .stat__note { font-size: 0.78rem; color: var(--gray-5); }
 
 /* Плитка целиком в своём тоне: цифра, значок и фон — один цвет. */
@@ -2341,6 +2446,9 @@ code.inline {
 /* Таблица занимает ширину панели: узкой её делает не длина строк, а общий
    min-width — колонка файла и пометка ужимаются с многоточием. */
 .panel .table { min-width: 0; }
+/* По 16px с каждой стороны ячейки — это 56 лишних пикселей на семь столбцов,
+   ровно столько таблица бакетов и не помещалась в панель на 1366 и 1600. */
+.panel .table th, .panel .table td { padding-left: 12px; padding-right: 12px; }
 /* Имя файла ужимается, но не в одну букву: раньше сжималась именно эта колонка. */
 .panel .table td:first-child { width: 100%; max-width: 0; min-width: 210px; }
 /* Столбцы с плашками не ужимаются: у плашки текст не переносится, и в узкой
@@ -2354,7 +2462,7 @@ code.inline {
   .panel--tokens .table th:nth-child(6), .panel--tokens .table td:nth-child(6) { display: none; }
 }
 
-@media (max-width: 1150px) {
+@media (max-width: 1200px) {
   .panel--tokens .table th:nth-child(5), .panel--tokens .table td:nth-child(5) { display: none; }
 }
 
@@ -2369,17 +2477,36 @@ code.inline {
 .panel--buckets .table th.col-quota, .panel--buckets .table td.col-quota { width: 220px; }
 .panel--buckets .quota { min-width: 195px; }
 
-/* Уходят по очереди кэш и дата: имя, статус и квота — то, ради чего сюда заходят. */
-@media (max-width: 1400px) {
+/* Уходят по очереди кэш и дата: имя, статус и квота — то, ради чего сюда заходят.
+   Пороги подобраны замером, а не на глаз: панель это ширина окна минус боковое
+   меню и отступы (~474px), и со всеми столбцами таблице нужно 1131 — то есть
+   окно от 1605. На 1440 со старым порогом в 1400 она вылезала на 165px. */
+@media (max-width: 1600px) {
   .panel--buckets .table th:nth-child(5), .panel--buckets .table td:nth-child(5) { display: none; }
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1400px) {
   .panel--buckets .table th:nth-child(6), .panel--buckets .table td:nth-child(6) { display: none; }
 }
 
-@media (max-width: 1150px) {
+@media (max-width: 1200px) {
   .panel--buckets .table th:nth-child(4), .panel--buckets .table td:nth-child(4) { display: none; }
+}
+
+/* Временные ссылки. Порядок расставания: пометка, дата выпуска, режим отдачи.
+   Файл, счётчик скачиваний, состояние и кнопки остаются до конца — за ними
+   и заходят. Раньше ladder'а не было вовсе, и таблица вылезала из панели
+   на любом окне от 768 до 1440 (до 384px на 1100). */
+@media (max-width: 1500px) {
+  .panel--links .table th:nth-child(6), .panel--links .table td:nth-child(6) { display: none; }
+}
+
+@media (max-width: 1280px) {
+  .panel--links .table th:nth-child(5), .panel--links .table td:nth-child(5) { display: none; }
+}
+
+@media (max-width: 1100px) {
+  .panel--links .table th:nth-child(2), .panel--links .table td:nth-child(2) { display: none; }
 }
 
 @media (max-width: 1024px) {
@@ -2399,10 +2526,32 @@ code.inline {
   white-space: nowrap;
 }
 
+/* Подсказка, что список прокручивается вбок: тень у края, которая гаснет,
+   когда прокручивать больше некуда. Работает без скриптов — слои `local`
+   едут вместе с содержимым и закрывают тень на краях, поэтому правило можно
+   держать на всех ширинах: где прокрутки нет, тени не видно. Полностью убрать
+   боковую прокрутку подбором порогов не выходит — у таблицы бакетов при всех
+   столбцах min-content больше панели на доброй половине ноутбучных ширин. */
+  .panel__scroll,
+  .fm__side .fm__scroll {
+    background:
+      linear-gradient(to right, var(--white) 40%, transparent) left center,
+      linear-gradient(to left, var(--white) 40%, transparent) right center,
+      radial-gradient(farthest-side at 0 50%, var(--scroll-shade), transparent) left center,
+      radial-gradient(farthest-side at 100% 50%, var(--scroll-shade), transparent) right center;
+    background-repeat: no-repeat;
+    background-size: 36px 100%, 36px 100%, 12px 100%, 12px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+
 @media (max-width: 768px) {
-  /* На телефоне высоту делить не с чем: панель растёт, скроллится страница. */
+  /* На телефоне высоту делить не с чем: панель растёт, скроллится страница.
+     Но именно `overflow: visible` снимало и горизонтальную прокрутку — таблица
+     со своим min-width уезжала под край карточки, и правые столбцы было не
+     достать вовсе. По вертикали ограничения нет, так что `auto` там ничего
+     не прокручивает и нужен лишь чтобы не гасить прокрутку по горизонтали. */
   .panel { flex: 0 0 auto; min-height: 0; }
-  .panel__scroll { overflow: visible; max-height: none; }
+  .panel__scroll { overflow-x: auto; overflow-y: visible; max-height: none; }
 }
 
 .fm {
@@ -2554,9 +2703,29 @@ code.inline {
   /* На телефоне папки становятся горизонтальной лентой над файлами. */
   .fm { grid-template-columns: minmax(0, 1fr); height: auto; }
   .fm__side { padding: 12px; }
-  .fm__side .fm__scroll { display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
+  .fm__side { flex: 0 0 auto; }
+  .fm__side .fm__scroll {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+  }
+  /* Без этого плитки растягиваются по высоте ленты: активная папка вырастала
+     в пустой прямоугольник во весь экран. */
+  .fm__side .fm__folder-wrap { flex: 0 0 auto; }
   .fm__folder { white-space: nowrap; }
-  .fm__folder-name { max-width: 120px; }
+  /* В ленте строка одна: многострочный зажим (-webkit-box) в горизонтальной
+     полосе схлопывал имя до нулевой высоты. */
+  .fm__folder-name {
+    display: block;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .fm__divider { display: none; }
   .fm__folder-menu { display: none; }
   .fm__add { display: none; }
@@ -2615,11 +2784,18 @@ code.inline {
 .card--brand { display: flex; flex-direction: column; }
 .card--brand .quota { margin-top: auto; }
 
-.usage { display: flex; align-items: stretch; gap: 20px; margin-top: 16px; }
+.usage { display: flex; align-items: stretch; gap: clamp(12px, 1.2vw, 20px); margin-top: 16px; }
 .usage__part { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .usage__sep { width: 1px; background: rgba(255, 255, 255, 0.35); }
 .usage__label { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.7); }
-.usage__value { font-size: 1.9rem; font-weight: 700; line-height: 1.1; white-space: nowrap; }
+/* Два числа рядом не влезали в карточку на 1200-1400px: `1.9rem` их разводило
+   шире контейнера, и «СВОБОДНО» уезжало под обрез. */
+.usage__value {
+  font-size: clamp(1.35rem, 1.02vw + 0.72rem, 1.9rem);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
 .usage__value--free { color: #b9f6d4; }
 
 
@@ -2627,8 +2803,15 @@ code.inline {
 .empty-inline .icon { width: 22px; height: 22px; color: var(--gray-5); flex: 0 0 auto; }
 
 .ring-row { display: flex; align-items: center; gap: 30px; flex-wrap: wrap; }
-.ring-box { flex: 0 0 auto; }
+.ring-box { flex: 0 0 auto; max-width: 100%; }
 .ring { width: 280px; height: 280px; display: block; transform: rotate(-90deg); }
+
+/* Кольцо фиксированных 280px не влезает в карточку уже на 390: колонка с ним
+   становилась шире карточки и легенда уезжала под обрез. */
+@media (max-width: 430px) {
+  .ring-row { gap: 18px; justify-content: center; }
+  .ring { width: min(240px, 62vw); height: min(240px, 62vw); }
+}
 .ring__track { fill: none; stroke: var(--gray-2); stroke-width: 15; }
 
 .ring__slice {
@@ -2852,7 +3035,7 @@ code.inline {
 .tchart__col::before {
   content: "";
   position: absolute;
-  inset: -6px -1px 16px -1px;
+  inset: -6px -1px -21px -1px;
   border-radius: 6px;
   background: var(--brand-soft);
   opacity: 0;
@@ -2888,10 +3071,14 @@ code.inline {
   border-radius: 2px;
 }
 
+/* Подпись живёт в полосе под полем (padding-bottom у .tchart), а не в самой
+   колонке: у колонки высота 100% от контента, и `bottom: 0` клало число прямо
+   на столбик. */
 .tchart__label {
   position: absolute;
   left: 50%;
-  bottom: 0;
+  top: 100%;
+  margin-top: 5px;
   transform: translateX(-50%);
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
@@ -2975,4 +3162,53 @@ code.inline {
 
 @media (max-width: 720px) {
   .drange__spacer { flex-basis: 100%; height: 0; }
+}
+
+
+/* ============================================================
+   Доводка узких экранов
+   Блок стоит последним намеренно: правила для 600-768px объявлены ниже
+   по файлу, чем общие сетки, и при равной специфичности перебивали бы
+   всё, что написано выше. Здесь — только то, что должно победить.
+   ============================================================ */
+
+@media (max-width: 620px) {
+  /* Кольцо и таблица расширений перестают быть строкой и встают друг под
+     друга: рядом им нужно 280 + 260 пикселей, и таблица либо схлопывалась
+     до одних цветных точек, либо тянула строку шире карточки. */
+  .ring-row { flex-direction: column; align-items: stretch; gap: 18px; }
+  .ring-box { align-self: center; }
+  .kinds-scroll { min-width: 0; width: 100%; max-height: none; }
+}
+
+@media (max-width: 360px) {
+  /* Четыре плитки парами читаются до последнего; дальше — в колонку. */
+  .grid--4 { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 520px) {
+  /* Диапазон дат: оба поля в одну строку, «Показать» под ними, пресеты
+     третьей строкой. Тире между полями при переносе оставалось висеть
+     в конце строки, а кнопка ужималась до пары букв. */
+  .drange { row-gap: 10px; }
+  .drange__dash { display: none; }
+  .drange__date { flex: 1 1 132px; min-width: 0; }
+  .drange__label { margin-right: 0; }
+}
+
+@media (max-width: 430px) {
+  /* Два поля с датой и подпись рядом уже не помещаются; сами поля
+     подписаны форматом и без «Дата» понятны. */
+  .drange__label { display: none; }
+  .drange > button[type="submit"] { flex: 1 1 100%; justify-content: center; }
+  .drange .btn--sm { flex: 1 1 auto; justify-content: center; }
+}
+
+@media (max-width: 380px) {
+  .metrics-row { grid-template-columns: minmax(0, 1fr); }
+  .stat { padding: 12px 14px; gap: 10px; }
+  /* Подписи плиток в одно длинное слово не переносились и вылезали
+     за подложку — на 320px это половина плитки. */
+  .stat__label, .stat__hint, .card__subtitle { overflow-wrap: anywhere; }
+  .card__header { flex-wrap: wrap; }
 }

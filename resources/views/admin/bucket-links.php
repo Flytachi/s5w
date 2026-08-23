@@ -53,7 +53,7 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
     </div>
 </div>
 
-<div class="card panel">
+<div class="card panel panel--links">
     <div class="card__header">
         <div>
             <div class="card__title">Временные ссылки</div>
