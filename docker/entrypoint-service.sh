@@ -1,8 +1,11 @@
-#!/bin/sh
-# Swoole entrypoint. su-exec exec-replaces itself, so the Swoole master becomes
-# PID 1 and receives SIGTERM directly → graceful shutdown (Swoole reaps its own
-# workers, no zombies). App logs go straight to stdout, so `docker logs` shows
-# them without any syslog relay.
+#!/command/with-contenv sh
+# Swoole entrypoint. Под s6 PID 1 — это s6-svscan, а мастер Swoole живёт прямым
+# потомком s6-supervise: su-exec делает exec, поэтому SIGTERM от супервизора
+# доходит до мастера и тот гасится штатно. Логи идут в stdout, `docker logs` их
+# показывает без syslog-релея.
+#
+# with-contenv в шебанге обязателен: s6 запускает сервисы с пустым окружением,
+# без него SERVER_PORT и DEV сюда не доедут.
 PORT="${SERVER_PORT:-9090}"
 
 # Opcache is toggled here (runtime, as root before su-exec), so switching dev/prod

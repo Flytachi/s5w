@@ -84,6 +84,7 @@ final class UploadController extends Controller
 
     private function baseUrl(HttpRequest $http): string
     {
-        return (string) env('PUBLIC_BASE_URL', $http->getBaseUrl());
+        $toEnv = (string) env('PUBLIC_BASE_URL', '');
+        return empty($toEnv) ? $http->getBaseUrl() : $toEnv;
     }
 }

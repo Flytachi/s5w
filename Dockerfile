@@ -27,7 +27,9 @@ RUN curl -sS https://getcomposer.org/installer | php85 -- --install-dir=/usr/loc
 # ─────────────────────────────────────────────────────────────────────────────
 # final — maintained phpswoole base (swoole + opcache precompiled).
 # ─────────────────────────────────────────────────────────────────────────────
-FROM shinsenter/s6-overlay:latest AS s6-source
+FROM shinsenter/s6-overlay:v3.2.3.2 AS s6-source
+
+FROM grafana/k6:2.2.0 AS k6-source
 
 FROM phpswoole/swoole:php8.5-alpine AS final
 COPY --from=s6-source / /
@@ -77,9 +79,17 @@ COPY . /var/www/html
 RUN chown -R winter:winter /var/www/html \
     && chmod -R 775 /var/www/html/storage
 
+# k6 — статический бинарник из официального образа, ставить через apk нечего:
+# в репозиториях Alpine его нет.
+COPY --from=k6-source /usr/bin/k6 /usr/local/bin/k6
+
+# Скрипты сервисов лежат в /opt/winter и оттуда копируются в дерево s6-rc:
+# набор сервисов решается на старте (см. entrypoint.sh), а не на сборке.
 COPY docker/entrypoint.sh /entrypoint.sh
-COPY docker/entrypoint-service.sh /entrypoint-service.sh
-RUN chmod +x /entrypoint.sh
+COPY docker/entrypoint-service.sh /opt/winter/service.run
+COPY docker/entrypoint-pgsql.sh /opt/winter/pgsql.run
+COPY docker/entrypoint-pgsql-setup.sh /opt/winter/pgsql-setup.up
+RUN chmod +x /entrypoint.sh /opt/winter/service.run /opt/winter/pgsql.run /opt/winter/pgsql-setup.up
 
 # No EXPOSE on purpose. It publishes nothing — `ports:` in docker-compose.yml does that,
 # and the port itself is decided there too. Baking a number in here would only add one

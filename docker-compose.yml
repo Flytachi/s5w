@@ -18,9 +18,17 @@ services:
       COMPOSE_BAKE: "true"
       SERVER_PORT: *port
       DEV: ${DEV:-false}
-      PUBLIC_BASE_URL:
+      PUBLIC_BASE_URL: ''
+      ADMIN_LOGIN: admin
+      ADMIN_PASSWORD: admin
+      LOG_LEVEL: debug
+    stop_grace_period: 30s
     ports:
       - target: *port
         published: *port
     volumes:
       - ./:/var/www/html/
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
