@@ -29,8 +29,6 @@ RUN curl -sS https://getcomposer.org/installer | php85 -- --install-dir=/usr/loc
 # ─────────────────────────────────────────────────────────────────────────────
 FROM shinsenter/s6-overlay:v3.2.3.2 AS s6-source
 
-FROM grafana/k6:2.2.0 AS k6-source
-
 FROM phpswoole/swoole:php8.5-alpine AS final
 COPY --from=s6-source / /
 WORKDIR /var/www/html
@@ -79,12 +77,17 @@ COPY . /var/www/html
 RUN chown -R winter:winter /var/www/html \
     && chmod -R 775 /var/www/html/storage
 
-# k6 — статический бинарник из официального образа, ставить через apk нечего:
-# в репозиториях Alpine его нет.
-COPY --from=k6-source /usr/bin/k6 /usr/local/bin/k6
+# Everything stateful lives under one volume, outside the code tree:
+#   postgresql/  cluster, owned by postgres, 0700 as the server demands
+#   buckets/     blobs, one directory per bucket
+#   staging/     partial chunked uploads
+# buckets and staging must share a filesystem: finishing an upload is a rename,
+# and rename is only atomic within one.
+RUN install -d -o winter -g winter -m 775 /var/lib/s5w /var/lib/s5w/buckets /var/lib/s5w/staging \
+    && install -d -o postgres -g postgres -m 700 /var/lib/s5w/postgresql
 
-# Скрипты сервисов лежат в /opt/winter и оттуда копируются в дерево s6-rc:
-# набор сервисов решается на старте (см. entrypoint.sh), а не на сборке.
+# Service scripts are staged in /opt/winter and copied into the s6-rc tree by
+# the entrypoint.
 COPY docker/entrypoint.sh /entrypoint.sh
 COPY docker/entrypoint-service.sh /opt/winter/service.run
 COPY docker/entrypoint-pgsql.sh /opt/winter/pgsql.run

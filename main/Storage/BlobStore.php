@@ -5,18 +5,19 @@ declare(strict_types=1);
 namespace Main\Storage;
 
 use Flytachi\Winter\DI\Attribute\Singleton;
-use Flytachi\Winter\Kernel\Kernel;
 
 #[Singleton]
 final class BlobStore
 {
-    private const string ROOT = 'chest';
+    private const string DATA_ROOT = '/var/lib/s5w';
 
-    private const string UPLOADS = 'uploads';
+    private const string ROOT = 'buckets';
+
+    private const string UPLOADS = 'staging';
 
     public function rootPath(): string
     {
-        return Kernel::$pathStorage . '/' . self::ROOT;
+        return self::DATA_ROOT . '/' . self::ROOT;
     }
 
     public function bucketPath(string $bucketId): string
@@ -113,7 +114,7 @@ final class BlobStore
      */
     public function uploadRoot(): string
     {
-        return Kernel::$pathStorage . '/' . self::UPLOADS;
+        return self::DATA_ROOT . '/' . self::UPLOADS;
     }
 
     public function uploadPath(string $uploadId): string
@@ -185,7 +186,7 @@ final class BlobStore
     {
         $chestPath = $this->rootPath();
         $staging = @stat($this->uploadRoot());
-        $chest = @stat(is_dir($chestPath) ? $chestPath : Kernel::$pathStorage);
+        $chest = @stat(is_dir($chestPath) ? $chestPath : self::DATA_ROOT);
 
         return $staging === false || $chest === false || $staging['dev'] === $chest['dev'];
     }

@@ -1,9 +1,3 @@
-# The port lives here and nowhere else. Change this one number and both the published
-# port and the port the application binds follow — they are the same anchor below.
-#
-# The `${SERVER_PORT:-…}` form keeps an escape hatch: set SERVER_PORT in the environment
-# (or in .env) and it wins without this file being touched, which is usually what a
-# production host wants.
 x-port: &port ${SERVER_PORT:-9090}
 
 services:
@@ -22,13 +16,12 @@ services:
       ADMIN_LOGIN: admin
       ADMIN_PASSWORD: admin
       LOG_LEVEL: debug
-    stop_grace_period: 30s
     ports:
       - target: *port
         published: *port
     volumes:
       - ./:/var/www/html/
-      - pgdata:/var/lib/postgresql/data
+      - s5w_data:/var/lib/s5w
 
 volumes:
-  pgdata:
+  s5w_data:

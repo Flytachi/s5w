@@ -1,11 +1,9 @@
 #!/command/with-contenv sh
-# Swoole entrypoint. Под s6 PID 1 — это s6-svscan, а мастер Swoole живёт прямым
-# потомком s6-supervise: su-exec делает exec, поэтому SIGTERM от супервизора
-# доходит до мастера и тот гасится штатно. Логи идут в stdout, `docker logs` их
-# показывает без syslog-релея.
+# Swoole entrypoint. with-contenv is required: s6 starts services with an empty
+# environment, so SERVER_PORT and DEV would not reach this script without it.
 #
-# with-contenv в шебанге обязателен: s6 запускает сервисы с пустым окружением,
-# без него SERVER_PORT и DEV сюда не доедут.
+# su-exec execs in place, so the Swoole master is a direct child of s6-supervise
+# and receives SIGTERM from it for a graceful shutdown. App logs go to stdout.
 PORT="${SERVER_PORT:-9090}"
 
 # Opcache is toggled here (runtime, as root before su-exec), so switching dev/prod

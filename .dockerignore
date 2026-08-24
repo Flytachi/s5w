@@ -22,9 +22,6 @@ vendor
 # Storage (logs, cache)
 storage/logs
 storage/cache
-storage/chest
-# Замки и состояние планировщика: чужой PID, запечённый в образ, не даёт
-# планировщику стартовать.
 storage/runnable
 
 # Tests

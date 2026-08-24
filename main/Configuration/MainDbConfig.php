@@ -21,11 +21,11 @@ final class MainDbConfig extends PgDbConfig implements PpaPoolConfigInterface
 
     public function setUp(): void
     {
-        $this->host     = (string) env('DB_HOST', 'localhost');
-        $this->port     = (int) env('DB_PORT', 5432);
-        $this->database = (string) env('DB_NAME', 's5w');
-        $this->username = (string) env('DB_USER', 's5w');
-        $this->password = (string) env('DB_PASS', '');
-        $this->schema   = (string) env('DB_SCHEMA', 'public');
+        $this->host     = '127.0.0.1';
+        $this->port     = 5432;
+        $this->database = 's5w';
+        $this->username = 's5w';
+        $this->password = 's5w';
+        $this->schema   = 'public';
     }
 }

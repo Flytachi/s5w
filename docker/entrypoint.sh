@@ -1,19 +1,12 @@
 #!/bin/sh
-# Собирает дерево сервисов s6 и отдаёт управление /init.
-#
-# Почему сборка здесь, а не в Dockerfile: набор сервисов зависит от окружения —
-# при внешней базе встроенный PostgreSQL регистрировать не надо. Окружение
-# контейнера видно только этому скрипту (он и есть PID 1 до exec), сервисы s6
-# получают его отдельно, через with-contenv.
+# Builds the s6 service tree, then hands over to /init.
 
 RC=/etc/s6-overlay/s6-rc.d
 BUNDLE=/etc/s6-overlay/user-bundles.d/user
 
-# ── Секреты: WINTER_KEY ───────────────────────────────────────────────
 SECRETS_FILE=/var/www/html/storage/.runtime_secrets
-gen_hex() { head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; }   # 64 hex
+gen_hex() { head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
 
-# env имеет приоритет над persisted-значениями.
 _env_winter="$WINTER_KEY"
 if [ -z "$WINTER_KEY" ]; then
     [ -f "$SECRETS_FILE" ] && . "$SECRETS_FILE" 2>/dev/null || true
@@ -21,19 +14,17 @@ fi
 [ -n "$_env_winter" ] && WINTER_KEY="$_env_winter"
 
 genflag=0
-if [ -z "$WINTER_KEY" ]; then WINTER_KEY="$(gen_hex)"; genflag=1; echo "[entrypoint] WINTER_KEY auto-generated"; fi
+if [ -z "$WINTER_KEY" ]; then WINTER_KEY="$(gen_hex)"; genflag=1; echo "entrypoint: WINTER_KEY auto-generated"; fi
 export WINTER_KEY
 
-# Сохраняем только если что-то сгенерили (секреты из env на диск не пишем).
 if [ "$genflag" = "1" ]; then
     mkdir -p "$(dirname "$SECRETS_FILE")"
     { printf 'WINTER_KEY=%s\n' "$WINTER_KEY"; } > "$SECRETS_FILE"
     chmod 600 "$SECRETS_FILE" 2>/dev/null || true
 fi
 
-# ── Регистрация сервисов ──────────────────────────────────────────────
-# cp, а не mv: контейнер переживает `docker restart`, и на втором старте
-# исходника уже не было бы на месте.
+# cp, not mv: the container survives `docker restart` and the source has to
+# still be there on the second start.
 longrun() {
     mkdir -p "$RC/$1/dependencies.d"
     echo longrun > "$RC/$1/type"
@@ -52,37 +43,12 @@ oneshot() {
 mkdir -p "$BUNDLE/contents.d"
 echo bundle > "$BUNDLE/type"
 
-# ── Встроенный PostgreSQL ─────────────────────────────────────────────
-# Внешняя база узнаётся по DB_HOST. Он приходит либо из окружения, либо из .env,
-# который приложение читает само — поэтому файл тоже приходится посмотреть:
-# иначе контейнер с боевым DSN в .env молча поднял бы пустую локальную базу
-# и увёл приложение на неё.
-DB_HOST_EFFECTIVE="$DB_HOST"
-if [ -z "$DB_HOST_EFFECTIVE" ] && [ -f /var/www/html/.env ]; then
-    DB_HOST_EFFECTIVE=$(sed -n 's/^[[:space:]]*DB_HOST[[:space:]]*=[[:space:]]*//p' /var/www/html/.env \
-        | tail -n 1 | tr -d '"'"'"' \r')
-fi
-
+longrun pgsql /opt/winter/pgsql.run
+oneshot pgsql-setup /opt/winter/pgsql-setup.up
 longrun service /opt/winter/service.run
 
-if [ -n "$DB_HOST_EFFECTIVE" ]; then
-    echo "[entrypoint] внешняя база: $DB_HOST_EFFECTIVE — встроенный PostgreSQL не поднимаю"
-else
-    echo "[entrypoint] DB_HOST не задан — поднимаю встроенный PostgreSQL"
-
-    # Экспорт до exec /init: s6 снимает окружение при старте и раздаёт его
-    # сервисам через with-contenv, так что приложение увидит именно эти значения.
-    export DB_HOST=127.0.0.1
-    export DB_PORT="${DB_PORT:-5432}"
-    export DB_NAME="${DB_NAME:-s5w}"
-    export DB_USER="${DB_USER:-s5w}"
-    export DB_PASS="${DB_PASS:-s5w}"
-    export DB_SCHEMA="${DB_SCHEMA:-public}"
-
-    longrun pgsql /opt/winter/pgsql.run
-    oneshot pgsql-setup /opt/winter/pgsql-setup.up
-    touch "$RC/pgsql-setup/dependencies.d/pgsql" \
-          "$RC/service/dependencies.d/pgsql-setup"
-fi
+# The application starts after the database answers and migrations are applied.
+touch "$RC/pgsql-setup/dependencies.d/pgsql" \
+      "$RC/service/dependencies.d/pgsql-setup"
 
 exec /init

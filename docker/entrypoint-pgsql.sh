@@ -1,25 +1,29 @@
 #!/command/with-contenv sh
-# Встроенный PostgreSQL. Регистрируется entrypoint'ом только когда DB_HOST не задан
-# ни в окружении, ни в .env — при внешней базе этого сервиса в образе просто нет.
-#
-# with-contenv в шебанге обязателен: s6 запускает сервисы с пустым окружением и
-# кладёт переменные контейнера в /run/s6/container_environment.
+# with-contenv is required: s6 starts services with an empty environment.
 
-PGDATA=/var/lib/postgresql/data
-PGPORT="${DB_PORT:-5432}"
+PGDATA=/var/lib/s5w/postgresql
 
-install -d -o postgres -g postgres -m 700 "$PGDATA"
+# /run is empty on every boot; the data directory comes from the volume.
 install -d -o postgres -g postgres -m 775 /run/postgresql
 
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
-    echo "[pgsql] пустой каталог — initdb"
+    echo "pgsql: empty data directory — running initdb"
     su-exec postgres initdb -D "$PGDATA" \
         --auth-local=trust --auth-host=scram-sha-256 -E UTF8 --locale=C >/dev/null
 fi
 
-# Параметры флагами, а не дописыванием в postgresql.conf: перезапуск контейнера
-# иначе накапливал бы в конфиге повторяющиеся строки.
+# Settings as flags, not appended to postgresql.conf: a restart would otherwise
+# keep adding duplicate lines to the config.
+#
+# log_min_messages keeps WARNING and above. It cannot hide the startup lines:
+# in this setting LOG ranks above ERROR, so silencing it would silence errors
+# too. The recurring noise is checkpoints, and that has its own switch.
 exec su-exec postgres postgres -D "$PGDATA" \
     -c listen_addresses=127.0.0.1 \
-    -c port="$PGPORT" \
-    -c unix_socket_directories=/run/postgresql
+    -c port=5432 \
+    -c unix_socket_directories=/run/postgresql \
+    -c log_min_messages=warning \
+    -c log_checkpoints=off \
+    -c log_connections=off \
+    -c log_disconnections=off \
+    -c log_line_prefix='%t [%p] '
