@@ -4,7 +4,9 @@
 RC=/etc/s6-overlay/s6-rc.d
 BUNDLE=/etc/s6-overlay/user-bundles.d/user
 
-SECRETS_FILE=/var/www/html/storage/.runtime_secrets
+# On the data volume, not in storage/: it is the only directory that survives a
+# container recreation, and a regenerated key invalidates every issued session.
+SECRETS_FILE=/var/lib/s5w/.runtime_secrets
 gen_hex() { head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
 
 _env_winter="$WINTER_KEY"
