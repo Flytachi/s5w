@@ -18,6 +18,7 @@ services:
       COMPOSE_BAKE: "true"
       SERVER_PORT: *port
       DEV: ${DEV:-false}
+      PUBLIC_BASE_URL:
     ports:
       - target: *port
         published: *port

@@ -2,8 +2,6 @@
 set -e
 
 # GD (jpeg/png/webp/avif) + exif — обработка изображений при загрузке.
-# png/zlib тянутся самим расширением, остальные кодеки включаются явно:
-# без --with-webp сборка проходит, а imagewebp() потом просто не существует.
 if php -m | grep -qi '^gd$'; then
     echo "gd already present — skip"
 else
@@ -15,8 +13,6 @@ else
         && apk del .gd-deps
 fi
 
-# exif — отдельное расширение, зависимостей не имеет. Нужен, чтобы повернуть
-# фото с телефона до ресайза: сам GD ориентацию не читает.
 if php -m | grep -qi '^exif$'; then
     echo "exif already present — skip"
 else

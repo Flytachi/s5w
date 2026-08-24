@@ -27,7 +27,10 @@ RUN curl -sS https://getcomposer.org/installer | php85 -- --install-dir=/usr/loc
 # ─────────────────────────────────────────────────────────────────────────────
 # final — maintained phpswoole base (swoole + opcache precompiled).
 # ─────────────────────────────────────────────────────────────────────────────
+FROM shinsenter/s6-overlay:latest AS s6-source
+
 FROM phpswoole/swoole:php8.5-alpine AS final
+COPY --from=s6-source / /
 WORKDIR /var/www/html
 
 RUN apk add --no-cache su-exec procps \
@@ -75,6 +78,7 @@ RUN chown -R winter:winter /var/www/html \
     && chmod -R 775 /var/www/html/storage
 
 COPY docker/entrypoint.sh /entrypoint.sh
+COPY docker/entrypoint-service.sh /entrypoint-service.sh
 RUN chmod +x /entrypoint.sh
 
 # No EXPOSE on purpose. It publishes nothing — `ports:` in docker-compose.yml does that,

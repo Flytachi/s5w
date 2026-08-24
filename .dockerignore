@@ -22,6 +22,7 @@ vendor
 # Storage (logs, cache)
 storage/logs
 storage/cache
+storage/chest
 
 # Tests
 phpunit.xml
