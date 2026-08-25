@@ -33,7 +33,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/s4w
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/s5w
           # latest=auto (дефолтный flavor) сам ставит тег `latest` на не-prerelease
           # semver-теги. Тег v1.2.3 → образы 1.2.3, 1.2 и latest.
           tags: |

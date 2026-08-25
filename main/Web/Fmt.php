@@ -128,9 +128,50 @@ final class Fmt
 
     public static function asset(string $path): string
     {
-        $file = dirname(__DIR__, 2) . '/resources/static' . $path;
+        $file = self::staticRoot() . $path;
         $stamp = @filemtime($file);
 
         return self::e($path . ($stamp === false ? '' : '?v=' . $stamp));
+    }
+
+    /**
+     * Карта импортов для ES-модулей: каждый модуль получает ?v=mtime.
+     *
+     * Скрипты импортируют друг друга относительными путями без версии; браузер
+     * сначала разрешает путь в URL, а потом ищет его в карте — и берёт адрес с
+     * версией. Так правка одного модуля сбрасывает его кэш, а исходники остаются
+     * без магии. Плюс modulepreload: дерево импортов грузится параллельно.
+     */
+    public static function importMap(): string
+    {
+        $root = self::staticRoot();
+        $dir = $root . '/assets/js';
+        $imports = [];
+
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS));
+        foreach ($it as $file) {
+            if ($file->getExtension() !== 'js') {
+                continue;
+            }
+            $url = str_replace('\\', '/', substr($file->getPathname(), strlen($root)));
+            $imports[$url] = $url . '?v=' . $file->getMTime();
+        }
+        ksort($imports);
+
+        $json = json_encode(['imports' => $imports], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+        $preload = '';
+        foreach ($imports as $url => $versioned) {
+            if (str_starts_with($url, '/assets/js/theme.js') || str_starts_with($url, '/assets/js/icons.js')) {
+                continue;
+            }
+            $preload .= '<link rel="modulepreload" href="' . self::e($versioned) . '">';
+        }
+
+        return '<script type="importmap">' . $json . '</script>' . $preload;
+    }
+
+    private static function staticRoot(): string
+    {
+        return dirname(__DIR__, 2) . '/resources/static';
     }
 }

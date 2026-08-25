@@ -8,21 +8,12 @@ $locked = (bool) wrData('locked');
 ?><!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход — s5w</title>
-    <meta name="robots" content="noindex, nofollow">
-    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-    <link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
-    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
-    <meta name="theme-color" content="#3b5bdb">
-    <link rel="stylesheet" href="<?= Fmt::asset('/assets/css/fonts.css') ?>">
-    <link rel="stylesheet" href="<?= Fmt::asset('/assets/css/admin.css') ?>">
-    <script src="<?= Fmt::asset('/assets/js/theme.js') ?>"></script>
+    <?php wrImport('admin/_head') ?>
 </head>
-<body style="overflow:auto">
+<body data-page="login">
+<script src="<?= Fmt::asset('/assets/js/icons.js') ?>"></script>
 
-<button class="icon-btn auth__theme" data-theme-toggle aria-label="Тема">
+<button type="button" class="icon-btn auth__theme" data-theme-toggle aria-label="Тема">
     <svg class="icon"><use href="#i-moon"/></svg>
 </button>
 
@@ -63,30 +54,28 @@ $locked = (bool) wrData('locked');
                     <svg class="icon"><use href="#i-lock"/></svg>
                     <input class="input" id="password" name="password" type="password" placeholder="••••••••"
                            autocomplete="current-password" required>
-                    <button type="button" class="icon-btn icon-btn--ghost icon-btn--sm auth__peek"
-                            data-password-peek aria-label="Показать пароль">
+                    <button type="button" class="icon-btn icon-btn--ghost icon-btn--sm input-group__end"
+                            data-password-peek aria-label="Показать пароль" aria-pressed="false">
                         <svg class="icon icon--sm"><use href="#i-eye"/></svg>
                     </button>
                 </div>
             </div>
 
-            <div class="alert alert--danger" data-login-error hidden>
+            <div class="alert alert--danger" data-login-error hidden role="alert">
                 <svg class="icon"><use href="#i-alert-triangle"/></svg>
                 <div class="alert__body">
                     <div class="alert__text" data-login-message></div>
                 </div>
             </div>
 
-            <button type="submit" class="btn btn--dark btn--lg w-full" style="justify-content:center">
-                Войти
-            </button>
+            <button type="submit" class="btn btn--primary btn--lg btn--block">Войти</button>
         </div>
         <?php endif ?>
     </form>
 </div>
 
-<script src="<?= Fmt::asset('/assets/js/icons.js') ?>"></script>
-<script src="<?= Fmt::asset('/assets/js/api.js') ?>"></script>
-<script src="<?= Fmt::asset('/assets/js/admin.js') ?>"></script>
+<div class="toasts" data-toasts popover="manual"></div>
+
+<script type="module" src="<?= Fmt::asset('/assets/js/app.js') ?>"></script>
 </body>
 </html>

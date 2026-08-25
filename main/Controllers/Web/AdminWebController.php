@@ -119,6 +119,7 @@ final class AdminWebController extends Controller
 
         return $this->page('buckets', 'Бакеты', 'buckets', [
             'subtitle' => 'пространства с отдельной квотой и своими блобами',
+            'modals' => true,
             'counts' => $this->buckets->counts(),
             'page' => $page,
             'meta' => $page->meta,
@@ -247,6 +248,8 @@ final class AdminWebController extends Controller
         return $this->page($resource, $current->name, $nav, $data + [
             'subtitle' => '',
             'bucket' => $current,
+            // На странице статистики действий нет — модалки ей не нужны.
+            'modals' => $nav !== 'stats',
         ]);
     }
 

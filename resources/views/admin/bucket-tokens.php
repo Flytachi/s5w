@@ -1,17 +1,20 @@
 <?php
 
 use Main\Web\Fmt;
+use Main\Web\Sorting;
+use Main\Web\Ui;
 
 /** @var \Main\Request\TokenListRequest $query */
 $base = '/admin/ui/buckets/' . $bucket->id . '/tokens';
 
-$th = static function (string $key, string $label) use ($query, $bucket): string {
-    $arrow = $query->sortArrow($key);
+$sorting = new Sorting(
+    ['created' => 'по дате выпуска', 'name' => 'по имени', 'access' => 'по доступу', 'state' => 'по состоянию', 'used' => 'по использованию'],
+    $query->sort,
+    $query->dir === 'desc',
+    static fn(array $override) => $query->url($bucket->id, $override),
+);
 
-    return '<a class="th-sort' . ($arrow === null ? '' : ' is-active') . '" href="'
-        . Fmt::e($query->sortUrl($bucket->id, $key)) . '">' . Fmt::e($label)
-        . ($arrow === null ? '' : ' <span class="th-sort__arrow">' . $arrow . '</span>') . '</a>';
-};
+$searching = ($query->search ?? '') !== '';
 ?>
 
 <div class="grid grid--4 metrics-row mb-3">
@@ -55,42 +58,33 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
 <div class="card panel panel--tokens">
     <div class="card__header">
         <div>
-            <div class="card__title">Токены доступа</div>
+            <h2 class="card__title">Токены доступа</h2>
         </div>
         <div class="card__spacer"></div>
 
         <div class="panel__tools">
-            <form class="search-pill" method="get" action="<?= $base ?>">
-                <svg class="icon icon--sm"><use href="#i-search"/></svg>
-                <input type="search" name="search" placeholder="Имя токена" value="<?= Fmt::e($query->search ?? '') ?>">
-                <input type="hidden" name="sort" value="<?= Fmt::e($query->sort) ?>">
-                <input type="hidden" name="dir" value="<?= Fmt::e($query->dir) ?>">
-            </form>
-
-            <?php if (($query->search ?? '') !== ''): ?>
-                <a class="icon-btn icon-btn--ghost icon-btn--sm" href="<?= Fmt::e($query->url($bucket->id, ['search' => null, 'page' => 1])) ?>"
-                   aria-label="Сбросить поиск">
-                    <svg class="icon icon--sm"><use href="#i-x"/></svg>
-                </a>
+            <?= Ui::search($base, 'Имя токена', $query->search, ['sort' => $query->sort, 'dir' => $query->dir]) ?>
+            <?php if ($searching): ?>
+                <?= Ui::searchReset($query->url($bucket->id, ['search' => null, 'page' => 1])) ?>
             <?php endif ?>
-
-            <button class="btn btn--dark btn--sm" data-modal-open="modal-token">
+            <?= $sorting->menu('only-md') ?>
+            <button type="button" class="btn btn--primary btn--sm" data-modal-open="modal-token">
                 <svg class="icon icon--sm"><use href="#i-plus"/></svg> Выпустить
             </button>
         </div>
     </div>
 
-    <div class="panel__scroll mt-2">
-        <table class="table">
+    <div class="panel__scroll">
+        <table class="table table--cards">
             <thead>
             <tr>
-                <th><?= $th('name', 'Токен') ?></th>
-                <th><?= $th('access', 'Доступ') ?></th>
-                <th><?= $th('state', 'Состояние') ?></th>
-                <th>Срок</th>
-                <th><?= $th('used', 'Использован') ?></th>
-                <th><?= $th('created', 'Выпущен') ?></th>
-                <th></th>
+                <?= $sorting->th('name', 'Токен') ?>
+                <?= $sorting->th('access', 'Доступ') ?>
+                <?= $sorting->th('state', 'Состояние') ?>
+                <?= $sorting->th('', 'Срок') ?>
+                <?= $sorting->th('used', 'Использован') ?>
+                <?= $sorting->th('created', 'Выпущен') ?>
+                <th><span class="visually-hidden">Действия</span></th>
             </tr>
             </thead>
             <tbody data-rows="tokens">
@@ -101,8 +95,8 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
                 ?>
                 <tr data-row="token" data-id="<?= $token->id ?>" data-name="<?= Fmt::e($token->name) ?>"
                     data-status="<?= Fmt::e($token->status['name']) ?>" data-access="<?= Fmt::e($token->access['name']) ?>"
-                    <?= $token->expired ? 'data-expired="1" ' : '' ?><?= $active ? '' : 'style="opacity:.55"' ?>>
-                    <td>
+                    <?= $token->expired ? 'data-expired="1" ' : '' ?>class="<?= $active ? '' : 'is-dimmed' ?>">
+                    <td data-primary>
                         <div class="fileline">
                             <span class="ftype ftype--<?= $full ? 'doc' : 'arch' ?>">
                                 <svg class="icon"><use href="#i-key"/></svg>
@@ -115,47 +109,43 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
                             </span>
                         </div>
                     </td>
-                    <td data-cell="access">
+                    <td data-label="Доступ" data-half data-cell="access">
                         <span class="tone tone--<?= $full ? 'warn' : 'mute' ?>"><?= Fmt::e($token->accessLabel) ?></span>
                     </td>
-                    <td data-cell="status">
+                    <td data-label="Состояние" data-half data-cell="status">
                         <?php if ($token->status['name'] !== 'ACTIVE'): ?>
                             <span class="tone tone--mute">выключен</span>
                         <?php elseif ($token->expired): ?>
                             <span class="tone tone--danger">просрочен</span>
                         <?php else: ?>
-                            <span class="tone tone--ok"><span class="status-dot" style="background:currentColor"></span> активен</span>
+                            <span class="tone tone--ok"><span class="status-dot status-dot--current"></span> активен</span>
                         <?php endif ?>
                     </td>
-                    <td class="text-sm nowrap">
+                    <td data-label="Срок" data-half class="text-sm nowrap">
                         <?= $token->expiresAt === null ? '<span class="text-muted">бессрочно</span>' : Fmt::left($token->expiresAt) ?>
                     </td>
-                    <td class="text-sm text-muted nowrap">
+                    <td data-label="Использован" data-half class="text-sm text-muted nowrap">
                         <?= $token->lastUsedAt === null ? 'не использовался' : Fmt::ago($token->lastUsedAt) ?>
                     </td>
-                    <td class="text-sm text-muted nowrap" title="<?= Fmt::e(Fmt::date($token->createdAt)) ?>">
+                    <td data-label="Выпущен" class="text-sm text-muted nowrap" title="<?= Fmt::e(Fmt::date($token->createdAt)) ?>">
                         <?= Fmt::ago($token->createdAt) ?>
                     </td>
-                    <td>
-                        <div class="row row-actions" style="justify-content:flex-end; flex-wrap:nowrap">
-                            <div class="dropdown">
-                                <button class="icon-btn icon-btn--ghost icon-btn--sm" data-dropdown-toggle aria-label="Действия">
-                                    <svg class="icon icon--sm"><use href="#i-more-h"/></svg>
+                    <td data-actions>
+                        <div class="dropdown">
+                            <?= Ui::rowMenu() ?>
+                            <div class="dropdown__menu" role="menu">
+                                <button type="button" class="dropdown__item" data-action="token:rotate"
+                                        data-id="<?= $token->id ?>" data-name="<?= Fmt::e($token->name) ?>">
+                                    Ротация <svg class="icon"><use href="#i-refresh"/></svg>
                                 </button>
-                                <div class="dropdown__menu">
-                                    <button class="dropdown__item" data-action="token:rotate"
-                                            data-id="<?= $token->id ?>" data-name="<?= Fmt::e($token->name) ?>">
-                                        Ротация <svg class="icon"><use href="#i-refresh"/></svg>
-                                    </button>
-                                    <button class="dropdown__item" data-action="token:toggle" data-id="<?= $token->id ?>">
-                                        <?= $token->status['name'] === 'ACTIVE' ? 'Выключить' : 'Включить' ?>
-                                        <svg class="icon"><use href="#i-lock"/></svg>
-                                    </button>
-                                    <button class="dropdown__item" data-action="token:delete"
-                                            data-id="<?= $token->id ?>" data-name="<?= Fmt::e($token->name) ?>">
-                                        Удалить <svg class="icon"><use href="#i-trash"/></svg>
-                                    </button>
-                                </div>
+                                <button type="button" class="dropdown__item" data-action="token:toggle" data-id="<?= $token->id ?>">
+                                    <span data-toggle-label><?= $token->status['name'] === 'ACTIVE' ? 'Выключить' : 'Включить' ?></span>
+                                    <svg class="icon"><use href="#i-lock"/></svg>
+                                </button>
+                                <button type="button" class="dropdown__item" data-action="token:delete"
+                                        data-id="<?= $token->id ?>" data-name="<?= Fmt::e($token->name) ?>">
+                                    Удалить <svg class="icon"><use href="#i-trash"/></svg>
+                                </button>
                             </div>
                         </div>
                     </td>
@@ -166,7 +156,7 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
 
         <div class="empty" data-empty="tokens"<?= $tokens === [] ? '' : ' hidden' ?>>
             <svg class="icon"><use href="#i-key"/></svg>
-            <?php if (($query->search ?? '') !== ''): ?>
+            <?php if ($searching): ?>
                 <div class="empty__title">Ничего не нашлось</div>
                 <div class="text-sm">По запросу «<?= Fmt::e($query->search) ?>» токенов нет</div>
             <?php else: ?>
@@ -178,5 +168,3 @@ $th = static function (string $key, string $label) use ($query, $bucket): string
 
     <?php wrImport('admin/_pagination') ?>
 </div>
-
-<?php wrImport('admin/_modals') ?>

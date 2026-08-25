@@ -3,6 +3,7 @@
 use Main\Dto\ExtUsage;
 use Main\Web\Fmt;
 use Main\Web\TrafficChart;
+use Main\Web\Ui;
 
 $base = '/admin/ui/buckets/' . $bucket->id;
 
@@ -59,15 +60,15 @@ $monthName = ['', 'январь', 'февраль', 'март', 'апрель', 
         <div class="card__header">
             <div class="card__title">Бакет</div>
             <div class="card__spacer"></div>
-            <button class="icon-btn icon-btn--ghost icon-btn--sm" aria-label="Изменить"
+            <button type="button" class="btn btn--ghost btn--sm"
                     data-action="bucket:edit" data-id="<?= Fmt::e($bucket->id) ?>"
                     data-name="<?= Fmt::e($bucket->name) ?>" data-description="<?= Fmt::e($bucket->description) ?>"
                     data-quota="<?= $bucket->quota ?>">
-                <svg class="icon icon--sm"><use href="#i-edit"/></svg>
+                <svg class="icon icon--sm"><use href="#i-edit"/></svg> Изменить
             </button>
         </div>
 
-        <dl class="kv mt-2">
+        <dl class="kv">
             <dt>Статус</dt>
             <dd><span class="tone tone--<?= $bucket->statusTone() ?>"><?= Fmt::e($bucket->status) ?></span></dd>
             <dt>Создан</dt><dd><?= Fmt::date($bucket->createdAt) ?></dd>
@@ -77,10 +78,10 @@ $monthName = ['', 'январь', 'февраль', 'март', 'апрель', 
 
         <div class="text-sm text-muted mt-3">Идентификатор в адресах <span class="mono">/o</span></div>
         <div class="row mt-1">
-            <span class="copyable copyable--wide mono" data-copy="<?= Fmt::e($bucket->id) ?>">
+            <button type="button" class="copyable copyable--wide mono" data-copy="<?= Fmt::e($bucket->id) ?>" aria-label="Копировать идентификатор">
                 <?= Fmt::e($bucket->id) ?>
                 <svg class="icon"><use href="#i-copy"/></svg>
-            </span>
+            </button>
         </div>
     </div>
 
@@ -88,15 +89,15 @@ $monthName = ['', 'январь', 'февраль', 'март', 'апрель', 
         <div class="card__header">
             <div class="card__title">Кэш по умолчанию</div>
             <div class="card__spacer"></div>
-            <button class="icon-btn icon-btn--ghost icon-btn--sm" aria-label="Изменить"
+            <button type="button" class="btn btn--ghost btn--sm"
                     data-action="bucket:cache" data-id="<?= Fmt::e($bucket->id) ?>"
                     data-max-age="<?= $bucket->cacheMaxAge ?? '' ?>"
                     data-visibility="<?= Fmt::e($bucket->cacheVisibility->name) ?>">
-                <svg class="icon icon--sm"><use href="#i-edit"/></svg>
+                <svg class="icon icon--sm"><use href="#i-edit"/></svg> Изменить
             </button>
         </div>
 
-        <dl class="kv mt-2">
+        <dl class="kv">
             <dt>Видимость</dt>
             <dd><span class="tone tone--<?= $bucket->cacheVisibility->tone() ?>">
                 <?= Fmt::e($bucket->cacheVisibility->label()) ?>
@@ -116,49 +117,19 @@ $monthName = ['', 'январь', 'февраль', 'март', 'апрель', 
     <div class="card__header">
         <div class="card__title">Расход за <?= Fmt::e($monthName) ?></div>
         <div class="card__spacer"></div>
-        <a class="text-sm text-muted" href="<?= $base ?>/stats">за период →</a>
+        <a class="btn btn--ghost btn--sm" href="<?= $base ?>/stats">за период <svg class="icon icon--sm"><use href="#i-arrow-right"/></svg></a>
     </div>
 
-    <?php if ($chart->isEmpty()): ?>
-        <div class="tchart-empty" style="--tchart-h: 240px">В этом месяце бакет ещё ничего не отдавал и не принимал</div>
-    <?php else: ?>
-        <div class="tchart-wrap" style="--tchart-h: 240px">
-            <div class="tchart-axis">
-                <?php foreach ($chart->grid as $line): ?><span><?= Fmt::e($line) ?></span><?php endforeach; ?>
-                <span>0</span>
-            </div>
-            <div class="tchart" data-tchart
-                 data-a-label="<?= Fmt::e($chart->topLabel) ?>" data-a-color="var(--brand)"
-                 data-b-label="<?= Fmt::e($chart->bottomLabel) ?>" data-b-color="var(--chart-4)">
-                <?php foreach ($chart->columns as $col): ?>
-                    <div class="tchart__col" data-title="<?= Fmt::e($col->dayTitle) ?>"
-                         data-a-value="<?= Fmt::e($col->topValue) ?>" data-b-value="<?= Fmt::e($col->bottomValue) ?>">
-                        <div class="tchart__stack">
-                            <?php if ($col->isEmpty): ?>
-                                <div class="tchart__zero"></div>
-                            <?php else: ?>
-                                <?php if ($col->bottomPercent > 0): ?>
-                                    <div class="tchart__bar tchart__bar--in tchart__bar--set" style="height: <?= $col->bottomPercent ?>%"></div>
-                                <?php endif; ?>
-                                <?php if ($col->topPercent > 0): ?>
-                                    <div class="tchart__bar tchart__bar--out tchart__bar--set" style="height: <?= $col->topPercent ?>%"></div>
-                                <?php endif; ?>
-                            <?php endif; ?>
-                        </div>
-                        <span class="tchart__label"><?= Fmt::e($col->label) ?></span>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-    <?php endif; ?>
+    <?= Ui::chart($chart, 220, 'В этом месяце бакет ещё ничего не отдавал и не принимал') ?>
 
     <div class="legend mt-2">
-        <span class="legend__item"><span class="legend__swatch" style="background: var(--brand)"></span>
+        <span class="legend__item"><span class="legend__swatch legend__swatch--out"></span>
             Egress <span class="legend__hint">· исходящий</span> <b><?= Fmt::bytes($totals->egress) ?></b></span>
-        <span class="legend__item"><span class="legend__swatch" style="background: var(--chart-4)"></span>
+        <span class="legend__item"><span class="legend__swatch legend__swatch--in"></span>
             Ingress <span class="legend__hint">· входящий</span> <b><?= Fmt::bytes($totals->ingress) ?></b></span>
         <span class="legend__item legend__hint"><?= Fmt::num($totals->deliveries) ?> <?= Fmt::plural($totals->deliveries, 'запрос', 'запроса', 'запросов') ?> к раздаче</span>
     </div>
+</div>
 
 <div class="grid grid--overview mb-3">
     <div class="card">
@@ -170,17 +141,17 @@ $monthName = ['', 'январь', 'февраль', 'март', 'апрель', 
         </div>
 
         <?php if ($kinds === []): ?>
-            <div class="empty-inline mt-2">
+            <div class="empty-inline">
                 <svg class="icon"><use href="#i-file"/></svg>
                 <div>
-                    <div style="font-weight:600">Пусто</div>
+                    <div class="empty-inline__title">Пусто</div>
                     <div class="text-sm text-muted">Загрузите первый файл.</div>
                 </div>
             </div>
         <?php else: ?>
-        <div class="ring-row mt-2">
+        <div class="ring-row">
             <div class="ring-box">
-                <svg class="ring" viewBox="0 0 140 140" data-donut>
+                <svg class="ring" viewBox="0 0 140 140" data-donut role="img" aria-label="Доля расширений на диске">
                     <circle class="ring__track" cx="70" cy="70" r="54"></circle>
                     <?php foreach ($kinds as $i => [$name, $size, $count]): ?>
                         <?php
@@ -228,7 +199,7 @@ $monthName = ['', 'январь', 'февраль', 'март', 'апрель', 
             <a class="btn btn--ghost btn--sm" href="<?= $base ?>/files">Открыть</a>
         </div>
 
-        <div class="pair mt-2">
+        <div class="pair">
             <div class="pair__side">
                 <span class="pair__value"><?= Fmt::num($bucket->files) ?></span>
                 <span class="pair__label">файлов</span>
@@ -252,8 +223,7 @@ $monthName = ['', 'январь', 'февраль', 'март', 'апрель', 
         <div class="share-bar mt-1">
             <?php foreach ($where as [$label, $color, $count, $dirs]): ?>
                 <span class="share-bar__part"
-                      style="width: <?= $bucket->files > 0 ? round($count / $bucket->files * 100, 2) : 0 ?>%;
-                             background: var(--chart-<?= $color ?>)"></span>
+                      style="width: <?= $bucket->files > 0 ? round($count / $bucket->files * 100, 2) : 0 ?>%; background: var(--chart-<?= $color ?>)"></span>
             <?php endforeach ?>
         </div>
 
@@ -272,7 +242,7 @@ $monthName = ['', 'январь', 'февраль', 'март', 'апрель', 
     </div>
 </div>
 
-<div class="grid grid--4">
+<div class="grid grid--4 metrics-row">
     <a class="card stat stat--ok access-tile" href="<?= $base ?>/tokens">
         <span class="stat__icon"><svg class="icon"><use href="#i-key"/></svg></span>
         <span class="stat__value<?= $tokenCounts['active'] === 0 ? ' is-zero' : '' ?>"><?= $tokenCounts['active'] ?></span>
@@ -309,5 +279,3 @@ $monthName = ['', 'январь', 'февраль', 'март', 'апрель', 
         </span>
     </a>
 </div>
-
-<?php wrImport('admin/_modals') ?>

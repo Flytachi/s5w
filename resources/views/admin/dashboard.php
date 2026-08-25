@@ -5,6 +5,7 @@ use Main\Web\BucketView;
 use Main\Web\Fmt;
 use Main\Web\TrafficChart;
 use Main\Web\Trend;
+use Main\Web\Ui;
 
 $chart = TrafficChart::of($series, 'bytes');
 
@@ -103,54 +104,16 @@ $delta = static function (Trend $trend): string {
         </div>
     </div>
 
-    <?php if ($chart->isEmpty()): ?>
-        <div class="tchart-empty" style="--tchart-h: 240px">За этот период трафика не было</div>
-    <?php else: ?>
-        <div class="tchart-wrap" style="--tchart-h: 240px">
-            <div class="tchart-axis">
-                <?php foreach ($chart->grid as $line): ?><span><?= Fmt::e($line) ?></span><?php endforeach; ?>
-                <span>0</span>
-            </div>
-            <div class="tchart" data-tchart
-                 data-a-label="<?= Fmt::e($chart->topLabel) ?>" data-a-color="var(--brand)"
-                 data-b-label="<?= Fmt::e($chart->bottomLabel) ?>" data-b-color="var(--chart-4)">
-                <?php foreach ($chart->columns as $col): ?>
-                    <div class="tchart__col" data-title="<?= Fmt::e($col->dayTitle) ?>"
-                         data-a-value="<?= Fmt::e($col->topValue) ?>" data-b-value="<?= Fmt::e($col->bottomValue) ?>">
-                        <div class="tchart__stack">
-                            <?php if ($col->isEmpty): ?>
-                                <div class="tchart__zero"></div>
-                            <?php else: ?>
-                                <?php if ($col->bottomPercent > 0): ?>
-                                    <div class="tchart__bar tchart__bar--in tchart__bar--set" style="height: <?= $col->bottomPercent ?>%"></div>
-                                <?php endif; ?>
-                                <?php if ($col->topPercent > 0): ?>
-                                    <div class="tchart__bar tchart__bar--out tchart__bar--set" style="height: <?= $col->topPercent ?>%"></div>
-                                <?php endif; ?>
-                            <?php endif; ?>
-                        </div>
-                        <span class="tchart__label"><?= Fmt::e($col->label) ?></span>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-    <?php endif; ?>
-
-    <div class="legend mt-2">
-        <span class="legend__item"><span class="legend__swatch" style="background: var(--brand)"></span>
-            <?= Fmt::e($chart->topLabel) ?> <span class="legend__hint">· <?= Fmt::e($chart->topHint) ?></span></span>
-        <span class="legend__item"><span class="legend__swatch" style="background: var(--chart-4)"></span>
-            <?= Fmt::e($chart->bottomLabel) ?> <span class="legend__hint">· <?= Fmt::e($chart->bottomHint) ?></span></span>
-        <?php if (!$chart->isEmpty()): ?>
-            <span class="legend__item legend__hint">пик за сутки — <?= Fmt::e($chart->peakLabel()) ?></span>
-            <span class="legend__item legend__hint">в среднем на отдачу — <?= Fmt::bytes($totals->averageServed()) ?></span>
-            <span class="legend__item legend__hint">запросов с токеном — <?= Fmt::num($totals->api) ?></span>
-        <?php endif; ?>
-    </div>
+    <?= Ui::chart($chart, 240, 'За этот период трафика не было') ?>
+    <?= Ui::legend($chart, $chart->isEmpty() ? [] : [
+        'пик за сутки — ' . $chart->peakLabel(),
+        'в среднем на отдачу — ' . Fmt::bytes($totals->averageServed()),
+        'запросов с токеном — ' . Fmt::num($totals->api),
+    ]) ?>
 </div>
 
 <div class="grid grid--2 mb-3">
-    <div class="card" style="display: flex; flex-direction: column">
+    <div class="card card--flex">
         <div class="card__header">
             <div>
                 <div class="card__title">Кто ест канал</div>
@@ -160,9 +123,9 @@ $delta = static function (Trend $trend): string {
         </div>
 
         <?php if ($top === []): ?>
-            <p class="text-sm text-muted mt-3">За этот период ни один бакет ничего не отдавал.</p>
+            <p class="text-sm text-muted">За этот период ни один бакет ничего не отдавал.</p>
         <?php else: ?>
-            <div class="tbrank mt-2">
+            <div class="tbrank">
                 <?php foreach ($top as $row): ?>
                     <a class="tbrank__row" href="/admin/ui/buckets/<?= Fmt::e($row->bucket_id) ?>/stats">
                         <span class="tbrank__name"><?= Fmt::e($row->name) ?></span>
@@ -181,7 +144,7 @@ $delta = static function (Trend $trend): string {
         <?php endif; ?>
 
         <?php if ($quiet !== []): ?>
-            <div class="text-sm text-muted" style="margin-top: auto; padding-top: 18px">
+            <div class="text-sm text-muted quiet">
                 Молчали: <?= Fmt::e(implode(', ', $quietShown)) ?><?php if ($quietRest > 0): ?>
                     и ещё <?= Fmt::num($quietRest) ?><?php endif; ?>
             </div>
@@ -202,9 +165,9 @@ $delta = static function (Trend $trend): string {
         </div>
 
         <?php if ($fill === []): ?>
-            <p class="text-sm text-muted mt-3">Ни одному бакету не выделена квота.</p>
+            <p class="text-sm text-muted">Ни одному бакету не выделена квота.</p>
         <?php else: ?>
-            <div class="tbrank mt-3">
+            <div class="tbrank">
                 <?php foreach ($fill as $card): ?>
                     <a class="tbrank__row <?= $card->quotaState() ?>" href="/admin/ui/buckets/<?= Fmt::e($card->id) ?>">
                         <span class="tbrank__name"><?= Fmt::e($card->name) ?></span>
@@ -228,7 +191,7 @@ $delta = static function (Trend $trend): string {
             <div class="card__spacer"></div>
             <span class="tone tone--brand"><svg class="icon"><use href="#i-key"/></svg> <?= Fmt::num($tokenCounts['active']) ?></span>
         </div>
-        <dl class="kv mt-2">
+        <dl class="kv">
             <dt>Всего выпущено</dt><dd><?= Fmt::num($tokenCounts['total']) ?></dd>
             <dt>Действуют</dt><dd><?= Fmt::num($tokenCounts['active']) ?></dd>
             <dt>С полным доступом</dt><dd><?= Fmt::num($tokenCounts['full']) ?></dd>
@@ -246,7 +209,7 @@ $delta = static function (Trend $trend): string {
             <div class="card__spacer"></div>
             <span class="tone tone--temp"><svg class="icon"><use href="#i-link"/></svg> <?= Fmt::num($linkCounts['active']) ?></span>
         </div>
-        <dl class="kv mt-2">
+        <dl class="kv">
             <dt>Всего выпущено</dt><dd><?= Fmt::num($linkCounts['total']) ?></dd>
             <dt>Живы</dt><dd><?= Fmt::num($linkCounts['active']) ?></dd>
             <dt>Истекли</dt><dd><?= Fmt::num($linkCounts['expired']) ?></dd>
@@ -263,7 +226,7 @@ $delta = static function (Trend $trend): string {
                 <svg class="icon"><use href="#i-upload"/></svg> <?= Fmt::num($uploadCounts->total) ?>
             </span>
         </div>
-        <dl class="kv mt-2">
+        <dl class="kv">
             <dt>В работе</dt><dd><?= Fmt::num($uploadCounts->total - $uploadCounts->expired) ?></dd>
             <dt>Просрочены</dt><dd><?= Fmt::num($uploadCounts->expired) ?></dd>
             <dt>Занято в staging</dt><dd><?= Fmt::bytes($uploadCounts->staged) ?></dd>

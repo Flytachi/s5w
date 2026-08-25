@@ -11,27 +11,34 @@ if ($meta->pages <= 1) {
 }
 ?>
 
-<div class="pagination">
-    <span class="text-sm text-muted ml-auto">
+<nav class="pagination" aria-label="Страницы">
+    <span class="pagination__info">
         страница <?= $meta->current ?> из <?= $meta->pages ?>
     </span>
 
-    <a class="page-btn<?= $meta->previous === null ? ' is-disabled' : '' ?>"
-       href="<?= Fmt::e($pageUrl($meta->previous ?? 1)) ?>" aria-label="Назад">
-        <svg class="icon icon--sm"><use href="#i-chevron-left"/></svg>
-    </a>
+    <?php if ($meta->previous === null): ?>
+        <span class="page-btn is-disabled" aria-hidden="true"><svg class="icon icon--sm"><use href="#i-chevron-left"/></svg></span>
+    <?php else: ?>
+        <a class="page-btn" href="<?= Fmt::e($pageUrl($meta->previous)) ?>" aria-label="Назад">
+            <svg class="icon icon--sm"><use href="#i-chevron-left"/></svg>
+        </a>
+    <?php endif ?>
 
     <?php foreach (Fmt::pages($meta->current, $meta->pages) as $number): ?>
         <?php if ($number === null): ?>
-            <span class="page-btn is-gap">…</span>
+            <span class="page-btn is-gap" aria-hidden="true">…</span>
+        <?php elseif ($number === $meta->current): ?>
+            <span class="page-btn active" aria-current="page"><?= $number ?></span>
         <?php else: ?>
-            <a class="page-btn<?= $number === $meta->current ? ' active' : '' ?>"
-               href="<?= Fmt::e($pageUrl($number)) ?>"><?= $number ?></a>
+            <a class="page-btn" href="<?= Fmt::e($pageUrl($number)) ?>" aria-label="Страница <?= $number ?>"><?= $number ?></a>
         <?php endif ?>
     <?php endforeach ?>
 
-    <a class="page-btn<?= $meta->next === null ? ' is-disabled' : '' ?>"
-       href="<?= Fmt::e($pageUrl($meta->next ?? $meta->pages)) ?>" aria-label="Вперёд">
-        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
-    </a>
-</div>
+    <?php if ($meta->next === null): ?>
+        <span class="page-btn is-disabled" aria-hidden="true"><svg class="icon icon--sm"><use href="#i-chevron-right"/></svg></span>
+    <?php else: ?>
+        <a class="page-btn" href="<?= Fmt::e($pageUrl($meta->next)) ?>" aria-label="Вперёд">
+            <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+        </a>
+    <?php endif ?>
+</nav>
