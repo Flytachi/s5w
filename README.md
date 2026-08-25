@@ -3,9 +3,8 @@
 Single-container file store on **Swoole** (PHP 8.5) with a **bundled PostgreSQL 18**.
 Everything — application, database, scheduler — runs in one container supervised by s6.
 
-- **Web panel:** `http://localhost:<port>/admin/ui`
-- **Admin API:** `http://localhost:<port>/admin/…`
-- **Client API:** `http://localhost:<port>/v1/…`
+- **Web panel:** `http://<host>/admin/ui` (`/` и `/admin` ведут туда же)
+- **Client API:** `http://<host>/v1/…`
 - **Delivery:** `/o` (public) · `/p` (by token) · `/t` (signed temporary links)
 - **Image:** `flytachi/s5w:latest`
 
@@ -46,14 +45,13 @@ container's disk and the database is an index over them, so both sit in one volu
 docker run -d --name s5w -p 9090:9090 \
   -e ADMIN_LOGIN=admin -e ADMIN_PASSWORD=change-me \
   flytachi/s5w:latest
-# http://localhost:9090/admin/ui  → admin / change-me
+# http://localhost:9090/  → admin / change-me
 ```
 
 **Persistent (recommended):**
 ```bash
 docker run -d --name s5w -p 9090:9090 \
   -e ADMIN_LOGIN=admin -e ADMIN_PASSWORD=change-me \
-  -e PUBLIC_BASE_URL=https://files.example.com \
   -v s5w_data:/var/lib/s5w \
   --stop-timeout 30 \
   --restart unless-stopped \
@@ -90,19 +88,14 @@ docker compose up -d
 
 **Persistent (recommended):**
 ```yaml
-x-port: &port ${SERVER_PORT:-9090}
-
 services:
   s5w:
     image: flytachi/s5w:latest
     ports:
-      - target: *port
-        published: *port
+      - "9090:9090"
     environment:
-      SERVER_PORT: *port
       ADMIN_LOGIN: admin
       ADMIN_PASSWORD: change-me
-      PUBLIC_BASE_URL: https://files.example.com
       TIME_ZONE: Europe/Amsterdam
       LOG_LEVEL: warning
     volumes:
