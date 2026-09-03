@@ -1,0 +1,332 @@
+/* ============================================================
+   s5w — админка. Основание: токены, сброс, типографика, утилиты.
+
+   Файлы подключаются в порядке base → shell → components → pages.
+
+   Отзывчивость — mobile-first, четыре порога и только они:
+     sm  640px   пара колонок в сетках, поля в строку
+     md  768px   таблицы вместо карточек, модалки по центру
+     lg 1024px   сайдбар в сетке страницы, менеджер файлов в две колонки
+     xl 1280px   четыре плитки в ряд, сайдбар шире
+   Те же числа читает JS (ui/dom.js, ui/sidebar.js).
+
+   Правило каркаса: ни у одного предка содержимого нет transform, filter,
+   backdrop-filter, will-change или contain — иначе `position: fixed` у меню и
+   подсказок считался бы не от окна. Размытие разрешено только у шапки на
+   телефоне и у подложки <dialog> (это псевдоэлемент, а не предок).
+
+   Смысловые цвета не декоративные, а рабочие:
+     индиго  — бренд и приватный канал /p
+     бирюза  — «живое»: ACTIVE, публичная отдача /o
+     фиолет  — временные ссылки /t
+     янтарь  — процесс и сроки: CREATED/PENDING, retention
+     красный — квота на исходе, отзыв, удаление
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* нейтральная шкала — холодная, с уходом в морской синий */
+  --black: #060b14;
+  --dark: #0e1626;
+  /* чернила, которые не переворачиваются вместе с темой (см. .secret) */
+  --ink: #0e1626;
+  --dark-2: #17233a;
+  --gray-7: #2c3b56;
+  --gray-6: #55647f;
+  --gray-5: #8492a8;
+  --gray-4: #b3bdcc;
+  --gray-3: #d5dce6;
+  --gray-2: #eaeff5;
+  --gray-1: #f4f6fa;
+  --white: #ffffff;
+  --bg: #dfe6f2;
+
+  /* бренд */
+  --brand: #3b5bdb;
+  --brand-600: #2f49b8;
+  --brand-soft: #e8ecfd;
+  --brand-ring: rgba(59, 91, 219, 0.26);
+
+  /* смысловые */
+  --ok: #0ca678;
+  --ok-soft: #ddf4ec;
+  --warn: #e08c0b;
+  --warn-soft: #fcefd8;
+  --danger: #e03131;
+  --danger-600: #c92a2a;
+  --danger-soft: #fde8e8;
+  --temp: #7048e8;
+  --temp-soft: #ece5fd;
+
+  --scroll-shade: rgba(14, 22, 38, 0.18);
+  --scrim: rgba(6, 11, 20, 0.5);
+
+  --r-lg: 22px;
+  --r-md: 14px;
+  --r-sm: 10px;
+  --r-pill: 999px;
+
+  --shadow: 0 10px 30px rgba(14, 22, 38, 0.14);
+  --shadow-sm: 0 4px 14px rgba(14, 22, 38, 0.10);
+
+  --font: "Onest", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* кегли: база 16px; мельче 13px — только оси графиков */
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-md: 0.875rem;
+  --fs-base: 0.9375rem;
+  --fs-lg: 1.0625rem;
+  --fs-xl: 1.25rem;
+  --fs-2xl: 1.625rem;
+  --fs-3xl: 2rem;
+  --lh: 1.45;
+
+  /* высота контролов; на тачскрине — не меньше 44px */
+  --h-ctl: 42px;
+  --h-ctl-sm: 36px;
+  --h-ctl-xs: 34px;
+
+  --pad-card: 20px;
+  --gap: 16px;
+
+  --sidebar-w: 268px;
+  --topbar-h: 64px;
+
+  /* слои каркаса; ничего кроме shell.css не задаёт z-index */
+  --z-sticky: 10;
+  --z-overlay: 30;
+  --z-drawer: 40;
+  --z-popover: 60;
+  --z-tip: 70;
+  --z-toast: 200;
+
+  /* палитра диаграмм: восемь различимых оттенков, цикл по кругу */
+  --chart-1: #3b5bdb;
+  --chart-2: #7048e8;
+  --chart-3: #0ca678;
+  --chart-4: #f59f00;
+  --chart-4-600: #d98600;
+  --chart-5: #e03131;
+  --chart-6: #1098ad;
+  --chart-7: #d6336c;
+  --chart-8: #74b816;
+}
+
+@media (min-width: 640px) {
+  :root { --pad-card: 24px; --gap: 20px; }
+}
+
+@media (min-width: 1280px) {
+  :root { --sidebar-w: 292px; }
+}
+
+@media (pointer: coarse) {
+  :root { --h-ctl: 46px; --h-ctl-sm: 44px; --h-ctl-xs: 44px; }
+}
+
+/* ============ Тёмная тема ============
+   Палитра монохромная, поэтому тёмный режим — управляемая инверсия:
+   --white становится тёмной поверхностью, --dark — светлым текстом.
+   Переключается атрибутом [data-theme="dark"] на <html> (theme.js). */
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --black: #ffffff;
+  --dark: #eaf0fa;
+  --ink: #080e1a;
+  --dark-2: #d6dfee;
+  --gray-7: #c3cddd;
+  --gray-6: #a3b0c4;
+  --gray-5: #7f8ca1;
+  --gray-4: #4e5c73;
+  --gray-3: #38455c;
+  --gray-2: #212d43;
+  --gray-1: #1b2740;
+  --white: #162033;
+  --bg: #0a1020;
+
+  --brand: #6f8bff;
+  --brand-600: #8ba2ff;
+  --brand-soft: #1f2b4d;
+  --brand-ring: rgba(111, 139, 255, 0.30);
+
+  --ok: #2fc79b;
+  --ok-soft: #12312a;
+  --warn: #f0a828;
+  --warn-soft: #3a2b12;
+  --danger: #ff6b6b;
+  --danger-600: #ff8585;
+  --danger-soft: #3a1d1d;
+  --temp: #9c7bff;
+  --temp-soft: #271c47;
+
+  --scroll-shade: rgba(0, 0, 0, 0.45);
+  --scrim: rgba(0, 0, 0, 0.6);
+
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+/* ============ Сброс ============ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Компоненты задают свой display (inline-flex, grid), и он перебивает
+   стандартное правило для [hidden] — прячем принудительно. */
+[hidden] { display: none !important; }
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  scrollbar-gutter: stable;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: var(--lh);
+  color: var(--dark);
+  background-color: var(--bg);
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Фон — градиентная сетка вместо фотографии: ничего не тянем с диска,
+   и оттенки те же, что у смысловых цветов интерфейса. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(1200px 700px at 10% -12%, rgba(59, 91, 219, 0.30), transparent 60%),
+    radial-gradient(900px 620px at 94% 4%, rgba(112, 72, 232, 0.22), transparent 60%),
+    radial-gradient(1000px 780px at 62% 112%, rgba(12, 166, 120, 0.18), transparent 62%),
+    linear-gradient(160deg, #eff3fa 0%, #dde5f2 46%, #d5dcee 100%);
+}
+
+:root[data-theme="dark"] body::before {
+  background:
+    radial-gradient(1200px 700px at 10% -12%, rgba(59, 91, 219, 0.30), transparent 60%),
+    radial-gradient(900px 620px at 94% 4%, rgba(112, 72, 232, 0.22), transparent 60%),
+    radial-gradient(1000px 780px at 62% 112%, rgba(12, 166, 120, 0.14), transparent 62%),
+    linear-gradient(160deg, #0d1424 0%, #0a1020 50%, #0b1526 100%);
+}
+
+/* Открытая модалка или боковое меню: страница под ними не прокручивается. */
+html[data-scroll-lock] { overflow: hidden; }
+
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; }
+input, select, textarea { font: inherit; color: inherit; }
+h1, h2, h3 { font-size: inherit; font-weight: inherit; }
+table { border-collapse: collapse; border-spacing: 0; }
+fieldset { border: 0; min-width: 0; }
+legend { padding: 0; }
+dialog { color: inherit; }
+
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+
+::selection { background: var(--brand-soft); color: var(--brand-600); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============ Иконки ============ */
+
+.icon { width: 20px; height: 20px; flex: 0 0 auto; }
+.icon--sm { width: 16px; height: 16px; }
+.icon--lg { width: 24px; height: 24px; }
+.icon--flip { transform: rotate(180deg); }
+
+/* ============ Типографика и утилиты ============ */
+
+.text-muted { color: var(--gray-5); }
+.text-sm { font-size: var(--fs-md); }
+.text-xs { font-size: var(--fs-sm); }
+.text-brand { color: var(--brand); }
+.text-ok { color: var(--ok); }
+.text-warn { color: var(--warn); }
+.text-temp { color: var(--temp); }
+.text-danger { color: var(--danger); }
+.nowrap { white-space: nowrap; }
+.break { overflow-wrap: anywhere; }
+.w-full { width: 100%; }
+.grow { flex: 1 1 auto; min-width: 0; }
+.ml-auto { margin-left: auto; }
+.mt-auto { margin-top: auto; }
+.center { justify-content: center; }
+
+.mt-1 { margin-top: 8px; } .mt-2 { margin-top: 16px; } .mt-3 { margin-top: 24px; }
+.mb-1 { margin-bottom: 8px; } .mb-2 { margin-bottom: 16px; } .mb-3 { margin-bottom: var(--gap); }
+
+.mono {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  letter-spacing: -0.01em;
+}
+
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.row--nowrap { flex-wrap: nowrap; }
+.row--between { justify-content: space-between; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.stack--tight { gap: 4px; }
+
+/* Сетки: на телефоне всё в колонку, дальше по порогам. */
+.grid { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1fr); }
+
+@media (min-width: 640px) {
+  .grid--2, .grid--3, .grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1024px) {
+  .grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1280px) {
+  .grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* Показать только на узком / только на широком экране. */
+@media (max-width: 767.98px) {
+  .from-md { display: none !important; }
+}
+
+@media (min-width: 768px) {
+  .only-sm { display: none !important; }
+}
+
+@media (max-width: 1023.98px) {
+  .from-lg { display: none !important; }
+}
+
+@media (min-width: 1024px) {
+  .only-md { display: none !important; }
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Приглушённая строка: выключенный токен, отозванная ссылка, бакет в удалении. */
+.is-dimmed { opacity: 0.55; }

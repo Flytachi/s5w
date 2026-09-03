@@ -1,0 +1,177 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Main\Web;
+
+final class Fmt
+{
+    public static function bytes(int|float $value, int $precision = 1): string
+    {
+        $units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
+        $i = 0;
+        while ($value >= 1024 && $i < count($units) - 1) {
+            $value /= 1024;
+            $i++;
+        }
+
+        return ($i === 0 ? (string) (int) $value : number_format($value, $precision, '.', ' '))
+            . ' ' . $units[$i];
+    }
+
+    public static function num(int $value): string
+    {
+        return number_format($value, 0, '.', ' ');
+    }
+
+    public static function ago(string $datetime): string
+    {
+        $diff = time() - strtotime($datetime);
+        if ($diff < 60) {
+            return 'только что';
+        }
+
+        foreach ([[31536000, 'г'], [2592000, 'мес'], [86400, 'д'], [3600, 'ч'], [60, 'мин']] as [$size, $label]) {
+            if ($diff >= $size) {
+                return intdiv($diff, $size) . ' ' . $label . ' назад';
+            }
+        }
+
+        return 'только что';
+    }
+
+    public static function left(?string $datetime): string
+    {
+        if ($datetime === null) {
+            return 'бессрочно';
+        }
+
+        $diff = strtotime($datetime) - time();
+        if ($diff <= 0) {
+            return 'истёк';
+        }
+
+        foreach ([[86400, 'д'], [3600, 'ч'], [60, 'мин']] as [$size, $label]) {
+            if ($diff >= $size) {
+                return 'ещё ' . intdiv($diff, $size) . ' ' . $label;
+            }
+        }
+
+        return 'меньше минуты';
+    }
+
+    public static function date(string $datetime): string
+    {
+        return date('d.m.Y H:i', strtotime($datetime));
+    }
+
+    public static function kind(string $mime): array
+    {
+        return match (true) {
+            str_starts_with($mime, 'image/') => ['image', 'i-image'],
+            str_starts_with($mime, 'video/') => ['video', 'i-film'],
+            str_starts_with($mime, 'audio/') => ['audio', 'i-music'],
+            str_contains($mime, 'zip'), str_contains($mime, 'gzip'), str_contains($mime, 'tar')
+                => ['arch', 'i-archive'],
+            default => ['doc', 'i-file'],
+        };
+    }
+
+    public static function quotaState(int $used, int $quota): array
+    {
+        $percent = $quota > 0 ? min(100, $used / $quota * 100) : 0;
+        $class = match (true) {
+            $percent >= 90 => 'is-danger',
+            $percent >= 70 => 'is-warn',
+            default => '',
+        };
+
+        return [$percent, $class];
+    }
+
+    public static function plural(int $count, string $one, string $few, string $many): string
+    {
+        $mod100 = $count % 100;
+        if ($mod100 >= 11 && $mod100 <= 14) {
+            return $many;
+        }
+
+        return match ($count % 10) {
+            1 => $one,
+            2, 3, 4 => $few,
+            default => $many,
+        };
+    }
+
+    /**
+     * @return array<int, int|null>
+     */
+    public static function pages(int $current, int $total, int $around = 1): array
+    {
+        $numbers = [];
+        for ($i = 1; $i <= $total; $i++) {
+            $edge = $i === 1 || $i === $total;
+            if ($edge || abs($i - $current) <= $around) {
+                $numbers[] = $i;
+            } elseif (end($numbers) !== null) {
+                $numbers[] = null;
+            }
+        }
+
+        return $numbers;
+    }
+
+    public static function e(?string $value): string
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    public static function asset(string $path): string
+    {
+        $file = self::staticRoot() . $path;
+        $stamp = @filemtime($file);
+
+        return self::e($path . ($stamp === false ? '' : '?v=' . $stamp));
+    }
+
+    /**
+     * Карта импортов для ES-модулей: каждый модуль получает ?v=mtime.
+     *
+     * Скрипты импортируют друг друга относительными путями без версии; браузер
+     * сначала разрешает путь в URL, а потом ищет его в карте — и берёт адрес с
+     * версией. Так правка одного модуля сбрасывает его кэш, а исходники остаются
+     * без магии. Плюс modulepreload: дерево импортов грузится параллельно.
+     */
+    public static function importMap(): string
+    {
+        $root = self::staticRoot();
+        $dir = $root . '/assets/js';
+        $imports = [];
+
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS));
+        foreach ($it as $file) {
+            if ($file->getExtension() !== 'js') {
+                continue;
+            }
+            $url = str_replace('\\', '/', substr($file->getPathname(), strlen($root)));
+            $imports[$url] = $url . '?v=' . $file->getMTime();
+        }
+        ksort($imports);
+
+        $json = json_encode(['imports' => $imports], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+        $preload = '';
+        foreach ($imports as $url => $versioned) {
+            if (str_starts_with($url, '/assets/js/theme.js') || str_starts_with($url, '/assets/js/icons.js')) {
+                continue;
+            }
+            $preload .= '<link rel="modulepreload" href="' . self::e($versioned) . '">';
+        }
+
+        return '<script type="importmap">' . $json . '</script>' . $preload;
+    }
+
+    private static function staticRoot(): string
+    {
+        return dirname(__DIR__, 2) . '/resources/static';
+    }
+}

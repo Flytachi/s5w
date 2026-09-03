@@ -1,0 +1,28 @@
+#!/usr/bin/env php
+<?php
+
+/*
+    PHP version guard
+    -----------------
+    The framework requires PHP 8.4+ (named arguments, readonly properties, etc.).
+    If the requirement is not met the script exits with a human-readable message
+    instead of a cryptic parse error.
+*/
+if (PHP_VERSION_ID >= 80400) {
+
+    chdir(__DIR__);
+
+    /*
+        Bootstrap
+        ---------
+        Initialises the framework (autoload, Kernel::init, optional CORS / Health /
+        Plugin config).  See bootstrap.php for full parameter reference.
+    */
+    require './bootstrap.php';
+
+    Application::main($argv);
+
+} else {
+    echo "\033[33m"." Please use PHP version 8.4 or higher.\n";
+    echo "\033[34m"." Current PHP version => " . PHP_VERSION . "\n";
+}

@@ -1,0 +1,27 @@
+x-port: &port ${SERVER_PORT:-9090}
+
+services:
+  server:
+    tty: true
+    container_name: ${COMPOSE_PROJECT_NAME:-app}
+    network_mode: bridge
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      COMPOSE_BAKE: "true"
+      SERVER_PORT: *port
+      DEV: ${DEV:-false}
+      PUBLIC_BASE_URL: ''
+      ADMIN_LOGIN: admin
+      ADMIN_PASSWORD: admin
+      LOG_LEVEL: debug
+    ports:
+      - target: *port
+        published: *port
+    volumes:
+      - ./:/var/www/html/
+      - s5w_data:/var/lib/s5w
+
+volumes:
+  s5w_data:
