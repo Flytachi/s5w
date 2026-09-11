@@ -30,7 +30,7 @@ final readonly class LinkView
     {
         return new self(
             id: $link->id,
-            fileName: $file?->name ?? 'файл удалён',
+            fileName: $file?->name ?? 'file deleted',
             fileSlug: $file?->slug ?? '',
             expiresAt: $link->expires_at,
             revoked: $link->revoked,
@@ -54,10 +54,25 @@ final readonly class LinkView
     public function deadReason(): ?string
     {
         return match (true) {
-            $this->revoked => 'отозвана',
-            $this->expired => 'срок истёк',
-            $this->maxDownloads !== null && $this->downloads >= $this->maxDownloads => 'лимит исчерпан',
+            $this->revoked => 'revoked',
+            $this->expired => 'expired',
+            $this->maxDownloads !== null && $this->downloads >= $this->maxDownloads => 'limit reached',
             default => null,
         };
+    }
+
+    public function deadReasonKey(): ?string
+    {
+        return match (true) {
+            $this->revoked => 'link.dead.revoked',
+            $this->expired => 'link.dead.expired',
+            $this->maxDownloads !== null && $this->downloads >= $this->maxDownloads => 'link.dead.limit',
+            default => null,
+        };
+    }
+
+    public function fileGone(): bool
+    {
+        return $this->fileSlug === '';
     }
 }

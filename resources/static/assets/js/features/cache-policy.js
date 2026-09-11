@@ -1,6 +1,7 @@
 /* Политика кэша для бакета и папки: форма и живой разбор заголовка. */
 
 import { bucketId, e } from "../ui/dom.js";
+import { t } from "../i18n/index.js";
 import * as actions from "../ui/actions.js";
 import * as forms from "../ui/forms.js";
 import { Modal } from "../ui/modal.js";
@@ -17,28 +18,22 @@ const TTL_SUGGEST = {
 };
 
 const TTL_HINT = {
-  "": "Пусто — срок берётся с бакета.",
-  1: "Пусто — сутки. Ноль — браузер перепроверяет каждый раз.",
-  2: "Пусто — без кэша: браузер перепроверяет каждый раз.",
-  3: "При этом режиме срок в заголовок не попадает.",
+  "": "cache.ttlHint.inherit",
+  1: "cache.ttlHint.shared",
+  2: "cache.ttlHint.private",
+  3: "cache.ttlHint.none",
 };
 
 const WORDING = {
   folder: {
-    intro: `Когда клиент скачал файл, копия остаётся у него в браузере, а по пути — ещё и у
-            CDN, прокси и провайдера. Здесь решается, <b>кому</b> из них можно держать эту
-            копию и <b>сколько</b>. Папка перекрывает бакет, бакет — дефолт сервиса.`,
-    title: "Как в бакете",
-    text: `Решает бакет, а если и там ничего не выбрано — сам сервис. Обычный выбор,
-           пока у папки нет причин отличаться.`,
-    empty: "Ничего не задано — берётся с уровня выше. Сейчас вышло бы так:",
+    intro: "cache.intro.folder",
+    title: "cache.autoTitle",
+    text: "cache.autoText",
+    empty: "cache.empty.folder",
   },
   bucket: {
-    intro: `Когда клиент скачал файл, копия остаётся у него в браузере, а по пути — ещё и у
-            CDN, прокси и провайдера. Здесь решается, <b>кому</b> из них можно держать эту
-            копию и <b>сколько</b>. Бакет — верхний уровень: заданное здесь работает для всех
-            папок, пока папка не решит иначе.`,
-    empty: "Так отдаются файлы этого бакета:",
+    intro: "cache.intro.bucket",
+    empty: "cache.empty.bucket",
   },
 };
 
@@ -88,10 +83,10 @@ function renderPreview(form) {
   const words = WORDING[form.dataset.level] || WORDING.folder;
 
   box.innerHTML =
-    `<div class="cache-preview__note">${inherited ? words.empty : "Что уйдёт в заголовке при таких настройках:"}</div>` +
-    row("o", "файл в публичной папке", true) +
-    row("p", "по токену", false) +
-    row("t", "по временной ссылке — но не дольше её самой", false);
+    `<div class="cache-preview__note">${t(inherited ? words.empty : "cache.previewNote")}</div>` +
+    row("o", t("cache.row.public"), true) +
+    row("p", t("cache.row.token"), false) +
+    row("t", t("cache.row.temp"), false);
 }
 
 /** Срок, который действует у бакета: его показываем папке как «как в бакете (N)». */
@@ -106,11 +101,11 @@ function inheritedAge() {
 /** Пустое поле не должно молчать: в подсказке — число, которое уйдёт клиенту. */
 function ttlPlaceholder(level, value) {
   if (value === "3") return "—";
-  if (value === "2") return "0 — без кэша";
-  if (value === "1") return DEFAULT_AGE + " — по умолчанию";
+  if (value === "2") return t("cache.ttlNoCache");
+  if (value === "1") return t("cache.ttlDefault", { n: DEFAULT_AGE });
 
   const age = inheritedAge();
-  return age === null ? "как в бакете" : `как в бакете (${age})`;
+  return age === null ? t("cache.ttlInherit") : t("cache.ttlInheritAge", { age });
 }
 
 /**
@@ -129,7 +124,9 @@ function syncTtl(form, switched = false) {
   ttl.disabled = off;
   ttl.placeholder = ttlPlaceholder(level, value);
   form.querySelectorAll("[data-cache-presets] [data-ttl]").forEach((b) => (b.disabled = off));
-  form.querySelector("[data-cache-ttl-hint]").textContent = TTL_HINT[value === "" ? "" : Number(value)];
+  const hint = form.querySelector("[data-cache-ttl-hint]");
+  hint.dataset.i18n = TTL_HINT[value === "" ? "" : Number(value)];
+  hint.textContent = t(hint.dataset.i18n);
 
   if (!switched) return;
 
@@ -159,10 +156,16 @@ function prepare(dialog, { data, isFolder }) {
     ? "PATCH /admin/buckets/{bucket}/folders/{name}/cache"
     : `PATCH /admin/buckets/${data.id || bucketId()}/cache`;
 
-  form.querySelector("[data-cache-intro]").innerHTML = words.intro;
+  const intro = form.querySelector("[data-cache-intro]");
+  intro.dataset.i18n = words.intro;
+  intro.textContent = t(words.intro);
   if (isFolder) {
-    form.querySelector("[data-cache-auto-title]").textContent = words.title;
-    form.querySelector("[data-cache-auto-text]").textContent = words.text;
+    const autoTitle = form.querySelector("[data-cache-auto-title]");
+    const autoText = form.querySelector("[data-cache-auto-text]");
+    autoTitle.dataset.i18n = words.title;
+    autoTitle.textContent = t(words.title);
+    autoText.dataset.i18n = words.text;
+    autoText.textContent = t(words.text);
   }
 
   // Наследовать бакету не от кого: «как уровнем выше» есть только у папки.
@@ -172,7 +175,14 @@ function prepare(dialog, { data, isFolder }) {
   ttl.value = data.maxAge ?? "";
   ttl.dataset.suggested = "";
   form.elements.visibility.value = { SHARED: "1", PRIVATE: "2", NO_STORE: "3" }[data.visibility] || "";
-  dialog.querySelector("[data-cache-target]").textContent = isFolder ? "· папка " + data.name : "· весь бакет";
+  const target = dialog.querySelector("[data-cache-target]");
+  if (isFolder) {
+    delete target.dataset.i18n;
+    target.textContent = t("cache.targetFolder", { name: data.name });
+  } else {
+    target.dataset.i18n = "cache.targetBucket";
+    target.textContent = t("cache.targetBucket");
+  }
 
   syncTtl(form);
   refreshSelects(form);
@@ -197,7 +207,10 @@ function prepare(dialog, { data, isFolder }) {
 
 function onSaved(data, form) {
   const name = form.dataset.name;
-  toast.show(name ? `Кэш папки <b>${e(name)}</b> сохранён` : "Кэш бакета сохранён", { type: "ok" });
+  toast.show(
+    name ? t("cache.savedFolder", { name: "<b>" + e(name) + "</b>" }) : t("cache.savedBucket"),
+    { type: "ok" },
+  );
 
   if (name) {
     patchFolderCard(name, data.cache || {});

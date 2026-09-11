@@ -4,6 +4,7 @@
 import { e } from "./dom.js";
 import * as popover from "./popover.js";
 import * as toast from "./toast.js";
+import { t } from "../i18n/index.js";
 
 const handlers = new Map();
 
@@ -36,7 +37,7 @@ export function init() {
     try {
       await fn(ctx);
     } catch (err) {
-      toast.show(e(err.message || "Не получилось"), { type: "error" });
+      toast.show(e(err.message || t("error.generic")), { type: "error" });
     }
   });
 }

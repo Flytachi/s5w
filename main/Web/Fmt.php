@@ -8,7 +8,7 @@ final class Fmt
 {
     public static function bytes(int|float $value, int $precision = 1): string
     {
-        $units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
         $i = 0;
         while ($value >= 1024 && $i < count($units) - 1) {
             $value /= 1024;
@@ -28,36 +28,36 @@ final class Fmt
     {
         $diff = time() - strtotime($datetime);
         if ($diff < 60) {
-            return 'только что';
+            return 'just now';
         }
 
-        foreach ([[31536000, 'г'], [2592000, 'мес'], [86400, 'д'], [3600, 'ч'], [60, 'мин']] as [$size, $label]) {
+        foreach ([[31536000, 'y'], [2592000, 'mo'], [86400, 'd'], [3600, 'h'], [60, 'min']] as [$size, $label]) {
             if ($diff >= $size) {
-                return intdiv($diff, $size) . ' ' . $label . ' назад';
+                return intdiv($diff, $size) . ' ' . $label . ' ago';
             }
         }
 
-        return 'только что';
+        return 'just now';
     }
 
     public static function left(?string $datetime): string
     {
         if ($datetime === null) {
-            return 'бессрочно';
+            return 'permanent';
         }
 
         $diff = strtotime($datetime) - time();
         if ($diff <= 0) {
-            return 'истёк';
+            return 'expired';
         }
 
-        foreach ([[86400, 'д'], [3600, 'ч'], [60, 'мин']] as [$size, $label]) {
+        foreach ([[86400, 'd'], [3600, 'h'], [60, 'min']] as [$size, $label]) {
             if ($diff >= $size) {
-                return 'ещё ' . intdiv($diff, $size) . ' ' . $label;
+                return intdiv($diff, $size) . ' ' . $label . ' left';
             }
         }
 
-        return 'меньше минуты';
+        return 'under a minute';
     }
 
     public static function date(string $datetime): string
@@ -87,20 +87,6 @@ final class Fmt
         };
 
         return [$percent, $class];
-    }
-
-    public static function plural(int $count, string $one, string $few, string $many): string
-    {
-        $mod100 = $count % 100;
-        if ($mod100 >= 11 && $mod100 <= 14) {
-            return $many;
-        }
-
-        return match ($count % 10) {
-            1 => $one,
-            2, 3, 4 => $few,
-            default => $many,
-        };
     }
 
     /**

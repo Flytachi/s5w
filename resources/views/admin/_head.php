@@ -6,7 +6,7 @@ use Main\Web\Fmt;
 ?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title><?= Fmt::e(wrData('title') ?? 'Вход') ?> — s5w</title>
+<title><?= Fmt::e(wrData('title') ?? 'Sign in') ?> — s5w</title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#3b5bdb">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
@@ -18,4 +18,5 @@ use Main\Web\Fmt;
 <link rel="stylesheet" href="<?= Fmt::asset('/assets/css/components.css') ?>">
 <link rel="stylesheet" href="<?= Fmt::asset('/assets/css/pages.css') ?>">
 <script src="<?= Fmt::asset('/assets/js/theme.js') ?>"></script>
+<script src="<?= Fmt::asset('/assets/js/lang.js') ?>"></script>
 <?= Fmt::importMap() ?>

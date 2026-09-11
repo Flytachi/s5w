@@ -9,6 +9,7 @@ import { Modal } from "../ui/modal.js";
 import { refreshSelects } from "../ui/select.js";
 import * as toast from "../ui/toast.js";
 import { bumpCounter, toggleEmpty } from "../ui/counter.js";
+import { t } from "../i18n/index.js";
 
 /**
  * Опрашивает бакет, пока обработчик не скажет «хватит».
@@ -35,9 +36,9 @@ function prepare(dialog, data) {
   const editing = !!data;
 
   forms.clearErrors(form);
-  dialog.querySelector(".modal__title").textContent = editing ? "Изменить бакет" : "Новый бакет";
+  dialog.querySelector(".modal__title").textContent = t(editing ? "bucket.editTitle" : "buckets.new");
   dialog.querySelector(".modal__text").hidden = editing;
-  form.querySelector('[type="submit"]').textContent = editing ? "Сохранить" : "Создать";
+  form.querySelector('[type="submit"]').textContent = t(editing ? "common.save" : "common.create");
   form.dataset.api = editing ? `PUT /admin/buckets/${data.id}` : "POST /admin/buckets";
   form.dataset.done = editing ? "bucket:updated" : "bucket:created";
   form.dataset.id = editing ? data.id : "";
@@ -51,7 +52,7 @@ function prepare(dialog, data) {
 
 function onCreated(bucket) {
   const rows = document.querySelector('[data-rows="buckets"]');
-  toast.show(`Бакет <b>${e(bucket.name)}</b> создаётся`, { type: "info", detail: "статус сменится сам" });
+  toast.show(t("bucket.creating", { name: "<b>" + e(bucket.name) + "</b>" }), { type: "info", detail: t("bucket.creatingNote") });
 
   if (!rows) {
     setTimeout(() => location.reload(), 900);
@@ -71,7 +72,7 @@ function onCreated(bucket) {
     if (status === "ACTIVE") {
       bumpCounter("buckets-pending", -1);
       bumpCounter("buckets-active", 1);
-      toast.show(`Бакет <b>${e(bucket.name)}</b> готов`, { type: "ok" });
+      toast.show(t("bucket.ready", { name: "<b>" + e(bucket.name) + "</b>" }), { type: "ok" });
       return true;
     }
     return false;
@@ -90,7 +91,10 @@ function onUpdated(bucket) {
       quota.className = "quota " + state;
       quota.querySelector(".quota__fill").style.width = percent + "%";
       quota.querySelector(".quota__meta").innerHTML =
-        `<span><b>${Render.bytes(bucket.bytes.used)}</b> из ${Render.bytes(bucket.bytes.quota)}</span><span>${Math.round(percent)}%</span>`;
+        `<span><b data-fmt="bytes" data-value="${bucket.bytes.used}">${Render.bytes(bucket.bytes.used)}</b> `
+      + `<span data-i18n="quota.of">${t("quota.of")}</span> `
+      + `<span data-fmt="bytes" data-value="${bucket.bytes.quota}">${Render.bytes(bucket.bytes.quota)}</span></span>`
+      + `<span>${Math.round(percent)}%</span>`;
     }
     row.querySelectorAll('[data-action="bucket:edit"]').forEach((item) => {
       item.dataset.name = bucket.name;
@@ -101,7 +105,7 @@ function onUpdated(bucket) {
     // Страница обзора: имя в шапке и полях меняется только перезагрузкой.
     setTimeout(() => location.reload(), 600);
   }
-  toast.show(`Бакет <b>${e(bucket.name)}</b> сохранён`, { type: "ok" });
+  toast.show(t("bucket.saved", { name: "<b>" + e(bucket.name) + "</b>" }), { type: "ok" });
 }
 
 /**
@@ -110,9 +114,8 @@ function onUpdated(bucket) {
  */
 async function remove({ row, el, id, name }) {
   const ok = await Modal.confirm({
-    title: "Удалить бакет?",
-    text: `Вместе с <b>${e(name)}</b> уйдут все файлы, папки, токены и ссылки — каскадом.
-           Каталог со всем содержимым сносится фоном, отменить будет нечем.`,
+    title: t("bucket.deleteTitle"),
+    text: t("bucket.deleteText", { name: "<b>" + e(name) + "</b>" }),
   });
   if (!ok) return;
 
@@ -120,7 +123,7 @@ async function remove({ row, el, id, name }) {
   await Api.delete(`/admin/buckets/${id}`);
 
   if (!row) {
-    toast.show(`Бакет <b>${e(name)}</b> удаляется`, { type: "info" });
+    toast.show(t("bucket.deleting", { name: "<b>" + e(name) + "</b>" }), { type: "info" });
     setTimeout(() => (location.href = "/admin/ui/buckets"), 800);
     return;
   }
@@ -131,7 +134,7 @@ async function remove({ row, el, id, name }) {
 
   row.classList.add("is-dimmed");
   statusCell.innerHTML = Render.statusCell("PENDING");
-  toast.show(`Бакет <b>${e(name)}</b> удаляется`, { type: "info", detail: "удаляется в фоне" });
+  toast.show(t("bucket.deleting", { name: "<b>" + e(name) + "</b>" }), { type: "info", detail: t("bucket.deletingNote") });
 
   watchStatus(id, (status) => {
     if (status !== "GONE") return false;
@@ -139,7 +142,7 @@ async function remove({ row, el, id, name }) {
     bumpCounter("buckets-pending", -1);
     bumpCounter("buckets-total", -1);
     if (document.querySelector('[data-rows="buckets"]')?.querySelectorAll("[data-row]").length === 0) toggleEmpty("buckets", true);
-    toast.show(`Бакет <b>${e(name)}</b> удалён`, { type: "ok" });
+    toast.show(t("bucket.deleted", { name: "<b>" + e(name) + "</b>" }), { type: "ok" });
     return true;
   });
 }

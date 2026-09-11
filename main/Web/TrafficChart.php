@@ -84,15 +84,20 @@ final class TrafficChart
             peak: $peak,
             inBytes: $inBytes,
             topLabel: $inBytes ? 'Egress' : 'Delivery',
-            topHint: $inBytes ? 'исходящий трафик' : 'запросы к раздаче',
+            topHint: $inBytes ? 'outbound traffic' : 'delivery requests',
             bottomLabel: $inBytes ? 'Ingress' : 'API',
-            bottomHint: $inBytes ? 'входящий трафик' : 'запросы с токеном',
+            bottomHint: $inBytes ? 'inbound traffic' : 'requests with a token',
         );
     }
 
     public function isEmpty(): bool
     {
         return $this->peak === 0;
+    }
+
+    public function hintKey(string $label): string
+    {
+        return 'chart.hint.' . strtolower($label);
     }
 
     public function peakLabel(): string

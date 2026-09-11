@@ -5,6 +5,7 @@
 
 import { enhanceSelects } from "../ui/select.js";
 import { enhanceNumbers } from "../ui/number.js";
+import { t } from "../i18n/index.js";
 
 /** Форматы, которые сервис умеет пережимать (см. ImageProcessor::SUPPORTED). */
 const IMAGE_MIMES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
@@ -15,10 +16,10 @@ export const isImage = (file) => IMAGE_MIMES.includes(file.type);
 const FORMAT_QUALITY = { AVIF: 55, PNG: 60, WEBP: 82, JPEG: 82 };
 
 const FORMAT_ABOUT = {
-  WEBP: "жмёт заметно лучше jpeg и умеет прозрачность — обычный выбор для веба",
-  JPEG: "открывается везде, но прозрачности не знает",
-  PNG: "без потерь и с прозрачностью — для графики и скриншотов, фото станет тяжелее",
-  AVIF: "жмёт сильнее всех, но кодируется дольше и старые браузеры его не покажут",
+  WEBP: "image.about.webp",
+  JPEG: "image.about.jpeg",
+  PNG: "image.about.png",
+  AVIF: "image.about.avif",
 };
 
 const MIME_FORMAT = {
@@ -31,9 +32,9 @@ const MIME_FORMAT = {
 
 /** Чем выбор навредит именно этому файлу. null — всё в порядке. */
 function formatWarning(target, sourceMime) {
-  if (MIME_FORMAT[sourceMime] === target) return "Файл уже в этом формате — перекодировать нечего.";
-  if (target === "JPEG" && sourceMime !== "image/jpeg") return "У jpeg нет прозрачности: прозрачные места зальются белым.";
-  if (target === "PNG" && sourceMime === "image/jpeg") return "Фотография в png тяжелее исходника — сервис тогда оставит оригинал.";
+  if (MIME_FORMAT[sourceMime] === target) return t("image.warn.same");
+  if (target === "JPEG" && sourceMime !== "image/jpeg") return t("image.warn.jpeg");
+  if (target === "PNG" && sourceMime === "image/jpeg") return t("image.warn.png");
   return null;
 }
 
@@ -55,7 +56,7 @@ export function imageOptionsMarkup() {
     <div class="fold fold--inline mt-2" data-image-options>
       <button type="button" class="fold__head" data-image-toggle aria-expanded="false">
         <svg class="icon icon--sm"><use href="#i-crop"/></svg>
-        <span class="fold__title">Обработка</span>
+        <span class="fold__title">${t("image.title")}</span>
         <span class="fold__note" data-image-note></span>
         <svg class="icon icon--sm fold__chev"><use href="#i-chevron-down"/></svg>
       </button>
@@ -64,34 +65,34 @@ export function imageOptionsMarkup() {
         <div class="stack">
           ${option(
             "resize",
-            "Уменьшить размер",
-            "вписать в рамку, пропорции сохранятся",
+            t("image.resize"),
+            t("image.resizeHint"),
             `<div class="row row--nowrap">
                <div class="field w-full">
-                 <label class="field__label">Ширина до, px</label>
-                 <input class="input" type="number" name="maxWidth" placeholder="не ограничивать" inputmode="numeric">
+                 <label class="field__label">${t("image.width")}</label>
+                 <input class="input" type="number" name="maxWidth" placeholder="${t("image.noLimit")}" inputmode="numeric">
                </div>
                <div class="field w-full">
-                 <label class="field__label">Высота до, px</label>
-                 <input class="input" type="number" name="maxHeight" placeholder="не ограничивать" inputmode="numeric">
+                 <label class="field__label">${t("image.height")}</label>
+                 <input class="input" type="number" name="maxHeight" placeholder="${t("image.noLimit")}" inputmode="numeric">
                </div>
              </div>
-             <span class="field__hint">Увеличивать не будем: что меньше рамки — останется как есть.</span>`,
+             <span class="field__hint">${t("image.resizeNote")}</span>`,
           )}
 
           ${option(
             "quality",
-            "Задать качество",
-            "иначе сервис подберёт сам",
-            `<label class="field__label">Качество · <b data-quality-value>82</b></label>
+            t("image.quality"),
+            t("image.qualityHint"),
+            `<label class="field__label">${t("image.quality")} · <b data-quality-value>82</b></label>
              <input class="range" type="range" name="quality" min="1" max="100" value="82">
              <span class="field__hint" data-quality-hint></span>`,
           )}
 
           ${option(
             "format",
-            "Сменить формат",
-            "перекодировать в другой контейнер",
+            t("image.format"),
+            t("image.formatHint"),
             `<select class="select-native" name="format">
                <option value="WEBP">WEBP</option>
                <option value="JPEG">JPEG</option>
@@ -106,7 +107,7 @@ export function imageOptionsMarkup() {
         <div class="row mt-2">
           <span class="text-sm text-muted grow" data-image-summary></span>
           <button type="button" class="btn btn--ghost btn--sm" data-image-apply hidden>
-            <svg class="icon icon--sm"><use href="#i-copy"/></svg> Ко всем картинкам
+            <svg class="icon icon--sm"><use href="#i-copy"/></svg> ${t("image.applyAll")}
           </button>
         </div>
       </div>
@@ -152,9 +153,11 @@ export function writeImageOptions(box, options) {
 /** Что настройки сделают с файлом — словами. */
 function describe(o) {
   const parts = [];
-  if (o.format !== "ORIGINAL") parts.push("в " + o.format.toLowerCase());
-  if (o.maxWidth || o.maxHeight) parts.push(`до ${o.maxWidth || "∞"}×${o.maxHeight || "∞"}`);
-  if (o.quality) parts.push("качество " + o.quality);
+  if (o.format !== "ORIGINAL") parts.push(t("image.sum.format", { format: o.format.toLowerCase() }));
+  if (o.maxWidth || o.maxHeight) {
+    parts.push(t("image.sum.size", { w: o.maxWidth || "∞", h: o.maxHeight || "∞" }));
+  }
+  if (o.quality) parts.push(t("image.sum.quality", { n: o.quality }));
   return parts;
 }
 
@@ -194,10 +197,10 @@ export function initImageOptions(box, sourceMime, onApplyAll) {
     const preset = FORMAT_QUALITY[target] ?? 82;
     if (!optionOn(box, "quality")) quality.value = preset;
     box.querySelector("[data-quality-value]").textContent = quality.value;
-    box.querySelector("[data-quality-hint]").textContent =
-      `Меньше — легче файл и заметнее артефакты. Без этой настройки сервис берёт ${preset}.`;
+    box.querySelector("[data-quality-hint]").textContent = t("image.qualityNote", { preset });
 
-    box.querySelector("[data-format-about]").textContent = o.format === "ORIGINAL" ? "" : FORMAT_ABOUT[o.format];
+    box.querySelector("[data-format-about]").textContent =
+      o.format === "ORIGINAL" ? "" : t(FORMAT_ABOUT[o.format]);
 
     const warn = box.querySelector("[data-format-warn]");
     const text = o.format === "ORIGINAL" ? null : formatWarning(o.format, sourceMime);
@@ -205,8 +208,8 @@ export function initImageOptions(box, sourceMime, onApplyAll) {
     warn.textContent = text ?? "";
 
     box.classList.toggle("is-set", parts.length > 0);
-    note.textContent = parts.length ? parts.join(" · ") : "как есть";
-    out.textContent = parts.length ? "Квота считается по результату обработки." : "Файл ляжет байт в байт.";
+    note.textContent = parts.length ? parts.join(" · ") : t("image.asIs");
+    out.textContent = t(parts.length ? "image.quotaProcessed" : "image.quotaExact");
   };
 
   box.addEventListener("input", update);

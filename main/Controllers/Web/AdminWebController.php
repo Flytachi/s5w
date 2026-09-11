@@ -91,8 +91,8 @@ final class AdminWebController extends Controller
             array_map(static fn(BucketView $card) => in_array($card->id, $loud, true) ? null : $card->name, $cards),
         ));
 
-        return $this->page('dashboard', 'Обзор', 'dashboard', [
-            'subtitle' => 'всё хранилище целиком',
+        return $this->page('dashboard', 'Overview', 'dashboard', [
+            'subtitle' => 'the whole storage at once',
             'window' => self::WINDOW,
             'from' => $from,
             'to' => $to,
@@ -117,8 +117,8 @@ final class AdminWebController extends Controller
     ): ResponseView {
         $page = $this->buckets->panelPage($request);
 
-        return $this->page('buckets', 'Бакеты', 'buckets', [
-            'subtitle' => 'пространства с отдельной квотой и своими блобами',
+        return $this->page('buckets', 'Buckets', 'buckets', [
+            'subtitle' => 'spaces with their own quota and blobs',
             'modals' => true,
             'counts' => $this->buckets->counts(),
             'page' => $page,
@@ -136,7 +136,7 @@ final class AdminWebController extends Controller
         $today = (new \DateTimeImmutable('now', $tz))->format('Y-m-d');
         $series = $this->traffic->daily($id, $month, $today, $tz->getName());
 
-        return $this->bucketPage($id, 'bucket-overview', 'overview', 'сводка по бакету', [
+        return $this->bucketPage($id, 'bucket-overview', 'overview', 'bucket summary', [
             'series' => $series,
             'totals' => $this->traffic->totals($series),
             'folders' => $this->folderViews($id),
@@ -157,7 +157,7 @@ final class AdminWebController extends Controller
         [$from, $to] = $request->resolve($tz);
         $series = $this->traffic->daily($id, $from, $to, $tz->getName());
 
-        return $this->bucketPage($id, 'bucket-stats', 'stats', 'расход бакета по дням', [
+        return $this->bucketPage($id, 'bucket-stats', 'stats', 'bucket spend by day', [
             'series' => $series,
             'totals' => $this->traffic->totals($series),
             'from' => $from,
@@ -174,7 +174,7 @@ final class AdminWebController extends Controller
     ): ResponseView {
         $page = $this->files->getAll($id, $request->toFileList(), $this->baseUrl($http));
 
-        return $this->bucketPage($id, 'bucket-files', 'files', 'папки и файлы', [
+        return $this->bucketPage($id, 'bucket-files', 'files', 'folders and files', [
             'meta' => $page->meta,
             'items' => array_map(static fn(FileRes $file) => FileView::from($file), $page->data),
             'query' => $request,
@@ -193,7 +193,7 @@ final class AdminWebController extends Controller
     ): ResponseView {
         $page = $this->tokens->panelPage($id, $request);
 
-        return $this->bucketPage($id, 'bucket-tokens', 'tokens', 'ключи клиента к бакету', [
+        return $this->bucketPage($id, 'bucket-tokens', 'tokens', 'client keys to the bucket', [
             'meta' => $page->meta,
             'tokens' => $page->data,
             'counts' => $this->tokens->counts($id),
@@ -210,7 +210,7 @@ final class AdminWebController extends Controller
     ): ResponseView {
         $page = $this->links->panelPage($id, $request, $this->baseUrl($http));
 
-        return $this->bucketPage($id, 'bucket-links', 'links', 'канал /t — доступ даёт подпись', [
+        return $this->bucketPage($id, 'bucket-links', 'links', 'the /t channel — the signature grants access', [
             'meta' => $page['meta'],
             'links' => array_map(
                 static fn(array $row) => LinkView::from($row['link'], $row['file'], $row['url']),

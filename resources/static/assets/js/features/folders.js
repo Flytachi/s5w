@@ -2,13 +2,14 @@
 
 import { Api } from "../api.js";
 import { Render } from "../render.js";
-import { bucketId, e, plural } from "../ui/dom.js";
+import { bucketId, e } from "../ui/dom.js";
 import * as actions from "../ui/actions.js";
 import * as forms from "../ui/forms.js";
 import { Modal } from "../ui/modal.js";
 import { addOption, refreshSelects } from "../ui/select.js";
 import * as toast from "../ui/toast.js";
 import { dropRow } from "../ui/counter.js";
+import { t, plural } from "../i18n/index.js";
 
 /** Папка, созданная только что, должна сразу быть в списках выбора. */
 export function addFolderOption(name) {
@@ -21,8 +22,8 @@ function prepare(dialog, row) {
   const editing = row !== null && row !== undefined;
 
   forms.clearErrors(form);
-  dialog.querySelector(".modal__title").textContent = editing ? "Изменить папку" : "Новая папка";
-  form.querySelector('[type="submit"]').textContent = editing ? "Сохранить" : "Создать";
+  dialog.querySelector(".modal__title").textContent = t(editing ? "folder.editTitle" : "files.newFolder");
+  form.querySelector('[type="submit"]').textContent = t(editing ? "common.save" : "common.create");
   form.dataset.api = editing
     ? `PUT /admin/buckets/{bucket}/folders/${encodeURIComponent(row.dataset.name)}`
     : "POST /admin/buckets/{bucket}/folders";
@@ -42,24 +43,24 @@ function onCreated(folder) {
     list.appendChild(Render.folderCard(folder));
     list.querySelector("[data-folders-empty]")?.remove();
   }
-  toast.show(`Папка <b>${e(folder.name)}</b> создана`, {
+  toast.show(t("folder.created", { name: "<b>" + e(folder.name) + "</b>" }), {
     type: "ok",
-    detail: folder.public ? "публичная, файлы пойдут в /o" : "приватная, файлы только по токену",
+    detail: t(folder.public ? "folder.createdPublic" : "folder.createdPrivate"),
   });
 }
 
 function onUpdated(folder) {
-  toast.show(`Папка <b>${e(folder.name)}</b> сохранена`, { type: "ok" });
+  toast.show(t("folder.saved", { name: "<b>" + e(folder.name) + "</b>" }), { type: "ok" });
   setTimeout(() => location.reload(), 600);
 }
 
 async function remove({ el, row, name }) {
   const files = Number(el.dataset.files || row?.dataset.files || 0);
   const ok = await Modal.confirm({
-    title: "Удалить папку?",
+    title: t("folder.deleteTitle"),
     text: files > 0
-      ? `Вместе с папкой <b>${e(name)}</b> удалятся ${files} ${plural(files, "файл", "файла", "файлов")} внутри.`
-      : `Папка <b>${e(name)}</b> пуста.`,
+      ? t("folder.deleteText", { name: "<b>" + e(name) + "</b>", files: plural("files.count", files) })
+      : t("folder.deleteEmpty", { name: "<b>" + e(name) + "</b>" }),
   });
   if (!ok) return;
 
@@ -67,9 +68,9 @@ async function remove({ el, row, name }) {
   await Api.delete(`/admin/buckets/${bucketId()}/folders/${encodeURIComponent(name)}`);
 
   if (row) dropRow(row, "folders");
-  toast.show(`Папка <b>${e(name)}</b> удалена`, {
+  toast.show(t("folder.deleted", { name: "<b>" + e(name) + "</b>" }), {
     type: "ok",
-    detail: files > 0 ? `вместе с ${files} ${plural(files, "файлом", "файлами", "файлами")}` : null,
+    detail: files > 0 ? t("folder.deletedWith", { files: plural("files.count", files) }) : null,
   });
 }
 

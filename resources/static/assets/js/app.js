@@ -2,6 +2,7 @@
    Каркас (ui/*) поднимается на любой странице, разделы (features/*) вешают
    свои обработчики делегированно и включаются там, где есть их разметка. */
 
+import * as i18n from "./i18n/index.js";
 import * as theme from "./ui/theme.js";
 import * as sidebar from "./ui/sidebar.js";
 import * as popover from "./ui/popover.js";
@@ -24,6 +25,7 @@ import * as cachePolicy from "./features/cache-policy.js";
 import * as upload from "./features/upload.js";
 
 function boot() {
+  i18n.init();
   timezone.init();
   theme.init();
   sidebar.init();

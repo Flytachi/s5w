@@ -24,17 +24,17 @@ final class TrafficDay
         return $row;
     }
 
-    private const array SHORT = ['', 'янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+    private const array SHORT = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    private const array FULL = ['', 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-        'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    private const array FULL = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
 
     /** Короткая подпись под столбиком: «14», а для первого дня месяца — «1 авг». */
     public function label(): string
     {
         [, $m, $d] = array_map('intval', explode('-', $this->day));
 
-        return $d === 1 ? $d . ' ' . self::SHORT[$m] : (string) $d;
+        return $d === 1 ? self::SHORT[$m] . ' ' . $d : (string) $d;
     }
 
     /** Заголовок подсказки: «14 августа 2026». */
@@ -42,6 +42,6 @@ final class TrafficDay
     {
         [$y, $m, $d] = array_map('intval', explode('-', $this->day));
 
-        return $d . ' ' . self::FULL[$m] . ' ' . $y;
+        return self::FULL[$m] . ' ' . $d . ', ' . $y;
     }
 }

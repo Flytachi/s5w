@@ -1,12 +1,14 @@
 /* Переключатель темы. Сама тема ставится до первой отрисовки в theme.js
    (обычный скрипт в <head>) — здесь только кнопка и её значок. */
 
+import { t } from "../i18n/index.js";
+
 const isDark = () => document.documentElement.dataset.theme === "dark";
 
 function updateToggles() {
   document.querySelectorAll("[data-theme-toggle]").forEach((btn) => {
     btn.querySelector("use")?.setAttribute("href", isDark() ? "#i-sun" : "#i-moon");
-    btn.setAttribute("aria-label", isDark() ? "Светлая тема" : "Тёмная тема");
+    btn.setAttribute("aria-label", t(isDark() ? "theme.light" : "theme.dark"));
     btn.setAttribute("aria-pressed", isDark() ? "true" : "false");
   });
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", isDark() ? "#162033" : "#3b5bdb");
@@ -14,6 +16,7 @@ function updateToggles() {
 
 export function init() {
   updateToggles();
+  document.addEventListener("lang:change", updateToggles);
 
   document.addEventListener("click", (e) => {
     if (!e.target.closest("[data-theme-toggle]")) return;

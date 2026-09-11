@@ -7,7 +7,8 @@
 
 import { Api } from "../api.js";
 import { Render } from "../render.js";
-import { bucketId, e, node, plural } from "../ui/dom.js";
+import { bucketId, e, node } from "../ui/dom.js";
+import { t, plural } from "../i18n/index.js";
 import { refreshSelects } from "../ui/select.js";
 import * as toast from "../ui/toast.js";
 import { toggleEmpty } from "../ui/counter.js";
@@ -28,8 +29,8 @@ function parse(text) {
 /** Что случилось с файлом — словами, а не кодом. */
 function describe(file) {
   if (file.processed?.applied) return file.processed.operations.join(", ");
-  if (file.deduplicated) return "дедупликация — такой файл уже есть";
-  return "без обработки";
+  if (file.deduplicated) return t("upload.dedup");
+  return t("upload.noProcessing");
 }
 
 function xhrSend(method, url, body, { headers = {}, onProgress, item } = {}) {
@@ -48,10 +49,10 @@ function xhrSend(method, url, body, { headers = {}, onProgress, item } = {}) {
     xhr.addEventListener("load", () => {
       const data = parse(xhr.responseText);
       if (xhr.status >= 200 && xhr.status < 300) resolve(data);
-      else fail(xhr.status, (data && data.message) || "сервер отказал");
+      else fail(xhr.status, (data && data.message) || t("upload.rejected"));
     });
-    xhr.addEventListener("error", () => fail(0, "соединение оборвалось"));
-    xhr.addEventListener("abort", () => fail(-1, "отменено"));
+    xhr.addEventListener("error", () => fail(0, t("upload.connectionLost")));
+    xhr.addEventListener("abort", () => fail(-1, t("upload.cancelled")));
 
     if (item) item.xhr = xhr;
     xhr.send(body);
@@ -105,12 +106,12 @@ export function init() {
               <div class="ftype ftype--${kind}"><svg class="icon"><use href="#${icon}"/></svg></div>
               <div class="fileline__body">
                 <div class="fileline__name">${e(file.name)}</div>
-                <div class="fileline__meta">${Render.bytes(file.size)}<span class="dot-sep"></span><span data-state>в очереди</span></div>
+                <div class="fileline__meta">${Render.bytes(file.size)}<span class="dot-sep"></span><span data-state>${t("upload.queued")}</span></div>
               </div>
             </div>
             <div class="upload-item__side">
-              <span class="tone tone--mute" data-badge>ждёт</span>
-              <button type="button" class="icon-btn icon-btn--ghost icon-btn--sm" data-drop-item aria-label="Убрать">
+              <span class="tone tone--mute" data-badge>${t("upload.waiting")}</span>
+              <button type="button" class="icon-btn icon-btn--ghost icon-btn--sm" data-drop-item aria-label="${t("upload.remove")}">
                 <svg class="icon icon--sm"><use href="#i-x"/></svg>
               </button>
             </div>
@@ -148,7 +149,7 @@ export function init() {
         refreshSelects(q.options);
       });
 
-    toast.show("Настройки разошлись по остальным картинкам", { type: "ok", timeout: 2000 });
+    toast.show(t("upload.optionsShared"), { type: "ok", timeout: 2000 });
   }
 
   function refresh() {
@@ -157,9 +158,9 @@ export function init() {
     const images = waiting.filter((q) => q.options).length;
     queue.forEach((q) => q.options && (q.options.querySelector("[data-image-apply]").hidden = images < 2));
 
-    hint.textContent = waiting.length ? "в очереди: " + waiting.length : "или нажмите, чтобы выбрать";
+    hint.textContent = waiting.length ? t("upload.inQueue", { n: waiting.length }) : t("modal.upload.pick");
     total.textContent = waiting.length
-      ? `${waiting.length} ${plural(waiting.length, "файл", "файла", "файлов")} · ${Render.bytes(
+      ? `${plural("files.count", waiting.length)} · ${Render.bytes(
           waiting.reduce((sum, q) => sum + q.file.size, 0),
         )}`
       : "";
@@ -206,7 +207,7 @@ export function init() {
       done(file) {
         bar.style.width = "100%";
         badge.className = "tone tone--ok";
-        badge.textContent = "готово";
+        badge.textContent = t("upload.done");
         state.textContent = describe(file);
         addFileRow(file);
         setTimeout(() => { item.card.remove(); refresh(); }, 2500);
@@ -215,9 +216,9 @@ export function init() {
         bar.style.width = "100%";
         bar.classList.add("is-failed");
         badge.className = "tone tone--danger";
-        badge.textContent = err.status > 0 ? String(err.status) : "сеть";
+        badge.textContent = err.status > 0 ? String(err.status) : t("upload.network");
         state.textContent = hintText || err.message;
-        toast.show(`<b>${e(item.file.name)}</b> не загрузился`, { type: "error", detail: e(err.message) });
+        toast.show(t("upload.failed", { name: "<b>" + e(item.file.name) + "</b>" }), { type: "error", detail: e(err.message) });
       },
     };
   }
@@ -228,7 +229,7 @@ export function init() {
     const base = `/admin/buckets/${bucketId()}/uploads`;
     const size = item.file.size;
 
-    ui.working("подготовка");
+    ui.working(t("upload.step.prepare"));
 
     try {
       let session;
@@ -236,7 +237,7 @@ export function init() {
       if (item.upload) {
         // Продолжаем оборванную: сервер помнит, сколько байт уже дошло.
         session = (await Api.get(`${base}/${item.upload}`)).data;
-        ui.working("докачка");
+        ui.working(t("upload.step.resume"));
       } else {
         session = (await Api.post(base, {
           name: item.file.name,
@@ -256,7 +257,7 @@ export function init() {
         }
 
         item.upload = session.id;
-        ui.working("загрузка");
+        ui.working(t("upload.step.sending"));
       }
 
       const step = session.chunkSize || CHUNK_SIZE;
@@ -286,7 +287,7 @@ export function init() {
         ui.progress(offset, size);
       }
 
-      ui.working("сборка");
+      ui.working(t("upload.step.assemble"));
       const file = (await Api.post(`${base}/${item.upload}/complete`)).data;
 
       item.upload = null;
@@ -295,7 +296,7 @@ export function init() {
     } catch (err) {
       if (err && err.status === -1) return; // отменили руками
       item.done = false;
-      ui.failed(err, item.upload ? "оборвалось — нажмите «Загрузить», чтобы продолжить" : null);
+      ui.failed(err, item.upload ? t("upload.resumeHint") : null);
     }
   }
 
@@ -308,7 +309,7 @@ export function init() {
     if (folder) form.append("folder", folder);
     Object.entries(options).forEach(([key, value]) => value !== null && form.append(key, value));
 
-    ui.working("загрузка");
+    ui.working(t("upload.step.sending"));
 
     try {
       const body = await xhrSend("POST", `/admin/buckets/${bucketId()}/files`, form, {
@@ -321,7 +322,7 @@ export function init() {
       if (err && err.status === -1) return; // отменили руками
       // Не done: повторное «Загрузить» отправит файл ещё раз.
       item.done = false;
-      ui.failed(err, err.status === 0 ? "соединение оборвалось — нажмите «Загрузить» ещё раз" : null);
+      ui.failed(err, err.status === 0 ? t("upload.retryHint") : null);
     }
   }
 
@@ -331,7 +332,7 @@ export function init() {
 
     rows.prepend(Render.fileRow(file));
     toggleEmpty("files", false);
-    toast.show(`<b>${e(file.name)}</b> загружен`, {
+    toast.show(t("upload.uploaded", { name: "<b>" + e(file.name) + "</b>" }), {
       type: "ok",
       detail: file.processed?.applied
         ? `${Render.bytes(file.processed.source.size)} → ${Render.bytes(file.processed.result.size)}`

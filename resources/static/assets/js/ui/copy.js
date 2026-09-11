@@ -1,9 +1,10 @@
 /* Копирование в буфер: [data-copy="значение"]. */
 
 import * as toast from "./toast.js";
+import { t } from "../i18n/index.js";
 
 export function copyText(value) {
-  const done = () => toast.show("Скопировано", { type: "ok", timeout: 1800 });
+  const done = () => toast.show(t("toast.copied"), { type: "ok", timeout: 1800 });
 
   if (navigator.clipboard) {
     navigator.clipboard.writeText(value).then(done, done);

@@ -9,6 +9,7 @@ import { bucketId, e } from "./dom.js";
 import { close as closeModal } from "./modal.js";
 import { refreshSelects } from "./select.js";
 import * as toast from "./toast.js";
+import { t } from "../i18n/index.js";
 
 const done = new Map(); // kind -> fn(data, form)
 
@@ -91,12 +92,12 @@ async function submit(form) {
   } catch (err) {
     if (err.errors) {
       Object.keys(err.errors).forEach((name) => showFieldError(form, name, err.errors[name][0]));
-      toast.show("Проверьте поля формы", { type: "warn" });
+      toast.show(t("form.check"), { type: "warn" });
     } else if (err.status === 409 && form.querySelector('[name="name"]')) {
       // Сервер отвечает «имя занято» без разбора по полям — кладём к имени сами.
-      showFieldError(form, "name", "такое имя уже занято");
+      showFieldError(form, "name", t("form.nameTaken"));
     } else {
-      toast.show(e(err.message || "Не получилось"), { type: "error" });
+      toast.show(e(err.message || t("error.generic")), { type: "error" });
     }
   } finally {
     setBusy(button, false);

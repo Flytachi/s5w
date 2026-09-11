@@ -8,7 +8,12 @@ use Main\Web\Ui;
 $base = '/admin/ui/buckets/' . $bucket->id . '/links';
 
 $sorting = new Sorting(
-    ['created' => 'по дате создания', 'file' => 'по файлу', 'mode' => 'по режиму', 'state' => 'по состоянию'],
+    [
+        'created' => ['sort.by.created', 'by creation date'],
+        'file' => ['sort.by.file', 'by file'],
+        'mode' => ['sort.by.mode', 'by mode'],
+        'state' => ['sort.by.state', 'by state'],
+    ],
     $query->sort,
     $query->dir === 'desc',
     static fn(array $override) => $query->url($bucket->id, $override),
@@ -22,8 +27,8 @@ $searching = ($query->search ?? '') !== '';
         <span class="stat__icon"><svg class="icon"><use href="#i-link"/></svg></span>
         <span class="stat__value<?= $counts['active'] === 0 ? ' is-zero' : '' ?>" data-counter="links-active"><?= Fmt::num($counts['active']) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Активные</span>
-            <span class="stat__note">работают сейчас</span>
+            <span class="stat__label" data-i18n="links.stat.active">Active</span>
+            <span class="stat__note" data-i18n="links.stat.activeNote">working right now</span>
         </span>
     </div>
 
@@ -31,8 +36,8 @@ $searching = ($query->search ?? '') !== '';
         <span class="stat__icon"><svg class="icon"><use href="#i-layers"/></svg></span>
         <span class="stat__value"><?= Fmt::num($counts['total']) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Выпущено</span>
-            <span class="stat__note">за всё время</span>
+            <span class="stat__label" data-i18n="links.stat.issued">Issued</span>
+            <span class="stat__note" data-i18n="links.stat.issuedNote">all time</span>
         </span>
     </div>
 
@@ -40,8 +45,8 @@ $searching = ($query->search ?? '') !== '';
         <span class="stat__icon"><svg class="icon"><use href="#i-x-circle"/></svg></span>
         <span class="stat__value<?= $counts['revoked'] === 0 ? ' is-zero' : '' ?>" data-counter="links-revoked"><?= Fmt::num($counts['revoked']) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Отозваны</span>
-            <span class="stat__note">закрыты вручную</span>
+            <span class="stat__label" data-i18n="links.stat.revoked">Revoked</span>
+            <span class="stat__note" data-i18n="links.stat.revokedNote">closed by hand</span>
         </span>
     </div>
 
@@ -49,8 +54,8 @@ $searching = ($query->search ?? '') !== '';
         <span class="stat__icon"><svg class="icon"><use href="#i-clock"/></svg></span>
         <span class="stat__value<?= $counts['expired'] === 0 ? ' is-zero' : '' ?>" data-counter="links-expired"><?= Fmt::num($counts['expired']) ?></span>
         <span class="stat__body">
-            <span class="stat__label">Истекли</span>
-            <span class="stat__note">срок истёк</span>
+            <span class="stat__label" data-i18n="links.stat.expired">Expired</span>
+            <span class="stat__note" data-i18n="time.expired">expired</span>
         </span>
     </div>
 </div>
@@ -58,13 +63,13 @@ $searching = ($query->search ?? '') !== '';
 <div class="card panel panel--links">
     <div class="card__header">
         <div>
-            <h2 class="card__title">Временные ссылки</h2>
-            <div class="card__subtitle">канал <span class="mono">/t</span> — ссылки, которые можно отозвать</div>
+            <h2 class="card__title" data-i18n="links.title">Temporary links</h2>
+            <div class="card__subtitle"><span data-i18n="links.subtitleBefore">channel</span> <span class="mono">/t</span> <span data-i18n="links.subtitleAfter">— links you can revoke</span></div>
         </div>
         <div class="card__spacer"></div>
 
         <div class="panel__tools">
-            <?= Ui::search($base, 'Файл или пометка', $query->search, ['sort' => $query->sort, 'dir' => $query->dir]) ?>
+            <?= Ui::search($base, 'links.searchPlaceholder', 'File or note', $query->search, ['sort' => $query->sort, 'dir' => $query->dir]) ?>
             <?php if ($searching): ?>
                 <?= Ui::searchReset($query->url($bucket->id, ['search' => null, 'page' => 1])) ?>
             <?php endif ?>
@@ -73,20 +78,20 @@ $searching = ($query->search ?? '') !== '';
             <?php if ($counts['revoked'] > 0): ?>
                 <button type="button" class="btn btn--danger-soft btn--sm" data-action="links:purge" data-state="revoked">
                     <svg class="icon icon--sm"><use href="#i-trash"/></svg>
-                    Удалить отозванные <span class="badge badge--danger"><?= Fmt::num($counts['revoked']) ?></span>
+                    <span data-i18n="links.purgeRevoked">Delete revoked</span> <span class="badge badge--danger"><?= Fmt::num($counts['revoked']) ?></span>
                 </button>
             <?php endif ?>
 
             <?php if ($counts['expired'] > 0): ?>
                 <button type="button" class="btn btn--danger-soft btn--sm" data-action="links:purge" data-state="expired">
                     <svg class="icon icon--sm"><use href="#i-clock"/></svg>
-                    Удалить истёкшие <span class="badge badge--danger"><?= Fmt::num($counts['expired']) ?></span>
+                    <span data-i18n="links.purgeExpired">Delete expired</span> <span class="badge badge--danger"><?= Fmt::num($counts['expired']) ?></span>
                 </button>
             <?php endif ?>
 
             <?php if ($counts['active'] > 0): ?>
                 <button type="button" class="btn btn--ghost btn--sm" data-action="links:revoke-all">
-                    <svg class="icon icon--sm"><use href="#i-x-circle"/></svg> Отозвать все
+                    <svg class="icon icon--sm"><use href="#i-x-circle"/></svg> <span data-i18n="links.revokeAll">Revoke all</span>
                 </button>
             <?php endif ?>
         </div>
@@ -96,13 +101,13 @@ $searching = ($query->search ?? '') !== '';
         <table class="table table--cards">
             <thead>
             <tr>
-                <?= $sorting->th('file', 'Файл') ?>
-                <?= $sorting->th('mode', 'Режим') ?>
-                <?= $sorting->th('', 'Скачиваний') ?>
-                <?= $sorting->th('state', 'Состояние') ?>
-                <?= $sorting->th('created', 'Создана') ?>
-                <?= $sorting->th('', 'Пометка') ?>
-                <th><span class="visually-hidden">Действия</span></th>
+                <?= $sorting->th('file', 'table.file', 'File') ?>
+                <?= $sorting->th('mode', 'table.mode', 'Mode') ?>
+                <?= $sorting->th('', 'table.downloads', 'Downloads') ?>
+                <?= $sorting->th('state', 'table.state', 'State') ?>
+                <?= $sorting->th('created', 'table.createdF', 'Created') ?>
+                <?= $sorting->th('', 'table.note', 'Note') ?>
+                <th><span class="visually-hidden" data-i18n="common.actions">Actions</span></th>
             </tr>
             </thead>
             <tbody data-rows="links">
@@ -112,19 +117,20 @@ $searching = ($query->search ?? '') !== '';
                         <div class="fileline">
                             <span class="ftype ftype--video"><svg class="icon"><use href="#i-link"/></svg></span>
                             <span class="fileline__body">
-                                <span class="fileline__name"><?= Fmt::e($link->fileName) ?></span>
+                                <span class="fileline__name"<?= $link->fileGone() ? ' data-i18n="link.fileGone"' : '' ?>><?= Fmt::e($link->fileName) ?></span>
                                 <span class="fileline__meta mono"><?= Fmt::e($link->fileSlug) ?></span>
                             </span>
                         </div>
                     </td>
-                    <td data-label="Режим" data-half>
-                        <span class="tone tone--<?= $link->attachment ? 'brand' : 'mute' ?>">
-                            <?= $link->attachment ? 'скачивание' : 'просмотр' ?>
+                    <td data-label="Mode" data-i18n-attr="data-label:table.mode" data-half>
+                        <span class="tone tone--<?= $link->attachment ? 'brand' : 'mute' ?>"
+                              data-i18n="<?= $link->attachment ? 'link.mode.download' : 'link.mode.view' ?>">
+                            <?= $link->attachment ? 'download' : 'view' ?>
                         </span>
                     </td>
-                    <td data-label="Скачиваний" data-half>
+                    <td data-label="Downloads" data-i18n-attr="data-label:table.downloads" data-half>
                         <?php if ($link->maxDownloads === null): ?>
-                            <span class="text-sm"><?= $link->downloads ?> <span class="text-muted">без лимита</span></span>
+                            <span class="text-sm"><?= $link->downloads ?> <span class="text-muted" data-i18n="link.noLimit">no limit</span></span>
                         <?php else: ?>
                             <?php $rest = $link->maxDownloads - $link->downloads ?>
                             <span class="tone tone--<?= $rest <= 0 ? 'danger' : ($rest <= 1 ? 'warn' : 'mute') ?>">
@@ -132,29 +138,32 @@ $searching = ($query->search ?? '') !== '';
                             </span>
                         <?php endif ?>
                     </td>
-                    <td data-label="Состояние" data-half class="text-sm nowrap" data-cell="expiry">
+                    <td data-label="State" data-i18n-attr="data-label:table.state" data-half class="text-sm nowrap" data-cell="expiry">
                         <?php if ($link->deadReason() !== null): ?>
-                            <span class="tone tone--danger"><?= Fmt::e($link->deadReason()) ?></span>
+                            <span class="tone tone--danger" data-i18n="<?= Fmt::e($link->deadReasonKey()) ?>"><?= Fmt::e($link->deadReason()) ?></span>
                         <?php else: ?>
-                            <?= Fmt::left($link->expiresAt) ?>
+                            <span data-fmt="left" data-value="<?= Fmt::e($link->expiresAt) ?>"><?= Fmt::e(Fmt::left($link->expiresAt)) ?></span>
                         <?php endif ?>
                     </td>
-                    <td data-label="Создана" data-half class="text-sm nowrap" title="<?= Fmt::e(Fmt::date($link->createdAt)) ?>">
-                        <span class="text-muted"><?= Fmt::ago($link->createdAt) ?></span>
+                    <td data-label="Created" data-i18n-attr="data-label:table.createdF" data-half class="text-sm nowrap" title="<?= Fmt::e(Fmt::date($link->createdAt)) ?>">
+                        <span class="text-muted" data-fmt="ago" data-value="<?= Fmt::e($link->createdAt) ?>"><?= Fmt::e(Fmt::ago($link->createdAt)) ?></span>
                     </td>
-                    <td data-label="Пометка" class="text-sm text-muted break"<?= $link->note === '' ? ' data-empty-hidden' : '' ?>><?= Fmt::e($link->note) ?></td>
+                    <td data-label="Note" data-i18n-attr="data-label:table.note" class="text-sm text-muted break"<?= $link->note === '' ? ' data-empty-hidden' : '' ?>><?= Fmt::e($link->note) ?></td>
                     <td data-actions>
                         <?php if ($link->isAlive()): ?>
                             <div class="row-actions">
                                 <button type="button" class="icon-btn icon-btn--ghost"
-                                        data-copy="<?= Fmt::e($link->url) ?>" aria-label="Копировать адрес" title="Копировать адрес">
+                                        data-copy="<?= Fmt::e($link->url) ?>" data-i18n-attr="aria-label:link.copy;title:link.copy"
+                                        aria-label="Copy address" title="Copy address">
                                     <svg class="icon"><use href="#i-copy"/></svg>
                                 </button>
                                 <a class="icon-btn icon-btn--ghost" href="<?= Fmt::e($link->url) ?>"
-                                   target="_blank" rel="noopener" aria-label="Открыть" title="Открыть в новой вкладке">
+                                   target="_blank" rel="noopener" data-i18n-attr="aria-label:common.open;title:link.openNew"
+                                   aria-label="Open" title="Open in a new tab">
                                     <svg class="icon"><use href="#i-arrow-right"/></svg>
                                 </a>
-                                <button type="button" class="icon-btn icon-btn--ghost text-danger" aria-label="Отозвать" title="Отозвать"
+                                <button type="button" class="icon-btn icon-btn--ghost text-danger"
+                                        data-i18n-attr="aria-label:link.revoke;title:link.revoke" aria-label="Revoke" title="Revoke"
                                         data-action="link:revoke" data-id="<?= $link->id ?>">
                                     <svg class="icon"><use href="#i-x-circle"/></svg>
                                 </button>
@@ -169,11 +178,11 @@ $searching = ($query->search ?? '') !== '';
         <div class="empty" data-empty="links"<?= $links === [] ? '' : ' hidden' ?>>
             <svg class="icon"><use href="#i-link"/></svg>
             <?php if ($searching): ?>
-                <div class="empty__title">Ничего не нашлось</div>
-                <div class="text-sm">По запросу «<?= Fmt::e($query->search) ?>» ссылок нет</div>
+                <div class="empty__title" data-i18n="empty.nothing">Nothing found</div>
+                <div class="text-sm" data-i18n="links.empty.search" data-i18n-vars="<?= Fmt::e((string) json_encode(['query' => $query->search])) ?>">No links match “<?= Fmt::e($query->search) ?>”</div>
             <?php else: ?>
-                <div class="empty__title">Ссылок нет</div>
-                <div class="text-sm">Выпустите ссылку из карточки файла</div>
+                <div class="empty__title" data-i18n="links.empty.title">No links</div>
+                <div class="text-sm" data-i18n="links.empty.hint">Issue one from a file card</div>
             <?php endif ?>
         </div>
     </div>

@@ -29,10 +29,3 @@ export const isCoarse = () => window.matchMedia("(pointer: coarse)").matches;
 export const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export const bucketId = () => document.body.dataset.bucketId || "";
-
-/** Русское склонение: plural(3, "файл", "файла", "файлов"). */
-export function plural(count, one, few, many) {
-  const mod100 = count % 100;
-  if (mod100 >= 11 && mod100 <= 14) return many;
-  return [many, one, few, few, few, many, many, many, many, many][count % 10];
-}

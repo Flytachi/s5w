@@ -2,6 +2,7 @@
 
 import { Api } from "../api.js";
 import { setBusy } from "../ui/forms.js";
+import { t } from "../i18n/index.js";
 
 function initLogin() {
   const form = document.querySelector("[data-login-form]");
@@ -15,7 +16,7 @@ function initLogin() {
     const shown = password.type === "text";
     password.type = shown ? "password" : "text";
     peek.querySelector("use").setAttribute("href", shown ? "#i-eye" : "#i-eye-off");
-    peek.setAttribute("aria-label", shown ? "Показать пароль" : "Скрыть пароль");
+    peek.setAttribute("aria-label", t(shown ? "login.hide" : "login.peek"));
     peek.setAttribute("aria-pressed", shown ? "false" : "true");
     password.focus();
   });
@@ -34,7 +35,7 @@ function initLogin() {
       location.href = form.dataset.next || "/admin/ui";
     } catch (err) {
       form.querySelector("[data-login-message]").textContent =
-        err.status === 429 ? "Слишком много попыток. Попробуйте позже." : err.message;
+        err.status === 429 ? t("login.tooMany") : err.message;
       box.hidden = false;
       password.value = "";
       password.focus();

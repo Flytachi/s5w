@@ -30,10 +30,15 @@ enum CacheVisibility: int
     public function label(): string
     {
         return match ($this) {
-            self::SHARED => 'всем и CDN',
-            self::PRIVATE => 'только клиенту',
-            self::NO_STORE => 'не хранить',
+            self::SHARED => 'everyone and CDN',
+            self::PRIVATE => 'client only',
+            self::NO_STORE => 'do not store',
         };
+    }
+
+    public function labelKey(): string
+    {
+        return 'cache.visibility.' . $this->name;
     }
 
     public function tone(): string

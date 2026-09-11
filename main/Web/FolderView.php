@@ -55,7 +55,7 @@ final readonly class FolderView
             $parts[] = $this->cacheVisibility->label();
         }
         if ($this->cacheMaxAge !== null) {
-            $parts[] = $this->cacheMaxAge . ' с';
+            $parts[] = $this->cacheMaxAge . ' s';
         }
 
         return implode(' · ', $parts);
@@ -64,13 +64,18 @@ final readonly class FolderView
     public function retentionLabel(): string
     {
         return match ($this->retention) {
-            'DAY' => 'день',
-            'WEEK' => 'неделя',
-            'MONTH' => 'месяц',
-            'QUARTER' => 'три месяца',
-            'HALF_YEAR' => 'полгода',
-            'YEAR' => 'год',
-            default => 'без срока',
+            'DAY' => 'a day',
+            'WEEK' => 'a week',
+            'MONTH' => 'a month',
+            'QUARTER' => 'three months',
+            'HALF_YEAR' => 'half a year',
+            'YEAR' => 'a year',
+            default => 'no expiry',
         };
+    }
+
+    public function retentionKey(): string
+    {
+        return 'retention.' . $this->retention;
     }
 }

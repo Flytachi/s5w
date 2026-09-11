@@ -1,6 +1,7 @@
 /* Единственная точка обращения к серверу.
    Ошибки приходят в одном виде: статус, сообщение и разбор по полям формы,
    если сервер его прислал. */
+import { t } from "./i18n/index.js";
 
 export class ApiError extends Error {
   constructor(status, message, errors) {
@@ -40,7 +41,7 @@ async function request(method, path, body) {
   }
 
   if (!res.ok) {
-    throw new ApiError(res.status, (json && json.message) || "Не удалось выполнить запрос", json && json.errors);
+    throw new ApiError(res.status, (json && json.message) || t("error.request"), json && json.errors);
   }
   return { status: res.status, data: json };
 }

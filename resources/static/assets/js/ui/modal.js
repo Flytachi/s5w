@@ -8,6 +8,7 @@
 import { node, isCoarse } from "./dom.js";
 import * as popover from "./popover.js";
 import * as toast from "./toast.js";
+import { t } from "../i18n/index.js";
 
 const stack = []; // { dialog, trigger }
 const onOpenHooks = new Map(); // id -> fn(dialog, context)
@@ -98,7 +99,7 @@ export function onOpen(id, fn) {
 }
 
 /** Подтверждение. Строится на лету — разметку держать негде. */
-export function confirm({ title, text, confirmLabel = "Удалить", tone = "danger" }) {
+export function confirm({ title, text, confirmLabel = t("common.delete"), tone = "danger" }) {
   return new Promise((resolvePromise) => {
     const dialog = node(`
       <dialog class="modal modal--sm" aria-labelledby="confirm-title">
@@ -109,7 +110,7 @@ export function confirm({ title, text, confirmLabel = "Удалить", tone = "
           </header>
           <div class="modal__body"><p class="modal__text">${text}</p></div>
           <footer class="modal__footer">
-            <button type="button" class="btn btn--ghost" data-no>Отмена</button>
+            <button type="button" class="btn btn--ghost" data-no>${t("common.cancel")}</button>
             <button type="button" class="btn btn--${tone === "danger" ? "danger" : "primary"}" data-yes autofocus>${confirmLabel}</button>
           </footer>
         </div>

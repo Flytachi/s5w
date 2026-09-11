@@ -1,6 +1,7 @@
 /* Уведомления. Контейнер — popover="manual": так тосты живут в верхнем слое и
    видны поверх открытого <dialog>. Когда открывается новая модалка, контейнер
    перепоказывается, чтобы снова оказаться сверху (см. modal.js). */
+import { t } from "../i18n/index.js";
 
 const ICON = { ok: "i-check-circle", error: "i-x-circle", warn: "i-alert-triangle", info: "i-info" };
 const MAX = 4;
@@ -52,7 +53,7 @@ export function show(message, opts = {}) {
       ${opts.detail ? `<div class="toast__detail">${opts.detail}</div>` : ""}
     </div>
     ${opts.action ? `<button type="button" class="toast__action">${opts.action.label}</button>` : ""}
-    <button type="button" class="toast__close" aria-label="Закрыть"><svg class="icon icon--sm"><use href="#i-x"/></svg></button>`;
+    <button type="button" class="toast__close" aria-label="${t("common.close")}"><svg class="icon icon--sm"><use href="#i-x"/></svg></button>`;
 
   const remove = () => {
     if (!toast.isConnected) return;

@@ -1,7 +1,7 @@
 /* Временные ссылки: выпуск, отзыв, уборка. */
 
 import { Api } from "../api.js";
-import { bucketId, plural } from "../ui/dom.js";
+import { bucketId } from "../ui/dom.js";
 import * as actions from "../ui/actions.js";
 import * as forms from "../ui/forms.js";
 import { Modal } from "../ui/modal.js";
@@ -9,6 +9,7 @@ import * as toast from "../ui/toast.js";
 import { bumpCounter, setCounter } from "../ui/counter.js";
 import { showSecret } from "./tokens.js";
 import { currentDrawerRow, loadFileLinks } from "./files.js";
+import { t, plural } from "../i18n/index.js";
 
 function onCreated(link, form) {
   // Карточка файла осталась открытой позади — обновим её список.
@@ -16,15 +17,22 @@ function onCreated(link, form) {
   const row = currentDrawerRow();
   if (drawer?.open && row) loadFileLinks(drawer, row.dataset.id);
 
-  showSecret("Ссылка выпущена", link.url, "Показывается один раз — скопируйте сейчас.");
-  toast.show(link.id === null ? "Ссылка выпущена, в списке её не будет" : "Ссылка добавлена в список", {
+  showSecret(t("link.issued"), link.url, t("link.issuedNote"));
+  toast.show(t(link.id === null ? "link.issuedUnlisted" : "link.issuedListed"), {
     type: "info",
   });
 }
 
+const deadBadge = () =>
+  `<span class="tone tone--danger" data-i18n="link.dead.revoked">${t("link.dead.revoked")}</span>`;
+
 async function revoke({ el, row, id }) {
   const target = el.closest(".link-row") ?? row;
-  const ok = await Modal.confirm({ title: "Отозвать ссылку?", text: "Адрес сразу начнёт отвечать 404.", confirmLabel: "Отозвать" });
+  const ok = await Modal.confirm({
+    title: t("link.revokeTitle"),
+    text: t("link.revokeText"),
+    confirmLabel: t("link.revoke"),
+  });
   if (!ok) return;
 
   await Api.delete(`/admin/buckets/${bucketId()}/links/${id}`);
@@ -32,13 +40,13 @@ async function revoke({ el, row, id }) {
   // Ссылку отзывают из двух мест: строки таблицы в разделе и карточки файла.
   if (target?.classList.contains("link-row")) {
     target.classList.add("is-off");
-    target.querySelector(".link-row__head .tone").outerHTML = '<span class="tone tone--danger">отозвана</span>';
+    target.querySelector(".link-row__head .tone").outerHTML = deadBadge();
     target.querySelector(".link-row__actions")?.remove();
   } else if (target) {
     const wasAlive = target.dataset.dead !== "1";
     target.dataset.dead = "1";
     target.classList.add("is-dimmed");
-    target.querySelector('[data-cell="expiry"]').innerHTML = '<span class="tone tone--danger">отозвана</span>';
+    target.querySelector('[data-cell="expiry"]').innerHTML = deadBadge();
     target.querySelector("[data-actions]")?.replaceChildren();
     if (wasAlive) {
       bumpCounter("links-active", -1);
@@ -46,7 +54,7 @@ async function revoke({ el, row, id }) {
     }
   }
 
-  toast.show("Ссылка отозвана", { type: "ok" });
+  toast.show(t("link.revoked"), { type: "ok" });
 }
 
 /**
@@ -57,22 +65,22 @@ async function purge({ dataset }) {
   const state = dataset.state;
   const about = {
     revoked: {
-      title: "Удалить отозванные ссылки?",
-      text: "Строки исчезнут из списка. Сами адреса и так уже ничего не открывают.",
+      title: t("link.purgeRevokedTitle"),
+      text: t("link.purgeRevokedText"),
     },
     expired: {
-      title: "Удалить истёкшие ссылки?",
-      text: "Строки с вышедшим сроком исчезнут из списка. Живые ссылки останутся.",
+      title: t("link.purgeExpiredTitle"),
+      text: t("link.purgeExpiredText"),
     },
   }[state];
 
-  if (!(await Modal.confirm({ ...about, confirmLabel: "Удалить" }))) return;
+  if (!(await Modal.confirm({ ...about, confirmLabel: t("common.delete") }))) return;
 
   const res = await Api.delete(`/admin/buckets/${bucketId()}/links/purge/${state}`);
   const removed = res.data.removed;
 
   toast.show(
-    removed === 0 ? "Нечего убирать" : `Удалено ${removed} ${plural(removed, "ссылка", "ссылки", "ссылок")}`,
+    removed === 0 ? t("link.nothingToPurge") : plural("link.purged", removed),
     { type: removed === 0 ? "info" : "ok" },
   );
 
@@ -81,9 +89,9 @@ async function purge({ dataset }) {
 
 async function revokeAll() {
   const ok = await Modal.confirm({
-    title: "Отозвать все ссылки?",
-    text: "Перестанут работать все выданные ссылки бакета, включая те, которых нет в списке.",
-    confirmLabel: "Отозвать все",
+    title: t("link.revokeAllTitle"),
+    text: t("link.revokeAllText"),
+    confirmLabel: t("links.revokeAll"),
   });
   if (!ok) return;
 
@@ -94,7 +102,7 @@ async function revokeAll() {
     if (row.dataset.dead !== "1") revoked++;
     row.dataset.dead = "1";
     row.classList.add("is-dimmed");
-    row.querySelector('[data-cell="expiry"]').innerHTML = '<span class="tone tone--danger">отозвана</span>';
+    row.querySelector('[data-cell="expiry"]').innerHTML = deadBadge();
     row.querySelector("[data-actions]")?.replaceChildren();
   });
 
@@ -102,7 +110,7 @@ async function revokeAll() {
   bumpCounter("links-revoked", revoked);
   document.querySelector('[data-action="links:revoke-all"]')?.remove();
 
-  toast.show("Все ссылки погашены", { type: "ok", detail: "все выданные адреса закрыты" });
+  toast.show(t("link.allRevoked"), { type: "ok", detail: t("link.allRevokedNote") });
 }
 
 export function init() {

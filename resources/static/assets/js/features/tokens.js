@@ -8,8 +8,9 @@ import * as forms from "../ui/forms.js";
 import { Modal } from "../ui/modal.js";
 import * as toast from "../ui/toast.js";
 import { bumpCounter, dropRow, toggleEmpty } from "../ui/counter.js";
+import { t } from "../i18n/index.js";
 
-const DEFAULT_NOTE = "Значение показывается <b>один раз</b>. Скопируйте сейчас.";
+const DEFAULT_NOTE = () => t("modal.secret.note");
 
 /** Секрет показывается один раз: токен после выпуска, ссылка после создания. */
 export function showSecret(title, value, note, check) {
@@ -19,7 +20,7 @@ export function showSecret(title, value, note, check) {
   dialog.querySelector("[data-secret-title]").textContent = title;
   dialog.querySelector("[data-secret-value]").textContent = value;
   dialog.querySelector("[data-secret-copy]").dataset.copy = value;
-  dialog.querySelector("[data-secret-note]").innerHTML = note || DEFAULT_NOTE;
+  dialog.querySelector("[data-secret-note]").innerHTML = note || DEFAULT_NOTE();
 
   const box = dialog.querySelector("[data-secret-check]");
   box.hidden = !check;
@@ -34,8 +35,8 @@ function tokenCheck(secret, full) {
   return {
     curl: `curl -H "Authorization: Bearer ${secret}" ${location.origin}/v1/check`,
     hint: full
-      ? "Ответит бакетом, видом токена и остатком места. Этому токену открыт весь /v1."
-      : "Ответит бакетом, видом токена и остатком места. Этот токен умеет только /p/<slug>.",
+      ? t("token.checkFull")
+      : t("token.checkBasic"),
   };
 }
 
@@ -61,15 +62,14 @@ function onCreated(data) {
   bumpCounter("tokens-active", 1);
   if (full) bumpCounter("tokens-full", 1);
 
-  showSecret("Токен выпущен", data.token, null, tokenCheck(data.token, full));
+  showSecret(t("token.issued"), data.token, null, tokenCheck(data.token, full));
 }
 
 async function rotate({ row, id, name }) {
   const ok = await Modal.confirm({
-    title: "Сменить значение токена?",
-    text: `Старое значение перестанет работать сразу. Название <b>${e(name)}</b>,
-           вид доступа и срок останутся прежними.`,
-    confirmLabel: "Сменить",
+    title: t("token.rotateTitle"),
+    text: t("token.rotateText", { name: e(name) }),
+    confirmLabel: t("token.rotateConfirm"),
     tone: "brand",
   });
   if (!ok) return;
@@ -81,9 +81,9 @@ async function rotate({ row, id, name }) {
   if (tail) tail.textContent = "s5w_…" + token.tail;
 
   showSecret(
-    "Новое значение токена",
+    t("token.newValue"),
     res.data.token,
-    "Старый уже недействителен. Значение показывается один раз.",
+    t("token.newValueNote"),
     tokenCheck(res.data.token, token.access.name === "FULL"),
   );
 }
@@ -94,26 +94,28 @@ async function toggle({ row, el, id }) {
 
   row.dataset.status = res.data.status.name;
   row.querySelector('[data-cell="status"]').innerHTML = res.data.expired
-    ? '<span class="tone tone--danger">просрочен</span>'
+    ? `<span class="tone tone--danger" data-i18n="token.state.expired">${t("token.state.expired")}</span>`
     : next === 1
-      ? '<span class="tone tone--ok"><span class="status-dot status-dot--current"></span> активен</span>'
-      : '<span class="tone tone--mute">выключен</span>';
+      ? `<span class="tone tone--ok"><span class="status-dot status-dot--current"></span> <span data-i18n="token.state.active">${t("token.state.active")}</span></span>`
+      : `<span class="tone tone--mute" data-i18n="token.state.off">${t("token.state.off")}</span>`;
 
   const label = el.querySelector("[data-toggle-label]");
-  if (label) label.textContent = next === 1 ? "Выключить" : "Включить";
+  if (label) {
+    label.dataset.i18n = next === 1 ? "token.disable" : "token.enable";
+    label.textContent = t(label.dataset.i18n);
+  }
   row.classList.toggle("is-dimmed", !(next === 1 && !res.data.expired));
 
   countToken(row, next === 1 ? 1 : -1);
   bumpCounter("tokens-inactive", next === 1 ? -1 : 1);
 
-  toast.show(next === 1 ? "Токен включён" : "Токен выключен", { type: next === 1 ? "ok" : "warn" });
+  toast.show(t(next === 1 ? "token.enabled" : "token.disabled"), { type: next === 1 ? "ok" : "warn" });
 }
 
 async function remove({ el, row, id, name }) {
   const ok = await Modal.confirm({
-    title: "Удалить токен?",
-    text: `Клиент с этим токеном сразу начнёт получать 401. Восстановить нельзя —
-           можно только выпустить новый.`,
+    title: t("token.deleteTitle"),
+    text: t("token.deleteText"),
   });
   if (!ok) return;
 
@@ -124,7 +126,7 @@ async function remove({ el, row, id, name }) {
   else bumpCounter("tokens-inactive", -1);
 
   dropRow(row, "tokens");
-  toast.show(`Токен <b>${e(name)}</b> удалён`, { type: "ok" });
+  toast.show(t("token.deleted", { name: "<b>" + e(name) + "</b>" }), { type: "ok" });
 }
 
 export function init() {

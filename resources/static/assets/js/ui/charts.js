@@ -2,6 +2,7 @@
    Одна плавающая подсказка на всё: и для столбиков трафика, и для кольца. */
 
 import { e } from "./dom.js";
+import { t, bytes } from "../i18n/index.js";
 
 let tip = null;
 
@@ -90,9 +91,11 @@ function initDonut() {
 
   const show = (slice, event) => {
     const d = slice.dataset;
-    tooltip().innerHTML = `<div class="ttip__title">${e(d.name)}</div>
-      <div class="ttip__row"><span class="ttip__name">${e(d.size)}</span><span class="ttip__value">${e(d.share)}%</span></div>
-      <div class="ttip__row"><span class="ttip__name">${e(d.count)} шт</span></div>`;
+    const name = d.nameKey ? t(d.nameKey) : d.name;
+    const size = d.bytes === undefined ? d.size : bytes(d.bytes);
+    tooltip().innerHTML = `<div class="ttip__title">${e(name)}</div>
+      <div class="ttip__row"><span class="ttip__name">${e(size)}</span><span class="ttip__value">${e(d.share)}%</span></div>
+      <div class="ttip__row"><span class="ttip__name">${e(t("common.pcs", { n: d.count }))}</span></div>`;
     tip.classList.add("is-open");
     placeAtPointer(event);
   };

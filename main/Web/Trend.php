@@ -61,11 +61,21 @@ final readonly class Trend
     public function label(): string
     {
         if (!$this->known) {
-            return 'не с чем сравнить';
+            return 'nothing to compare';
         }
 
+        return $this->delta() . '% week over week';
+    }
+
+    public function labelKey(): string
+    {
+        return $this->known ? 'trend.wow' : 'trend.unknown';
+    }
+
+    public function delta(): string
+    {
         $percent = $this->percent();
 
-        return ($percent >= 0 ? '+' : '−') . round(abs($percent)) . '% неделя к неделе';
+        return ($percent >= 0 ? '+' : '−') . round(abs($percent));
     }
 }

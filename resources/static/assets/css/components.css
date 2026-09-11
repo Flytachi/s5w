@@ -88,6 +88,8 @@
 .icon-btn--sm .icon { width: 16px; height: 16px; }
 .icon-btn:disabled { opacity: 0.5; pointer-events: none; }
 
+.lang-btn { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; }
+
 /* ============ Карточки ============ */
 
 .card {

@@ -1,4 +1,5 @@
 /* Числовому полю — свои стрелки: браузерные не поддаются оформлению. */
+import { t } from "../i18n/index.js";
 
 export function enhanceNumbers(root = document) {
   root.querySelectorAll('input.input[type="number"]:not([data-plain])').forEach((input) => {
@@ -12,10 +13,10 @@ export function enhanceNumbers(root = document) {
     box.insertAdjacentHTML(
       "beforeend",
       `<div class="number__spin">
-         <button type="button" data-step="up" tabindex="-1" aria-label="Больше">
+         <button type="button" data-step="up" tabindex="-1" aria-label="${t("number.up")}">
            <svg class="icon"><use href="#i-chevron-down" style="transform:rotate(180deg);transform-origin:center"/></svg>
          </button>
-         <button type="button" data-step="down" tabindex="-1" aria-label="Меньше">
+         <button type="button" data-step="down" tabindex="-1" aria-label="${t("number.down")}">
            <svg class="icon"><use href="#i-chevron-down"/></svg>
          </button>
        </div>`,

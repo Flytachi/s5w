@@ -470,3 +470,4 @@
 .auth__logo svg { width: 28px; height: 28px; color: var(--brand); }
 .auth__sub { color: var(--gray-5); font-size: var(--fs-md); }
 .auth__theme { position: fixed; top: max(16px, env(safe-area-inset-top)); right: 16px; }
+.auth__lang { position: fixed; top: max(16px, env(safe-area-inset-top)); right: calc(16px + var(--h-ctl) + 8px); }
