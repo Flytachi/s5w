@@ -11,7 +11,7 @@ use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\AccessTokenMiddleware;
 use Main\Http\BucketContext;
-use Main\Service\AccessTokenService;
+use Main\Services\AccessTokenService;
 
 #[AccessTokenMiddleware]
 #[RequestMapping('v1')]

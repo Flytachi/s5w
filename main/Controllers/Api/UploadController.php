@@ -21,8 +21,8 @@ use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\FullTokenMiddleware;
 use Main\Http\BucketContext;
-use Main\Request\UploadStartRequest;
-use Main\Service\UploadService;
+use Main\Controllers\Requests\UploadStartRequest;
+use Main\Services\UploadService;
 
 #[FullTokenMiddleware]
 #[RequestMapping('v1/uploads')]

@@ -11,7 +11,7 @@ use Flytachi\Winter\Kernel\Http\Response\ResponseStreamFile;
 use Flytachi\Winter\Kernel\Http\Stereotype\Controller;
 use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
-use Main\Service\DeliveryService;
+use Main\Services\DeliveryService;
 
 #[RequestMapping('t')]
 final class TemporaryController extends Controller

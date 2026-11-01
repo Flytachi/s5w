@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Main\Dto;
 
-use Main\Entity\Upload;
+use Main\Entities\Upload;
 
 final class UploadRes
 {

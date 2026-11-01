@@ -1,0 +1,68 @@
+/* Bridges between the old panel's styles and the components that replace its scripts. */
+
+/* Reka positions the menu itself (a popper wrapper in a portal); the old panel's
+   `is-floating` did the same by hand. */
+.cselect__menu.is-reka {
+  display: block;
+  min-width: var(--reka-dropdown-menu-trigger-width);
+  max-width: min(320px, calc(100vw - 32px));
+  max-height: min(320px, var(--reka-dropdown-menu-content-available-height));
+  z-index: var(--z-popover);
+  animation: menu-in 0.12s ease;
+}
+.cselect__menu.is-reka .cselect__option[data-highlighted] { background: var(--gray-2); outline: none; }
+
+/* A logout is a button now, not a link; it keeps the nav item's look. */
+button.nav-item { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+
+/* While the first answer is on its way: holds the page instead of collapsing it. */
+.skeleton-page { min-height: 60vh; }
+
+/* Row menus and select lists on Reka: it positions them, so no `is-floating` here. */
+.dropdown__menu.is-reka,
+.cselect__menu.is-reka-select {
+  display: block;
+  z-index: var(--z-popover);
+  animation: menu-in 0.12s ease;
+}
+.cselect__menu.is-reka-select {
+  min-width: var(--reka-select-trigger-width);
+  max-height: min(280px, var(--reka-select-content-available-height));
+}
+.dropdown__item[data-highlighted],
+.cselect__menu.is-reka-select .cselect__option[data-highlighted] { background: var(--gray-2); outline: none; }
+.dropdown__item.is-danger { color: var(--danger); }
+.dropdown__item.is-danger[data-highlighted] { background: var(--danger-soft); }
+.cselect__option[data-state="checked"] { background: var(--brand-soft); color: var(--brand-600); font-weight: 600; }
+.cselect__option[data-state="checked"] .icon--check { opacity: 1; }
+.cselect.is-invalid .cselect__btn { border-color: var(--danger); }
+.icon-flip .icon { transform: rotate(180deg); }
+
+/* Between the card layout and a wide screen a full table does not fit its panel and
+   scrolled sideways (measured: +80px at 1280). A secondary column steps out there. */
+@media (min-width: 1024px) and (max-width: 1439.98px) {
+  .table .col-optional { display: none; }
+}
+
+/* A table decides between rows and cards by the room its panel has, not by the window.
+   `position: relative` keeps absolutely placed bits of the table (the visually hidden
+   header of the actions column) inside the scroll box; without it they stretched the
+   whole page sideways at 1024px. */
+.panel__scroll { container: panel / inline-size; position: relative; }
+.cache-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+
+/* An empty cell keeps the table's columns in rows; in cards it would be an empty line. */
+@container panel (max-width: 799.98px) {
+  .table--cards td.hide-in-cards { display: none; }
+  /* The row rule `.table td[data-primary]` (max-width: 0, min-width: 200px) outweighs
+     the card one and squeezed the name into 200px of a 320px card. */
+  .table--cards td[data-primary] { max-width: none; min-width: 0; }
+  /* The file manager's row lines are for rows; a card has its own border. */
+  .fm__main .table--cards td { border-bottom: 0; }
+}
+
+/* The folder's menu is portalled out of the row, so :focus-within no longer holds it. */
+.fm__folder-menu:has(.dropdown.is-open) { opacity: 1; }
+
+.alert--warn { background: var(--warn-soft); border-color: var(--warn); }
+.alert--warn > .icon { color: var(--warn); }

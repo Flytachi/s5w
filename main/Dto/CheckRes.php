@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Main\Dto;
 
-use Main\Entity\AccessToken;
-use Main\Entity\Bucket;
+use Main\Entities\AccessToken;
+use Main\Entities\Bucket;
 use Main\Enum\TokenAccess;
 
 final class CheckRes

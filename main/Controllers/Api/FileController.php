@@ -22,10 +22,10 @@ use Flytachi\Winter\Kernel\Route\Annotation\PutMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\FullTokenMiddleware;
 use Main\Http\BucketContext;
-use Main\Request\FileListRequest;
-use Main\Request\FilePlacementRequest;
-use Main\Request\FileUploadRequest;
-use Main\Service\FileService;
+use Main\Controllers\Requests\FileListRequest;
+use Main\Controllers\Requests\FilePlacementRequest;
+use Main\Controllers\Requests\FileUploadRequest;
+use Main\Services\FileService;
 use Main\Support\Slug;
 
 #[FullTokenMiddleware]

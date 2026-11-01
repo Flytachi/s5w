@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Main\Dto;
 
-use Main\Entity\Blob;
-use Main\Entity\FileEntry;
+use Main\Entities\Blob;
+use Main\Entities\FileEntry;
 use Main\Image\ProcessedImage;
 
 final class FileRes

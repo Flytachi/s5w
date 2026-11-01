@@ -19,10 +19,10 @@ use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PutMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\AdminAuthMiddleware;
-use Main\Request\CachePolicyRequest;
-use Main\Request\FolderRequest;
-use Main\Request\PageRequest;
-use Main\Service\FolderService;
+use Main\Controllers\Requests\CachePolicyRequest;
+use Main\Controllers\Requests\FolderRequest;
+use Main\Controllers\Requests\PageRequest;
+use Main\Services\FolderService;
 
 #[AdminAuthMiddleware]
 #[RequestMapping('admin/buckets/{bucketId}/folders')]

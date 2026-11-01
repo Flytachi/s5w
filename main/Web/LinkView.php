@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Main\Web;
 
-use Main\Entity\FileEntry;
-use Main\Entity\ShareLink;
+use Main\Entities\FileEntry;
+use Main\Entities\ShareLink;
 use Main\Enum\Disposition;
 
 final readonly class LinkView

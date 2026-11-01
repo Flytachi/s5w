@@ -38,7 +38,7 @@ if [ "$(psql -c "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'")" != "1" 
     psql -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\""
     echo "pgsql: database $DB_NAME created"
 
-    if ! su-exec winter php /var/www/html/call db migrate; then
+    if ! su-exec winter php /app/call db migrate; then
         echo "pgsql: 'call db migrate' failed — the schema is incomplete" >&2
     fi
 fi

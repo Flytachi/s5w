@@ -18,11 +18,17 @@ vendor
 
 # Environment & secrets
 .env
+.runtime_secrets
 
-# Storage (logs, cache)
-storage/logs
-storage/cache
-storage/runnable
+# What the framework writes at runtime (process state, build caches), and file logs
+.winter
+logs
+
+# The panel's own build artefacts: built again in the image
+frontend/node_modules
+frontend/.nuxt
+frontend/.output
+frontend/.data
 
 # Tests
 phpunit.xml

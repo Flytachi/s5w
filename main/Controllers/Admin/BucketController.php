@@ -19,10 +19,10 @@ use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PutMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\AdminAuthMiddleware;
-use Main\Request\BucketRequest;
-use Main\Request\CachePolicyRequest;
-use Main\Request\PageRequest;
-use Main\Service\BucketService;
+use Main\Controllers\Requests\BucketRequest;
+use Main\Controllers\Requests\CachePolicyRequest;
+use Main\Controllers\Requests\PageRequest;
+use Main\Services\BucketService;
 
 #[AdminAuthMiddleware]
 #[RequestMapping('admin/buckets')]

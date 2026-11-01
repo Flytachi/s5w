@@ -46,6 +46,10 @@ mkdir -p "$BUNDLE/contents.d"
 echo bundle > "$BUNDLE/type"
 
 longrun pgsql /opt/winter/pgsql.run
+# Fast shutdown, not the smart one SIGTERM asks for: by the time the database stops the
+# application is gone, and smart would wait for good on any other session left open
+# (a psql in `docker exec`) until s6 kills it and the next start is a crash recovery.
+echo SIGINT > "$RC/pgsql/down-signal"
 oneshot pgsql-setup /opt/winter/pgsql-setup.up
 longrun service /opt/winter/service.run
 

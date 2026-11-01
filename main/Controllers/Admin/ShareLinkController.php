@@ -21,9 +21,9 @@ use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\AdminAuthMiddleware;
 use Main\Enum\LinkPurge;
-use Main\Request\PageRequest;
-use Main\Request\ShareLinkRequest;
-use Main\Service\ShareLinkService;
+use Main\Controllers\Requests\PageRequest;
+use Main\Controllers\Requests\ShareLinkRequest;
+use Main\Services\ShareLinkService;
 use Main\Support\Slug;
 
 #[AdminAuthMiddleware]

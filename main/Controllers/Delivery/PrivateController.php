@@ -14,7 +14,7 @@ use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\AccessTokenMiddleware;
 use Main\Http\BucketContext;
-use Main\Service\DeliveryService;
+use Main\Services\DeliveryService;
 use Main\Support\Slug;
 
 #[AccessTokenMiddleware]

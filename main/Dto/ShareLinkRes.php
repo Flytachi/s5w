@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Main\Dto;
 
-use Main\Entity\ShareLink;
+use Main\Entities\ShareLink;
 use Main\Enum\Disposition;
 
 final class ShareLinkRes

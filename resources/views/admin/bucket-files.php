@@ -5,7 +5,7 @@ use Main\Web\Query;
 use Main\Web\Sorting;
 use Main\Web\Ui;
 
-/** @var \Main\Request\PanelListRequest $query */
+/** @var \Main\Controllers\Requests\PanelListRequest $query */
 $base = '/admin/ui/buckets/' . $bucket->id . '/files';
 $link = static fn(array $params) => Fmt::e(Query::url($base, $params + [
     'search' => $query->search,

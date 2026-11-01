@@ -13,9 +13,11 @@ use Flytachi\Winter\Kernel\Http\Stereotype\Controller;
 use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\AdminAuthMiddleware;
+use Main\Controllers\Requests\LoginRequest;
 use Main\Http\AdminCookie;
-use Main\Request\LoginRequest;
-use Main\Service\AdminAuthService;
+use Main\Http\AdminNetwork;
+use Main\Http\Peer;
+use Main\Services\AdminAuthService;
 
 #[RequestMapping('admin/auth')]
 final class AuthController extends Controller
@@ -28,7 +30,8 @@ final class AuthController extends Controller
         #[RequestJson, Valid] LoginRequest $request,
         HttpRequest $http,
     ): ResponseEntity {
-        $session = $this->service->login($request, $http->getClientIp());
+        AdminNetwork::guard($http);
+        $session = $this->service->login($request, Peer::client($http));
 
         return ResponseEntity::ok(['expiresAt' => date('Y-m-d H:i:s P', $session['expiresAt'])])
             ->cookie(AdminCookie::issue($session['token']));

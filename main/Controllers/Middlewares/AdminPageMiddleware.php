@@ -14,10 +14,6 @@ final class AdminPageMiddleware extends AdminAuthMiddleware
     protected function reject(HttpRequest $request): void
     {
         $next = $request->getUri();
-        $query = $request->getQueryParams();
-        if ($query !== []) {
-            $next .= '?' . http_build_query($query);
-        }
 
         throw (new MiddlewareException('Authentication required', HttpCode::FOUND))
             ->withHeader('Location', '/admin/ui/login?next=' . rawurlencode($next));

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Main\Http;
 
 use Flytachi\Winter\DI\Attribute\Request;
-use Main\Entity\AccessToken;
+use Main\Entities\AccessToken;
 
 #[Request]
 final class BucketContext

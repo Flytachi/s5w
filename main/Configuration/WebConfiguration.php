@@ -7,7 +7,7 @@ use Flytachi\Winter\Kernel\App\Config\Profile;
 use Flytachi\Winter\Kernel\App\Config\ServerSettings;
 use Flytachi\Winter\Kernel\App\Config\WebConfigurerAdapter;
 use Main\Cacheable\CacheRegistry;
-use Main\Service\UploadService;
+use Main\Services\UploadService;
 
 class WebConfiguration extends WebConfigurerAdapter
 {
@@ -27,10 +27,15 @@ class WebConfiguration extends WebConfigurerAdapter
 
     public function configureServer(ServerSettings $server, ApplicationArguments $args): void
     {
-        // Общая память под кэши отводится здесь, потому что это последняя точка перед
-        // запуском сервера: Swoole\Table, созданная после форка, достаётся одному
-        // воркеру, и отзыв токена в нём до остальных не дошёл бы.
+        // Общая память под счётчики отводится здесь: конфигуратор зовётся в процессе
+        // приложения до того, как от него отделятся HTTP и планировщик. Swoole\Table,
+        // созданная после форка, досталась бы одному процессу, и счёт HTTP до планировщика,
+        // который сливает его в базу, не дошёл бы.
         CacheRegistry::boot();
+
+        // Порт задаёт окружение контейнера (`SERVER_PORT`, им же публикуется порт в
+        // compose), а #[EnableHttp] даёт значение по умолчанию для запуска без него.
+        $server->port((int) env('SERVER_PORT', $server->getPort()));
 
         // Запрос здесь тяжёлый: кусок загрузки — это мегабайты в куче, обработка
         // картинки — ещё столько же. Профиль отвечает ровно на этот вопрос и уже из

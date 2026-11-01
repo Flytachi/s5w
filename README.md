@@ -1,9 +1,11 @@
 # S5W — File Store & CDN
 
 Single-container file store on **Swoole** (PHP 8.5) with a **bundled PostgreSQL 18**.
-Everything — application, database, scheduler — runs in one container supervised by s6.
+Everything — application, database, scheduler — runs in one container: s6 starts the
+database and then the application, and the application supervises its own HTTP server
+and scheduler. Built on the [`flytachi/winter`](https://hub.docker.com/r/flytachi/winter) runtime image.
 
-- **Web panel:** `http://<host>/admin/ui` (`/` и `/admin` ведут туда же)
+- **Admin panel:** `http://<host>:9091/` — its own port (`UI_PORT`); the old pages at `http://<host>:9090/admin/ui` still work while the move goes on
 - **Client API:** `http://<host>/v1/…`
 - **Delivery:** `/o` (public) · `/p` (by token) · `/t` (signed temporary links)
 - **Image:** `flytachi/s5w:latest`
@@ -42,18 +44,18 @@ container's disk and the database is an index over them, so both sit in one volu
 
 **Quick try (no persistence — for testing only):**
 ```bash
-docker run -d --name s5w -p 9090:9090 \
+docker run -d --name s5w -p 9090:9090 -p 9091:9091 \
   -e ADMIN_LOGIN=admin -e ADMIN_PASSWORD=change-me \
   flytachi/s5w:latest
-# http://localhost:9090/  → admin / change-me
+# http://localhost:9091/  → admin / change-me
 ```
 
 **Persistent (recommended):**
 ```bash
-docker run -d --name s5w -p 9090:9090 \
+docker run -d --name s5w -p 9090:9090 -p 9091:9091 \
   -e ADMIN_LOGIN=admin -e ADMIN_PASSWORD=change-me \
   -v s5w_data:/var/lib/s5w \
-  --stop-timeout 30 \
+  --stop-timeout 45 \
   --restart unless-stopped \
   flytachi/s5w:latest
 ```
@@ -78,6 +80,7 @@ services:
     image: flytachi/s5w:latest
     ports:
       - "9090:9090"
+      - "9091:9091"
     environment:
       ADMIN_LOGIN: admin
       ADMIN_PASSWORD: change-me
@@ -93,6 +96,7 @@ services:
     image: flytachi/s5w:latest
     ports:
       - "9090:9090"
+      - "9091:9091"
     environment:
       ADMIN_LOGIN: admin
       ADMIN_PASSWORD: change-me
@@ -100,9 +104,9 @@ services:
       LOG_LEVEL: warning
     volumes:
       - s5w_data:/var/lib/s5w
-    # Swoole stops first, then PostgreSQL waits for the pool to be released.
-    # The default 10s is not enough; on SIGKILL the database needs recovery.
-    stop_grace_period: 30s
+    # The application stops first (up to 35 s), then PostgreSQL. The default 10s is
+    # not enough; on SIGKILL the database needs recovery.
+    stop_grace_period: 45s
     restart: unless-stopped
 
 volumes:
@@ -124,8 +128,12 @@ database and runs the migrations. Later starts skip all of it.
 | `ADMIN_LOGIN` | — | **Required.** Empty ⇒ panel login denied (fail-closed). |
 | `ADMIN_PASSWORD` | — | **Required.** As above. |
 | `SERVER_PORT` | `9090` | Port Swoole binds. Publish the same number. |
+| `ADMIN_UI` | `true` | `false` ⇒ no admin panel: the container only stores and serves files. |
+| `UI_PORT` | `9091` | Port of the admin panel. Publish the same number. |
 | `WINTER_KEY` | _auto_ | Session signing key. Generated on first start and persisted to the volume. |
-| `PUBLIC_BASE_URL` | _(request host)_ | Base URL used in returned links. Include the scheme; that host must route here. |
+| `ADMIN_API` | `public` | `local` ⇒ the admin API (`/admin/…`) answers only on loopback — to a frontend in the same container — and is a 404 from anywhere else. |
+| `TRUSTED_PROXIES` | `private` | Reverse proxies in front of the container: comma-separated IPs, CIDRs, `private` (10/8, 172.16/12, 192.168/16, fc00::/7 — any docker network) or `none`. Only behind them (and loopback) is `X-Forwarded-For` read for the client address — the login lockout counts by it. The default fits a proxy in a docker network (nginx-proxy-manager, traefik); set exact addresses or `none` if clients reach the published ports from a private LAN directly. |
+| `PUBLIC_BASE_URL` | _(request host)_ | Base URL used in returned links. Include the scheme; that host must route here. Optional, but without it the address is a guess from the request and the panel shows a notice — set it when the API and delivery are behind a proxy on their own domain. |
 | `CACHE_DEFAULT_MAX_AGE` | `86400` | Default `max-age` for public delivery, per bucket override in the panel. |
 | `CACHE_PRIVATE_MAX_AGE` | `0` | Same for `private` visibility. |
 | `TIME_ZONE` | `UTC` | Fallback when the browser does not report one. |
@@ -151,9 +159,25 @@ docker run -d -p 9090:9090 \
   -v s5w_data:/var/lib/s5w s5w:local
 ```
 
-PHP extensions and the database server are installed by the scripts in
-`docker/dependencies/`, which run in filename order during the build. Delete the
-ones you do not need.
+The base image brings Swoole, pcntl, pgsql and opcache. What s5w adds — the
+PostgreSQL server, gd (webp, avif) and exif — is installed by the scripts in
+`docker/dependencies/`, which run in filename order during the build.
+
+---
+
+## Developing the panel
+
+The panel is a Nuxt app in `frontend/`, built to static files the container serves on
+`UI_PORT`. The image builds it itself; with the project mounted into the container
+(`./:/app`), the mounted `frontend/.output` is what gets served, so build it on the host:
+
+```bash
+cd frontend && npm install
+npm run generate          # → frontend/.output/public, served on :9091
+npm run dev               # or: hot reload on :3000, /api proxied to :9090/admin
+```
+
+`S5W_BACKEND` points `npm run dev` at another backend (default `http://127.0.0.1:9090`).
 
 ---
 
@@ -162,9 +186,10 @@ ones you do not need.
 ```bash
 docker logs -f s5w                                       # logs
 docker exec -it s5w sh                                   # shell
+docker exec s5w su-exec winter php call app status      # components: state, PID, restarts
 docker exec s5w psql -U s5w -h /run/postgresql s5w       # psql on the bundled DB
 docker exec s5w su-exec winter php call db migrate       # create missing tables
-docker exec s5w su-exec winter php call script main.Console.SweepCmd retention
+docker exec s5w su-exec winter php call script main.Cmd.SweepCmd retention
 ```
 
 Maintenance runs inside the container on a schedule:
@@ -217,9 +242,10 @@ Maintenance runs inside the container on a schedule:
 - **The major PostgreSQL version is pinned to the volume.** Bumping `postgresql18`
   in `docker/dependencies/10-postgres.sh` without `pg_upgrade` leaves the server
   unable to open the existing data directory.
-- **Give the container time to stop.** PostgreSQL shuts down after the application
-  releases the connection pool; the Docker default of 10 s can cut that short and
-  force crash recovery on the next start. Use `stop_grace_period: 30s`.
+- **Give the container time to stop.** The application stops its components within
+  35 s, and PostgreSQL shuts down after it; the Docker default of 10 s can cut that
+  short and force crash recovery on the next start. Use `stop_grace_period: 45s`
+  (`--stop-timeout 45`).
 - **Public URLs `/o/{bucketId}/{slug}`** need no authentication — only files marked
   public are served there.
 - **`PUBLIC_BASE_URL`** only rewrites the host in returned links; that host must

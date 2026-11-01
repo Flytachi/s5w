@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Main\Web;
 
-use Main\Entity\Folder;
+use Main\Entities\Folder;
 use Main\Enum\CacheVisibility;
 use Main\Enum\Retention;
 

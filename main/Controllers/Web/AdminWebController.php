@@ -6,8 +6,6 @@ namespace Main\Controllers\Web;
 
 use Flytachi\Winter\DI\Attribute\Autowired;
 use Flytachi\Winter\Kernel\Http\Contracts\HttpRequest;
-use Flytachi\Winter\Kernel\Http\Cookie\Cookie;
-use Flytachi\Winter\Kernel\Http\Header;
 use Flytachi\Winter\Kernel\Http\Request\Annotation\PathVariable;
 use Flytachi\Winter\Kernel\Http\Request\Annotation\RequestQuery;
 use Flytachi\Winter\Kernel\Http\Request\Validation\Uuid;
@@ -17,19 +15,20 @@ use Flytachi\Winter\Kernel\Http\Stereotype\Controller;
 use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\AdminPageMiddleware;
+use Main\Http\ViewerTimezone;
 use Main\Dto\FileRes;
-use Main\Request\BucketListRequest;
-use Main\Request\LinkListRequest;
-use Main\Request\PanelListRequest;
-use Main\Request\TokenListRequest;
-use Main\Request\TrafficRangeRequest;
-use Main\Service\AccessTokenService;
-use Main\Service\BucketService;
-use Main\Service\BucketTrafficService;
-use Main\Service\FileService;
-use Main\Service\FolderService;
-use Main\Service\ShareLinkService;
-use Main\Service\UploadService;
+use Main\Controllers\Requests\BucketListRequest;
+use Main\Controllers\Requests\LinkListRequest;
+use Main\Controllers\Requests\PanelListRequest;
+use Main\Controllers\Requests\TokenListRequest;
+use Main\Controllers\Requests\TrafficRangeRequest;
+use Main\Services\AccessTokenService;
+use Main\Services\BucketService;
+use Main\Services\BucketTrafficService;
+use Main\Services\FileService;
+use Main\Services\FolderService;
+use Main\Services\ShareLinkService;
+use Main\Services\UploadService;
 use Main\Web\BucketView;
 use Main\Web\FileView;
 use Main\Web\FolderView;
@@ -276,31 +275,9 @@ final class AdminWebController extends Controller
         ]);
     }
 
-    /**
-     * Часовой пояс, в котором пользователю показываются даты.
-     *
-     * Час в базе записан в UTC, а «20 августа» в UTC и в Ташкенте — разные сутки, так
-     * что пояс решает, как лягут столбики и что написано под каждой датой в панели.
-     * Берём его в трёх попытках: заголовок `Timezone`, который панель шлёт своими
-     * запросами; кука `tz`, которую ставит браузер при первой отрисовке страницы
-     * (обычная навигация заголовков не шлёт); и наконец `TIME_ZONE` окружения.
-     */
     private function timezone(): \DateTimeZone
     {
-        $candidates = [
-            Header::get('Timezone'),
-            Header::get('X-Timezone'),
-            Cookie::get('tz'),
-            (string) env('TIME_ZONE', 'UTC'),
-        ];
-
-        foreach ($candidates as $name) {
-            if (is_string($name) && $name !== '' && in_array($name, timezone_identifiers_list(), true)) {
-                return new \DateTimeZone($name);
-            }
-        }
-
-        return new \DateTimeZone('UTC');
+        return ViewerTimezone::resolve();
     }
 
     private function baseUrl(HttpRequest $http): string

@@ -14,7 +14,7 @@ use Flytachi\Winter\Kernel\Http\Header;
 use Flytachi\Winter\Kernel\Route\Annotation\GetMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Http\AdminCookie;
-use Main\Service\AdminAuthService;
+use Main\Services\AdminAuthService;
 
 #[RequestMapping('admin/ui')]
 final class AdminAuthWebController extends Controller

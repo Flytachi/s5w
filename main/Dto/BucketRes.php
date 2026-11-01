@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Main\Dto;
 
-use Main\Entity\Bucket;
+use Main\Entities\Bucket;
 use Main\Enum\BucketStatus;
 use Main\Enum\CacheVisibility;
 

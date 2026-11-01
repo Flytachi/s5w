@@ -20,9 +20,9 @@ use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\FullTokenMiddleware;
 use Main\Http\BucketContext;
-use Main\Request\PageRequest;
-use Main\Request\ShareLinkRequest;
-use Main\Service\ShareLinkService;
+use Main\Controllers\Requests\PageRequest;
+use Main\Controllers\Requests\ShareLinkRequest;
+use Main\Services\ShareLinkService;
 use Main\Support\Slug;
 
 #[FullTokenMiddleware]

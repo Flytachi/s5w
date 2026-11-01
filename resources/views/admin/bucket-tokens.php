@@ -4,7 +4,7 @@ use Main\Web\Fmt;
 use Main\Web\Sorting;
 use Main\Web\Ui;
 
-/** @var \Main\Request\TokenListRequest $query */
+/** @var \Main\Controllers\Requests\TokenListRequest $query */
 $base = '/admin/ui/buckets/' . $bucket->id . '/tokens';
 
 $sorting = new Sorting(

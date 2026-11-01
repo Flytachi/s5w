@@ -20,8 +20,8 @@ use Flytachi\Winter\Kernel\Route\Annotation\PatchMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\AdminAuthMiddleware;
-use Main\Request\UploadStartRequest;
-use Main\Service\UploadService;
+use Main\Controllers\Requests\UploadStartRequest;
+use Main\Services\UploadService;
 
 #[AdminAuthMiddleware]
 #[RequestMapping('admin/buckets/{bucketId}/uploads')]

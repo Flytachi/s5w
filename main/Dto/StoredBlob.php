@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Main\Dto;
 
-use Main\Entity\Blob;
+use Main\Entities\Blob;
 
 final class StoredBlob
 {

@@ -4,7 +4,7 @@ use Main\Web\Fmt;
 use Main\Web\Sorting;
 use Main\Web\Ui;
 
-/** @var \Main\Request\BucketListRequest $query */
+/** @var \Main\Controllers\Requests\BucketListRequest $query */
 $sorting = new Sorting(
     [
         'created' => ['sort.by.created', 'by creation date'],

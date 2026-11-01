@@ -4,7 +4,7 @@ use Main\Web\Fmt;
 use Main\Web\Sorting;
 use Main\Web\Ui;
 
-/** @var \Main\Request\LinkListRequest $query */
+/** @var \Main\Controllers\Requests\LinkListRequest $query */
 $base = '/admin/ui/buckets/' . $bucket->id . '/links';
 
 $sorting = new Sorting(

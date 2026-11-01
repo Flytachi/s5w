@@ -9,7 +9,7 @@ use Flytachi\Winter\DI\Attribute\Singleton;
 use Flytachi\Winter\Kernel\Exception\ClientError;
 use Flytachi\Winter\Kernel\Exception\ServerError;
 use Main\Enum\ImageFormat;
-use Main\Request\FileUploadRequest;
+use Main\Controllers\Requests\FileUploadRequest;
 
 #[Singleton]
 final class ImageProcessor

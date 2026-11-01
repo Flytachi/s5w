@@ -19,10 +19,10 @@ use Flytachi\Winter\Kernel\Route\Annotation\PatchMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\PostMapping;
 use Flytachi\Winter\Kernel\Route\Annotation\RequestMapping;
 use Main\Controllers\Middlewares\AdminAuthMiddleware;
-use Main\Request\AccessTokenRequest;
-use Main\Request\PageRequest;
-use Main\Request\TokenStatusRequest;
-use Main\Service\AccessTokenService;
+use Main\Controllers\Requests\AccessTokenRequest;
+use Main\Controllers\Requests\PageRequest;
+use Main\Controllers\Requests\TokenStatusRequest;
+use Main\Services\AccessTokenService;
 
 #[AdminAuthMiddleware]
 #[RequestMapping('admin/buckets/{bucketId}/tokens')]

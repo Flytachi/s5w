@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Main\Dto;
 
-use Main\Entity\AccessToken;
+use Main\Entities\AccessToken;
 use Main\Enum\TokenAccess;
 use Main\Enum\TokenStatus;
 

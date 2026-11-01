@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Main\Controllers\Middlewares;
 
 use Flytachi\Winter\Base\HttpCode;
-use Flytachi\Winter\Cdo\Qb;
 use Flytachi\Winter\DI\Attribute\Autowired;
 use Flytachi\Winter\Kernel\Http\Contracts\HttpRequest;
 use Flytachi\Winter\Kernel\Http\Contracts\HttpResponse;
@@ -14,11 +13,10 @@ use Flytachi\Winter\Kernel\Http\Middleware\MiddlewareException;
 use Flytachi\Winter\Kernel\Http\Stereotype\Middleware;
 use Main\Enum\TokenAccess;
 use Main\Enum\TokenStatus;
-use Main\Cacheable\TokenCache;
-use Main\Entity\AccessToken;
+use Main\Entities\AccessToken;
 use Main\Http\BucketContext;
-use Main\Service\TrafficMeter;
-use Main\Repository\AccessTokenRepository;
+use Main\Services\AccessTokenLookup;
+use Main\Services\TrafficMeter;
 use Main\Support\TokenGenerator;
 
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
@@ -27,13 +25,10 @@ class AccessTokenMiddleware extends Middleware
     private const int TOUCH_INTERVAL = 300;
 
     #[Autowired]
-    private AccessTokenRepository $repo;
+    private AccessTokenLookup $tokens;
 
     #[Autowired]
     private BucketContext $context;
-
-    #[Autowired]
-    private TokenCache $cache;
 
     #[Autowired]
     private TrafficMeter $traffic;
@@ -46,13 +41,7 @@ class AccessTokenMiddleware extends Middleware
         }
 
         $hash  = TokenGenerator::hash($token);
-        $model = $this->cache->get($hash);
-        if ($model === null) {
-            $model = $this->repo->findBy(Qb::eq('hash', $hash));
-            if ($model !== null) {
-                $this->cache->put($model);
-            }
-        }
+        $model = $this->tokens->find($hash);
 
         if ($model === null) {
             MiddlewareException::throw('Access token is invalid', HttpCode::UNAUTHORIZED);
@@ -86,16 +75,7 @@ class AccessTokenMiddleware extends Middleware
         return TokenAccess::BASIC;
     }
 
-    /**
-     * Отмечает, что токеном воспользовались, — не чаще раза в {@see TOUCH_INTERVAL}.
-     *
-     * Отметку кладём и в кэш, а не только в базу. Иначе выходит ловушка: закэшированная
-     * строка держит старое `last_used_at`, каждый следующий запрос в пределах срока
-     * жизни кэша снова считает её просроченной и снова пишет — то есть запись на каждый
-     * запрос в одну и ту же строку. Замерено на pgbench: 16 писателей в одну строку —
-     * 1 390 tps против 10 216 по разным строкам, разница в 7.3 раза плюс мёртвые версии
-     * строк и работа для autovacuum.
-     */
+    /** Отмечает, что токеном воспользовались, — не чаще раза в {@see TOUCH_INTERVAL}. */
     private function touch(AccessToken $model): void
     {
         $lastUsedAt = $model->last_used_at;
@@ -103,10 +83,6 @@ class AccessTokenMiddleware extends Middleware
             return;
         }
 
-        $now = date('Y-m-d H:i:s P');
-        $this->repo->update(['last_used_at' => $now], Qb::eq('id', $model->id));
-
-        $model->last_used_at = $now;
-        $this->cache->put($model);
+        $this->tokens->touch($model, date('Y-m-d H:i:s P'));
     }
 }

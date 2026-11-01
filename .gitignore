@@ -13,4 +13,7 @@
 
 ## App ----
 /.env
+/.runtime_secrets
 /vendor
+/.winter
+/logs

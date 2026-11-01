@@ -12,7 +12,8 @@ use Flytachi\Winter\Kernel\Http\Header;
 use Flytachi\Winter\Kernel\Http\Middleware\MiddlewareException;
 use Flytachi\Winter\Kernel\Http\Stereotype\Middleware;
 use Main\Http\AdminCookie;
-use Main\Service\AdminAuthService;
+use Main\Http\AdminNetwork;
+use Main\Services\AdminAuthService;
 
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
 class AdminAuthMiddleware extends Middleware
@@ -22,6 +23,8 @@ class AdminAuthMiddleware extends Middleware
 
     public function before(HttpRequest $request, HttpResponse $response): void
     {
+        AdminNetwork::guard($request);
+
         $token = Header::getBearerToken() ?? AdminCookie::read();
         if ($this->auth->verify($token)) {
             return;

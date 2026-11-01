@@ -1,81 +1,76 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# Winter — Swoole image.
+# s5w — on the Winter runtime image, with PostgreSQL and the application under s6.
 # -----------------------------------------------------------------------------
-# One runtime (Swoole HTTP server). You should not need to edit this file:
-#   - DB drivers / PHP extensions / cron → docker/dependencies/*.sh
-#     (delete the ones you don't need; they run in filename order)
-#   - dev vs prod                        → DEV in docker-compose.yml
+#   - PHP extensions the image lacks → docker/dependencies/*.sh (filename order)
+#   - dev vs prod                    → DEV in docker-compose.yml
 # =============================================================================
 
 # ─────────────────────────────────────────────────────────────────────────────
-# builder — composer install, no dev deps. vendor is copied into the runtime
-# stage; composer itself never ships in the final image.
+# vendor — composer install, no dev deps; composer never ships in the final image.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM alpine:3.23.3 AS builder
-WORKDIR /var/www/html
-
-RUN apk add --no-cache php85 php85-phar php85-mbstring php85-openssl php85-curl curl \
-    && rm -rf /var/cache/apk/* \
-    && ln -s /usr/bin/php85 /usr/bin/php
-
+FROM composer:2 AS vendor
+WORKDIR /app
 COPY composer.json composer.lock ./
-RUN curl -sS https://getcomposer.org/installer | php85 -- --install-dir=/usr/local/bin --filename=composer \
-    && composer install --no-dev --no-plugins --no-interaction --optimize-autoloader --ignore-platform-reqs \
-    && rm /usr/local/bin/composer
+RUN composer install --no-dev --no-plugins --no-interaction --optimize-autoloader --ignore-platform-reqs
 
 # ─────────────────────────────────────────────────────────────────────────────
-# final — maintained phpswoole base (swoole + opcache precompiled).
+# frontend — the admin panel (Nuxt, SPA): static files the application serves on
+# UI_PORT. Node stays in this stage; the image itself runs no JavaScript.
 # ─────────────────────────────────────────────────────────────────────────────
+FROM node:24-alpine AS frontend
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ ./
+RUN npm run generate
+
 FROM shinsenter/s6-overlay:v3.2.3.2 AS s6-source
 
-FROM phpswoole/swoole:php8.5-alpine AS final
+# ─────────────────────────────────────────────────────────────────────────────
+# final — the Winter runtime image: Swoole, pcntl, pgsql, redis, opcache, user winter.
+# https://hub.docker.com/r/flytachi/winter
+#
+# The image runs as winter; this one runs as root, because s6 is PID 1 here and the
+# database must run as postgres. Every service drops to its own user (su-exec).
+# ─────────────────────────────────────────────────────────────────────────────
+FROM flytachi/winter:8.5
+USER root
+
 COPY --from=s6-source / /
-WORKDIR /var/www/html
 
-RUN apk add --no-cache su-exec procps \
-    && rm -rf /var/cache/apk/* \
-    && adduser -D -H -s /sbin/nologin winter
+RUN apk add --no-cache su-exec procps
 
-RUN docker-php-ext-install -j"$(nproc)" pcntl
-
-# Opcache config staged for the entrypoint to activate at runtime (no rebuild to
-# switch): prod → on (tuned, enable_cli=1); dev (DEV=true) → left off so mounted
-# code is always live.
-COPY docker/php-opcache.ini /opt/winter/php-opcache.ini
-
-# Memory ceiling per worker — active in both modes, so it is not staged like opcache.
-# PHP's 128M default is invisible until a worker dies of it; this puts the dial in
-# sight. Read the file before changing it: the box must hold worker_num × this value.
+# Memory ceiling per worker. The image's 256M is not enough here: a chunk of an upload
+# is megabytes in the heap and image processing as much again. Read the file before
+# changing it: the box must hold worker_num × this value.
 COPY docker/php-memory.ini /usr/local/etc/php/conf.d/20-memory.ini
 
-# User hook: DB drivers / PHP extensions / cron. Modular scripts in
-# docker/dependencies/ — delete what you don't need; they run in filename order
-# (numeric prefixes). Placed BEFORE the app code copy so this rarely-changing
-# layer stays cached across code edits. Each script is self-contained: it installs
-# its own build dependencies and drops them again.
+# What the image lacks: the PostgreSQL server, gd (webp, avif) and exif. Placed BEFORE
+# the app code copy so this rarely-changing layer stays cached across code edits.
 #
 # `|| exit 1` is what fails the build on a broken script. Without it the loop keeps
 # going and RUN reports the status of the last iteration, so an image can come out
 # green with the extension missing — found out at runtime instead.
 COPY docker/dependencies/ /tmp/dependencies/
-RUN for f in /tmp/dependencies/*.sh; do \
+RUN --mount=type=cache,target=/var/cache/apk \
+    set -eu; \
+    ln -s /var/cache/apk /etc/apk/cache; \
+    apk add --virtual .winter-build-deps $PHPIZE_DEPS linux-headers; \
+    docker-php-source extract; \
+    for f in /tmp/dependencies/*.sh; do \
         [ -e "$f" ] || continue; \
         echo "→ deps: $f"; sh "$f" || exit 1; \
-    done \
-    && rm -rf /tmp/dependencies /var/cache/apk/* /tmp/pear
+    done; \
+    docker-php-source delete; \
+    apk del .winter-build-deps; \
+    rm -f /etc/apk/cache; \
+    rm -rf /tmp/dependencies /tmp/pear
 
-# vendor from builder (composer not included in the runtime image)
-COPY --from=builder /var/www/html/vendor ./vendor
-
-# Application code
-COPY . /var/www/html
-
-# chown covers the whole tree; storage additionally needs to be group-writable.
-# No separate mode for web assets: Swoole serves them from the worker itself, so
-# there is no second process that has to be able to read them.
-RUN chown -R winter:winter /var/www/html \
-    && chmod -R 775 /var/www/html/storage
+# The files are winter's: the application runs as winter and writes .winter/.
+COPY --from=vendor --chown=winter:winter /app/vendor ./vendor
+COPY --chown=winter:winter . .
+COPY --from=frontend --chown=winter:winter /frontend/.output/public ./frontend/.output/public
 
 # Everything stateful lives under one volume, outside the code tree:
 #   postgresql/  cluster, owned by postgres, 0700 as the server demands
@@ -93,6 +88,12 @@ COPY docker/entrypoint-service.sh /opt/winter/service.run
 COPY docker/entrypoint-pgsql.sh /opt/winter/pgsql.run
 COPY docker/entrypoint-pgsql-setup.sh /opt/winter/pgsql-setup.up
 RUN chmod +x /entrypoint.sh /opt/winter/service.run /opt/winter/pgsql.run /opt/winter/pgsql-setup.up
+
+# How long s6 waits for the services to stop before it kills them. The application
+# takes up to 35 s (its components' grace, then SIGKILL to what is left), PostgreSQL
+# stops after it; s6's own default of 5 s would cut requests in flight and leave the
+# database to crash recovery. docker stop must wait longer still: stop_grace_period.
+ENV S6_SERVICES_GRACETIME=40000
 
 # No EXPOSE on purpose. It publishes nothing — `ports:` in docker-compose.yml does that,
 # and the port itself is decided there too. Baking a number in here would only add one
