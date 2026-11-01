@@ -5,7 +5,7 @@ export function toDate(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-/** `d.m.Y H:i`, as the old panel printed dates — in the viewer's own timezone. */
+/** `d.m.Y H:i` in the viewer's own timezone. */
 export function dateTime(value: string | null | undefined): string {
   const date = toDate(value)
   if (!date) return value ?? ''

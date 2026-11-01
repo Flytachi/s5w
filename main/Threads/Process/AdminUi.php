@@ -6,6 +6,7 @@ namespace Main\Threads\Process;
 
 use Flytachi\Winter\Kernel\Kernel;
 use Flytachi\Winter\Kernel\Process\Stereotype\Process;
+use Main\Http\AdminNetwork;
 use Swoole\Coroutine\Http\Client;
 use Swoole\Coroutine\Http\Server;
 use Swoole\Http\Request;
@@ -83,7 +84,7 @@ final class AdminUi extends Process
             }
         });
 
-        $this->logger->info("Admin UI on http://0.0.0.0:{$port}");
+        $this->logger->info("Admin UI on http://0.0.0.0:{$port}, admin API: " . AdminNetwork::mode());
         $server->start();
         $server->shutdown();
     }

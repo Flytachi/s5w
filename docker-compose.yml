@@ -9,6 +9,7 @@ services:
       DEV: ${DEV:-false}
       LOG_LEVEL: debug
       PUBLIC_BASE_URL: ''
+      ADMIN_API: ${ADMIN_API:-}
       ADMIN_UI: ${ADMIN_UI:-true}
       ADMIN_LOGIN: admin
       ADMIN_PASSWORD: admin

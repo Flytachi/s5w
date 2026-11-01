@@ -51,45 +51,4 @@ final class PanelListRequest
             dir: $this->dir,
         );
     }
-
-    public function sortLabel(): string
-    {
-        return match ($this->sort) {
-            'name' => 'по имени',
-            'type' => 'по типу',
-            'size' => 'по размеру',
-            default => 'по дате',
-        };
-    }
-
-    public function isDesc(): bool
-    {
-        return $this->dir !== 'asc';
-    }
-
-    public function dirToggleLabel(): string
-    {
-        return match ($this->sort) {
-            'name', 'type' => $this->isDesc() ? 'от А до Я' : 'от Я до А',
-            'size' => $this->isDesc() ? 'сначала маленькие' : 'сначала большие',
-            default => $this->isDesc() ? 'сначала старые' : 'сначала новые',
-        };
-    }
-
-    public function toPage(): PageRequest
-    {
-        return new PageRequest(page: $this->page, limit: $this->limit, search: $this->search);
-    }
-
-    public function params(int $page): array
-    {
-        return [
-            'page' => $page,
-            'search' => $this->search,
-            'folder' => $this->folder,
-            'limit' => $this->limit === self::PER_PAGE ? null : $this->limit,
-            'sort' => $this->sort === 'created' ? null : $this->sort,
-            'dir' => $this->dir === 'desc' ? null : $this->dir,
-        ];
-    }
 }

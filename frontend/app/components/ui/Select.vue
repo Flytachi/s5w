@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The old panel's custom select (the browser's own list cannot be themed), on Reka.
+// A themed select on Reka: the browser's own list cannot be styled.
 // Reka keeps "" for "nothing selected", so an empty option travels as a sentinel.
 import { SelectContent, SelectItem, SelectItemText, SelectPortal, SelectRoot, SelectTrigger, SelectValue, SelectViewport } from 'reka-ui'
 import type { Option } from '~/types/ui'

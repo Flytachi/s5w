@@ -35,9 +35,9 @@ export default defineNuxtConfig({
       script: [
         {
           // Theme and language before the first paint: the shell must not flash light
-          // in the dark theme or English in Russian. Same keys the old panel used.
+          // in the dark theme or English in Russian.
           tagPosition: 'head',
-          innerHTML: `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.dataset.theme='dark';var l=(document.cookie.match(/(?:^|; )lang=(en|ru)/)||[])[1]||localStorage.getItem('lang');document.documentElement.lang=l==='ru'?'ru':'en'}catch(e){}})()`,
+          innerHTML: `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.dataset.theme='dark';var l=(document.cookie.match(/(?:^|; )lang=(en|ru)/)||[])[1];document.documentElement.lang=l==='ru'?'ru':'en'}catch(e){}})()`,
         },
       ],
     },

@@ -79,7 +79,7 @@ final class DemoStatsCmd extends Cmd
         $this->traffic->insertBatch(...$rows);
 
         self::printSuccess(sprintf('%d hour(s) of history over %d day(s)', count($rows), $days));
-        self::printInfo('open /admin/ui/buckets/' . $bucket->id . '/stats');
+        self::printInfo('in the panel: /buckets/' . $bucket->id . '/stats');
     }
 
     private function create(): Bucket

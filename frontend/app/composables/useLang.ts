@@ -1,6 +1,5 @@
-// The old panel's dictionaries as they are: flat keys, plural forms by Intl.PluralRules.
-// The language lives in a cookie (and localStorage, for the old panel) and is read
-// before the app mounts, so the first frame is already in the right language.
+// Flat dictionaries, plural forms by Intl.PluralRules. The language lives in a cookie
+// and is read before the app mounts, so the first frame is already in the right language.
 import { en } from '~/i18n/en.js'
 import { ru } from '~/i18n/ru.js'
 
@@ -14,16 +13,7 @@ const STEPS: [number, string][] = [[31536000, 'y'], [2592000, 'mo'], [86400, 'd'
 
 function restore(): Lang {
   if (import.meta.server) return FALLBACK
-  const fromCookie = document.cookie.match(/(?:^|; )lang=(en|ru)/)?.[1]
-  let saved: string | null = fromCookie ?? null
-  if (!saved) {
-    try {
-      saved = localStorage.getItem('lang')
-    } catch {
-      saved = null
-    }
-  }
-  return saved === 'ru' ? 'ru' : FALLBACK
+  return document.cookie.match(/(?:^|; )lang=(en|ru)/)?.[1] === 'ru' ? 'ru' : FALLBACK
 }
 
 const lang = ref<Lang>(restore())
@@ -97,11 +87,6 @@ export function setLang(next: Lang): void {
   if (!LANGS.includes(next) || next === lang.value) return
   lang.value = next
   document.cookie = `lang=${next}; path=/; max-age=31536000; samesite=lax`
-  try {
-    localStorage.setItem('lang', next)
-  } catch {
-    // private mode: the cookie still carries it
-  }
   document.documentElement.lang = next
 }
 

@@ -9,8 +9,11 @@ use Flytachi\Winter\Kernel\Http\Contracts\HttpRequest;
 use Flytachi\Winter\Kernel\Http\Middleware\MiddlewareException;
 
 /**
- * Откуда принимается API админки: `ADMIN_API=public` (по умолчанию) — отовсюду,
- * `ADMIN_API=local` — только с loopback, то есть от фронта в том же контейнере.
+ * Откуда принимается API админки: `ADMIN_API=public` — отовсюду, `ADMIN_API=local` —
+ * только с loopback, то есть от фронта в том же контейнере.
+ *
+ * Без явного значения режим выводится из `ADMIN_UI`: есть своя панель — `local`, ей
+ * внешний `/admin` не нужен; панели нет — `public`, иначе админкой не воспользоваться.
  *
  * Снаружи в режиме `local` админки как будто нет: 404, а не 403, чтобы не подтверждать,
  * что она здесь есть. Решает адрес сокета — его не подделать заголовком.
@@ -30,6 +33,17 @@ final class AdminNetwork
 
     public static function isLocalOnly(): bool
     {
-        return strtolower((string) env('ADMIN_API', 'public')) === 'local';
+        return self::mode() === 'local';
+    }
+
+    /** @return 'local'|'public' */
+    public static function mode(): string
+    {
+        $mode = strtolower(trim((string) env('ADMIN_API', '')));
+        if ($mode === 'local' || $mode === 'public') {
+            return $mode;
+        }
+
+        return env('ADMIN_UI', true) ? 'local' : 'public';
     }
 }

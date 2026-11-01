@@ -33,7 +33,6 @@ use Main\Controllers\Requests\BucketRequest;
 use Main\Controllers\Requests\CachePolicyRequest;
 use Main\Controllers\Requests\PageRequest;
 use Main\Support\Db;
-use Main\Web\BucketView;
 
 #[Singleton]
 final class BucketService
@@ -113,19 +112,6 @@ final class BucketService
                 . ' coalesce(sum(size_bytes * (ref_count - 1)) FILTER (WHERE ref_count > 1), 0)::bigint AS saved'
             )
             ->find(BlobCounts::class) ?? new BlobCounts();
-    }
-
-    public function panelPage(BucketListRequest $request): WrapResult
-    {
-        [$page, $stats] = $this->pageWithStats($request);
-
-        return new WrapResult(
-            meta: $page->meta,
-            data: array_map(
-                fn(Bucket $bucket) => BucketView::from($bucket, $stats[$bucket->id]),
-                $page->data,
-            ),
-        );
     }
 
     public function cardPage(BucketListRequest $request): WrapResult

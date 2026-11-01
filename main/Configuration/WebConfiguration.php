@@ -47,8 +47,6 @@ class WebConfiguration extends WebConfigurerAdapter
 
         // Разбор кук ядро делает само — одинаково под Swoole и FPM, — так что
         // встроенный в Swoole разбор только дублировал бы работу.
-        $server->staticPath('resources/static')
-            ->set('static_handler_locations', ['/assets', '/favicon.ico'])
-            ->set('http_parse_cookie', false);
+        $server->set('http_parse_cookie', false);
     }
 }

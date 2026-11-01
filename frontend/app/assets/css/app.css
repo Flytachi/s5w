@@ -1,7 +1,6 @@
-/* Bridges between the old panel's styles and the components that replace its scripts. */
+/* Bridges between the stylesheets and the Reka components. */
 
-/* Reka positions the menu itself (a popper wrapper in a portal); the old panel's
-   `is-floating` did the same by hand. */
+/* Reka positions the menu itself (a popper wrapper in a portal). */
 .cselect__menu.is-reka {
   display: block;
   min-width: var(--reka-dropdown-menu-trigger-width);
