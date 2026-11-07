@@ -11,10 +11,10 @@ Upload API, file delivery with CDN headers, temporary links and an admin panel �
 [![Docker pulls](https://img.shields.io/docker/pulls/flytachi/s5w?logo=docker&logoColor=white)](https://hub.docker.com/r/flytachi/s5w)
 [![Image size](https://img.shields.io/docker/image-size/flytachi/s5w?sort=semver&label=size)](https://hub.docker.com/r/flytachi/s5w)
 ![Platforms](https://img.shields.io/badge/platforms-amd64%20%7C%20arm64-informational)
-[![Docs](https://img.shields.io/badge/docs-winterframe.net-0ea5e9)](https://winterframe.net/en/apps/s5w/overview)
+[![Docs](https://img.shields.io/badge/docs-winterframe.net-0ea5e9)](https://winterframe.net/apps/s5w)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-[Documentation](https://winterframe.net/en/apps/s5w/overview) ·
+[Documentation](https://winterframe.net/apps/s5w) ·
 [Quick start](#quick-start) ·
 [API](#api) ·
 [Changelog](CHANGELOG.md) ·
@@ -104,7 +104,7 @@ signing in to the panel needs the first two.
 | `WINTER_KEY` | _(generated)_ | Key that signs panel sessions and temporary links; kept in the volume. |
 
 Every variable — what it does, when to change it and what happens without it — is in
-**[Configuration](https://winterframe.net/en/apps/s5w/configuration)**.
+**[Configuration](https://winterframe.net/apps/s5w/configuration)**.
 
 ### docker compose
 
@@ -133,7 +133,7 @@ volumes:
 The usual layout is two domains and no published ports: `s5.example.com → s5w:9090` (API and
 delivery) and `s5w.example.com → s5w:9091` (panel), with TLS on the proxy. Set `PUBLIC_BASE_URL` to
 the API domain and allow request bodies of at least 32 MiB. Ready configs for nginx-proxy-manager,
-traefik and nginx: **[Behind a reverse proxy](https://winterframe.net/en/apps/s5w/reverse-proxy)**.
+traefik and nginx: **[Behind a reverse proxy](https://winterframe.net/apps/s5w/reverse-proxy)**.
 
 ## API
 
@@ -143,7 +143,7 @@ The client API is plain REST with a bearer token; the bucket is decided by the t
 |---|---|
 | **OpenAPI 3.1** | [`docs/en/openapi.yaml`](docs/en/openapi.yaml) · [`docs/ru/openapi.yaml`](docs/ru/openapi.yaml) — for Swagger, Redoc and SDK generators |
 | **Postman** | [`docs/en/s5w-api.postman_collection.json`](docs/en/s5w-api.postman_collection.json) · [`docs/ru/…`](docs/ru/s5w-api.postman_collection.json) — every request in order, with examples and checks |
-| **Reference** | [Client API](https://winterframe.net/en/apps/s5w/api) — tokens, files, chunked upload, folders, links, delivery |
+| **Reference** | [Client API](https://winterframe.net/apps/s5w/api) — tokens, files, chunked upload, folders, links, delivery |
 
 ```text
 GET    /v1/check                 token, bucket and free space
@@ -171,17 +171,17 @@ docker exec -it s5w psql -U s5w -h /run/postgresql s5w # the bundled database
   [changelog](CHANGELOG.md) first.
 
 Backup and restore commands, a ready healthcheck, monitoring and troubleshooting:
-**[Operations](https://winterframe.net/en/apps/s5w/operations)**.
+**[Operations](https://winterframe.net/apps/s5w/operations)**.
 
 ## Documentation
 
 | | |
 |---|---|
-| [Overview](https://winterframe.net/en/apps/s5w/overview) | What it is, when it fits, limits in numbers |
-| [Architecture](https://winterframe.net/en/apps/s5w/architecture) | Processes, storage by hash, deduplication, quotas, schedule |
-| [Security](https://winterframe.net/en/apps/s5w/security) | Tokens, panel sign-in, public files, link signing |
-| [Resources](https://winterframe.net/en/apps/s5w/resources) | Memory, disk, request size and timeouts |
-| [Upgrading from 1.0.x](https://winterframe.net/en/apps/s5w/upgrading) | What changes for existing installations |
+| [Overview](https://winterframe.net/apps/s5w) | What it is, when it fits, limits in numbers |
+| [Architecture](https://winterframe.net/apps/s5w/architecture) | Processes, storage by hash, deduplication, quotas, schedule |
+| [Security](https://winterframe.net/apps/s5w/security) | Tokens, panel sign-in, public files, link signing |
+| [Resources](https://winterframe.net/apps/s5w/resources) | Memory, disk, request size and timeouts |
+| [Upgrading from 1.0.x](https://winterframe.net/apps/s5w/upgrading) | What changes for existing installations |
 
 ## Development
 

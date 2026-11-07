@@ -7,7 +7,7 @@ Security fixes go into the latest minor release and are published as a new patch
 | Version | Supported |
 |---|---|
 | 1.1.x | ✅ |
-| 1.0.x | ❌ — upgrade to 1.1 ([what changes](https://winterframe.net/en/apps/s5w/upgrading)) |
+| 1.0.x | ❌ — upgrade to 1.1 ([what changes](https://winterframe.net/apps/s5w/upgrading)) |
 
 Run a pinned tag (`flytachi/s5w:1.1.x`) in production and follow the [changelog](CHANGELOG.md).
 
@@ -32,7 +32,7 @@ otherwise.
 ## Scope
 
 In scope — anything that breaks the model described in
-[Security](https://winterframe.net/en/apps/s5w/security), for example:
+[Security](https://winterframe.net/apps/s5w/security), for example:
 
 - reaching a file, bucket or link without the token or link that should be required;
 - a token acting outside its bucket, or a `BASIC` token doing what needs `FULL`;
