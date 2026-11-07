@@ -269,7 +269,12 @@ final class FileService
         $file = $this->get($bucketId, $slug);
         $folder = $this->resolveFolder($bucketId, $request->folder);
 
-        $file->name = $request->name;
+        $name = $this->clamp($this->cleanName($request->name));
+        if ($name === '') {
+            ClientError::throw('File name is empty once cleaned', HttpCode::UNPROCESSABLE_ENTITY);
+        }
+
+        $file->name = $name;
         if ($folder?->id !== $file->folder_id) {
             $file->folder_id = $folder?->id;
             $file->public = $folder === null ? true : $folder->public;
@@ -290,7 +295,7 @@ final class FileService
             );
         } catch (\Throwable $e) {
             if (Db::isUniqueViolation($e)) {
-                ClientError::throw("A file named \"{$request->name}\" already exists here", HttpCode::CONFLICT);
+                ClientError::throw("A file named \"{$name}\" already exists here", HttpCode::CONFLICT);
             }
             throw $e;
         }
@@ -425,13 +430,21 @@ final class FileService
         return mb_substr($name, 0, self::NAME_LIMIT - mb_strlen($tail)) . $tail;
     }
 
+    /**
+     * Имя без разделителей путей и управляющих символов — одно правило для загрузки и
+     * переименования. Расширение здесь не трогается: его подгоняет только загрузка.
+     */
+    private function cleanName(string $name): string
+    {
+        return trim((string) preg_replace('/[\/\\\\\x00-\x1F\x7F]/', '-', trim($name)));
+    }
+
     private function finalName(?string $requested, string $sourceName, string $extension): string
     {
-        $name = trim((string) ($requested ?: $sourceName));
+        $name = $this->cleanName((string) ($requested ?: $sourceName));
         if ($name === '') {
             $name = 'file-' . bin2hex(random_bytes(4));
         }
-        $name = str_replace(['/', '\\', "\0"], '-', $name);
 
         if ($extension === '') {
             return $this->clamp($name);
