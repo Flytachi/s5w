@@ -30,6 +30,13 @@ frontend/.nuxt
 frontend/.output
 frontend/.data
 
+# Project documentation: not read at runtime (the API docs are published on the docs site).
+# LICENSE and NOTICE stay in the image on purpose — Apache-2.0 asks for them to ship with it.
+docs
+README.md
+CHANGELOG.md
+SECURITY.md
+
 # Tests
 phpunit.xml
 .phpunit.result.cache

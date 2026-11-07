@@ -1,6 +1,7 @@
 {
   "name": "s5w-admin",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "dev": "nuxt dev",

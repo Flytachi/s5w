@@ -1,87 +1,110 @@
-# S5W — File Store & CDN
+<div align="center">
 
-A file store in one container: an upload API, file delivery and an admin panel.
-Swoole (PHP 8.5) with a **bundled PostgreSQL 18**. Image: `flytachi/s5w:latest`.
+<img src="frontend/public/favicon.svg" alt="S5W" width="96" height="96" />
 
-- 📦 **One container, zero dependencies.** The database, the scheduler and the panel are already inside: `docker run` and it works.
-- 🗂 **Buckets and folders** — own quotas, access tokens, retention and cache policy.
-- 🔗 **Three delivery channels** — public links, access by token and signed temporary links with a download limit.
-- ♻️ **Deduplication** — identical files are stored once; a copy takes no disk space.
-- ⏫ **Large files** — chunked uploads that resume after a break.
-- 🖼 **Images on the fly** — resize and re-encode to `webp` / `avif` / `jpeg` / `png` at upload time.
+# S5W
+
+**Self-hosted file storage and CDN in a single container.**<br />
+Upload API, file delivery with CDN headers, temporary links and an admin panel — one `docker run`, no external services.
+
+[![Docker image version](https://img.shields.io/docker/v/flytachi/s5w?sort=semver&label=image&logo=docker&logoColor=white)](https://hub.docker.com/r/flytachi/s5w)
+[![Docker pulls](https://img.shields.io/docker/pulls/flytachi/s5w?logo=docker&logoColor=white)](https://hub.docker.com/r/flytachi/s5w)
+[![Image size](https://img.shields.io/docker/image-size/flytachi/s5w?sort=semver&label=size)](https://hub.docker.com/r/flytachi/s5w)
+![Platforms](https://img.shields.io/badge/platforms-amd64%20%7C%20arm64-informational)
+[![Docs](https://img.shields.io/badge/docs-winterframe.net-0ea5e9)](https://winterframe.net/en/apps/s5w/overview)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
+[Documentation](https://winterframe.net/en/apps/s5w/overview) ·
+[Quick start](#quick-start) ·
+[API](#api) ·
+[Changelog](CHANGELOG.md) ·
+[Security](SECURITY.md) ·
+[Документация на русском](https://winterframe.net/ru/apps/s5w/overview)
+
+</div>
+
+---
+
+S5W is the service your applications hand files to and ask for links back. Avatars, attachments,
+documents, images for a website, exports — anything an application would rather not keep on its
+own disk or in its database. It runs **on your server, inside your perimeter**: no external cloud,
+no third party billing you for traffic.
+
+## Features
+
+- 📦 **One container, zero dependencies** — PostgreSQL, the scheduler and the admin panel are already inside.
+- 🗂 **Buckets and folders** — per-bucket quota and tokens; per-folder visibility, retention and cache policy.
+- 🔗 **Three delivery channels** — public links, access by token, and signed temporary links with an expiry and a download limit.
+- ♻️ **Deduplication** — identical content is stored once per bucket; a copy costs neither disk space nor quota.
+- ⏫ **Large files** — chunked uploads that resume after a broken connection.
+- 🖼 **Images on the fly** — resize, EXIF rotation and re-encoding to `webp`, `avif`, `jpeg` or `png` at upload.
 - ⚡ **CDN-ready** — `Range`, `ETag`, conditional requests and a configurable `Cache-Control`.
-- 📊 **Traffic statistics** — per bucket and per day, in the viewer's own timezone.
-- 🖥 **Admin panel** — a standalone SPA on its own port: responsive, light and dark theme, English and Russian.
+- 📊 **Traffic statistics** — egress, ingress and requests per bucket, per day.
+- 🖥 **Admin panel** — a standalone web app on its own port: responsive, light and dark theme, English and Russian.
 
-## What it runs
-
-No external database, Redis or other services are **needed**: everything starts inside one container.
+## What runs inside
 
 | Inside the container | Port | What it is |
 |---|---|---|
-| PostgreSQL 18 | — | The bundled database. Starts by itself, creates and migrates itself on the first start. Not exposed. |
-| Application | **9090** | Client API (`/v1/…`) and file delivery (`/o`, `/p`, `/t`). |
-| Admin panel | **9091** | Web management panel. Can be turned off. |
-| Scheduler | — | Scheduled maintenance: retention, cleanup, statistics. |
+| Application | **9090** | Client API `/v1/…` and file delivery `/o`, `/p`, `/t` |
+| Admin panel | **9091** | Web management panel; can be turned off |
+| PostgreSQL 18 | — | Metadata; created and migrated on first start, never exposed |
+| Scheduler | — | Retention, cleanup, quota recalculation, statistics |
 
-All data — the database, the files, the session key — lives in **one volume**, `/var/lib/s5w`.
+Everything stateful — the database, the files, the signing key — lives in **one volume**, `/var/lib/s5w`.
+Backing it up is backing up the whole service.
 
----
-
-## 1. Quick start
-
-**Try it** (no volume — everything is gone when the container is recreated):
+## Quick start
 
 ```bash
-docker run -d --name s5w -p 9090:9090 -p 9091:9091 \
-  -e ADMIN_LOGIN=admin -e ADMIN_PASSWORD=change-me \
-  flytachi/s5w:latest
-```
-
-**Recommended:**
-
-```bash
-docker run -d --name s5w -p 9090:9090 -p 9091:9091 \
+docker run -d --name s5w \
+  -p 9090:9090 -p 9091:9091 \
   -e ADMIN_LOGIN=admin -e ADMIN_PASSWORD=change-me \
   -v s5w_data:/var/lib/s5w \
-  --stop-timeout 45 \
-  --restart unless-stopped \
+  --stop-timeout 45 --restart unless-stopped \
   flytachi/s5w:latest
 ```
-
-Then:
 
 1. Open the panel at `http://<host>:9091/` and sign in as `admin` / `change-me`.
-2. Create a bucket and issue a token for it.
-3. Use that token with the API at `http://<host>:9090/v1/…`:
-   ```bash
-   curl -H "Authorization: Bearer <token>" http://<host>:9090/v1/check
-   ```
-
-> **Without the `/var/lib/s5w` volume the container is disposable:** an image update or a
-> recreate wipes the database and every file. And separately: **`docker compose down -v`
-> deletes everything at once.**
-
-Ports inside the container are fixed. For another port outside, change only the
-publishing: `-p 8080:9090`.
-
----
-
-## 2. Advanced setup
-
-### docker run
+2. Create a bucket and issue a token with **full access**.
+3. Upload a file:
 
 ```bash
-docker run -d --name s5w -p 9090:9090 -p 9091:9091 \
-  -e ADMIN_LOGIN=admin -e ADMIN_PASSWORD=change-me \
-  -e PUBLIC_BASE_URL=https://files.example.com \
-  -e TIME_ZONE=Asia/Tashkent \
-  -e LOG_LEVEL=warning \
-  -v s5w_data:/var/lib/s5w \
-  --stop-timeout 45 \
-  --restart unless-stopped \
-  flytachi/s5w:latest
+curl -H "Authorization: Bearer <token>" -F file=@photo.jpg http://<host>:9090/v1/files
 ```
+
+The answer carries the file `id`, its `privateUrl` (download with the token) and, for a public file,
+its `publicUrl` — ready for `<img src>` or a CDN.
+
+> [!WARNING]
+> **Mount the volume.** Without `/var/lib/s5w` the container is disposable: an image update or a
+> recreate wipes the database and every file. And `docker compose down -v` deletes the volume too.
+
+> [!TIP]
+> Give the container time to stop — `--stop-timeout 45` or `stop_grace_period: 45s`. With Docker's
+> default 10 s the database may be killed and recover on the next start.
+
+## Configuration
+
+S5W is configured with environment variables only. None is required to store and serve files;
+signing in to the panel needs the first two.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `ADMIN_LOGIN`, `ADMIN_PASSWORD` | — | The panel account. Without both, signing in is closed for everyone. |
+| `PUBLIC_BASE_URL` | _(request address)_ | Base of every address the service returns, e.g. `https://files.example.com`. Set it behind a proxy. |
+| `ADMIN_UI` | `true` | `false` — no panel, port 9091 unused. |
+| `ADMIN_API` | _(from `ADMIN_UI`)_ | Where `/admin/…` is accepted from: `local` (only the panel) or `public`. |
+| `TRUSTED_PROXIES` | `private` | Which proxies to believe in `X-Forwarded-For`; private networks cover any Docker network. |
+| `TIME_ZONE` | `UTC` | Time zone of panel statistics when the browser does not send its own. |
+| `CACHE_DEFAULT_MAX_AGE` | `86400` | Default `max-age` of the shared (CDN) cache. |
+| `CACHE_PRIVATE_MAX_AGE` | `0` | Default `max-age` of the private (browser) cache. |
+| `LOG_LEVEL` | `info` | `debug` · `info` · `warning` · `error`. |
+| `SERVER_MEMORY_LIMIT` | `512M` | Memory ceiling of an application process. |
+| `WINTER_KEY` | _(generated)_ | Key that signs panel sessions and temporary links; kept in the volume. |
+
+Every variable — what it does, when to change it and what happens without it — is in
+**[Configuration](https://winterframe.net/en/apps/s5w/configuration)**.
 
 ### docker compose
 
@@ -94,14 +117,10 @@ services:
       - "9091:9091"   # admin panel
     environment:
       ADMIN_LOGIN: admin
-      ADMIN_PASSWORD: change-me
+      ADMIN_PASSWORD: ${S5W_ADMIN_PASSWORD}
       PUBLIC_BASE_URL: https://files.example.com
-      TIME_ZONE: Asia/Tashkent
-      LOG_LEVEL: warning
     volumes:
       - s5w_data:/var/lib/s5w
-    # The application stops first (up to 35 s), then PostgreSQL. Docker's default
-    # 10 s is not enough: after a SIGKILL the database recovers on the next start.
     stop_grace_period: 45s
     restart: unless-stopped
 
@@ -109,195 +128,87 @@ volumes:
   s5w_data:
 ```
 
-### Environment variables
+### Behind a reverse proxy
 
-| Variable | Default | Description |
-|---|---|---|
-| `PUBLIC_BASE_URL` | _(request address)_ | Base address of the links the service returns: file addresses, temporary links. With the scheme, e.g. `https://files.example.com`. Optional, but needed behind a proxy on its own domain: without it the address is guessed from the request, and the panel warns about it. |
-| `TIME_ZONE` | `UTC` | Timezone when the browser does not report its own. |
-| `CACHE_DEFAULT_MAX_AGE` | `86400` | Default `max-age` for public delivery, seconds. Each bucket and folder can override it in the panel. |
-| `CACHE_PRIVATE_MAX_AGE` | `0` | Same for private caching. |
-| `LOG_LEVEL` | `info` | `debug` · `info` · `warning` · `error`. Empty — no logs. |
-| `LOG_OUTPUT` | `auto` | `auto` · `stdout` · `stderr` · `file`. |
-| `SERVER_MEMORY_LIMIT` | _(from the image)_ | Memory ceiling of a worker, e.g. `512M`. |
-| `SERVER_REQUEST_TIMEOUT` | `30` | Request processing timeout, seconds. Does not cut slow downloads. |
-| `WINTER_KEY` | _(generated)_ | Session signing key. Generated on the first start and kept in the volume. Set it only if you want to manage it yourself. |
+The usual layout is two domains and no published ports: `s5.example.com → s5w:9090` (API and
+delivery) and `s5w.example.com → s5w:9091` (panel), with TLS on the proxy. Set `PUBLIC_BASE_URL` to
+the API domain and allow request bodies of at least 32 MiB. Ready configs for nginx-proxy-manager,
+traefik and nginx: **[Behind a reverse proxy](https://winterframe.net/en/apps/s5w/reverse-proxy)**.
 
-There are no database connection settings, and none are needed: the database is bundled and the only one.
+## API
 
-### The `/var/lib/s5w` volume
+The client API is plain REST with a bearer token; the bucket is decided by the token.
 
+| | |
+|---|---|
+| **OpenAPI 3.1** | [`docs/en/openapi.yaml`](docs/en/openapi.yaml) · [`docs/ru/openapi.yaml`](docs/ru/openapi.yaml) — for Swagger, Redoc and SDK generators |
+| **Postman** | [`docs/en/s5w-api.postman_collection.json`](docs/en/s5w-api.postman_collection.json) · [`docs/ru/…`](docs/ru/s5w-api.postman_collection.json) — every request in order, with examples and checks |
+| **Reference** | [Client API](https://winterframe.net/en/apps/s5w/api) — tokens, files, chunked upload, folders, links, delivery |
+
+```text
+GET    /v1/check                 token, bucket and free space
+POST   /v1/files                 upload up to 32 MiB
+POST   /v1/uploads               chunked upload: start → PATCH chunks → /complete
+GET    /v1/files                 list, search, sort
+PUT    /v1/files/{id}            rename or move
+POST   /v1/files/{id}/link       temporary link
+GET    /o/{bucketId}/{id}        public delivery
+GET    /p/{id}                   delivery with a token
+GET    /t/{token}                temporary link
 ```
-/var/lib/s5w/
-  postgresql/        the PostgreSQL cluster
-  buckets/           files, one directory per bucket
-  staging/           unfinished chunked uploads
-  .runtime_secrets   the generated WINTER_KEY
-```
-
-- Mount **one** volume as a whole. `buckets/` and `staging/` must be on the same
-  filesystem: a chunked upload finishes with a rename, and a rename is atomic only
-  within one filesystem.
-- The PostgreSQL major version is tied to the volume. Moving to a new major version
-  requires `pg_upgrade`.
-
----
-
-## 3. Running with the admin panel
-
-The panel is on by default and runs on port **9091**. It talks to the backend
-**inside the container**: the browser only reaches the panel's address, so neither
-CORS nor separate access to `/admin` is needed.
-
-### Panel variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `ADMIN_LOGIN` | — | **Required.** Without it, signing in to the panel is closed. |
-| `ADMIN_PASSWORD` | — | **Required.** Without it, signing in to the panel is closed. |
-| `ADMIN_UI` | `true` | `false` — no panel: the container only stores and serves files, port 9091 is not needed. |
-| `ADMIN_API` | _(from `ADMIN_UI`)_ | Where the admin API `/admin/…` is accepted from. `local` — only from inside the container, i.e. from its own panel; a 404 from outside. `public` — from anywhere, e.g. for scripts that create buckets. Unset: `local` with the panel on, `public` without it. |
-| `TRUSTED_PROXIES` | `private` | Which proxies to believe in `X-Forwarded-For`: the login lockout after failed attempts counts the client's IP by it. `private` — private networks, i.e. any docker network: fits nginx-proxy-manager, traefik and the like. Also accepts comma-separated IPs or CIDRs, or `none`. |
-
-| How it runs | Panel | `/admin` from outside |
-|---|---|---|
-| by default | ✅ | 404 |
-| `ADMIN_API=public` | ✅ | ✅ |
-| `ADMIN_UI=false` | — | ✅ |
-
-### Behind a reverse proxy (nginx-proxy-manager, traefik)
-
-A typical layout — two domains, no ports published:
-
-| Domain | Points to | What |
-|---|---|---|
-| `s5w.example.com` | `s5w:9091` | admin panel |
-| `s5.example.com` | `s5w:9090` | API and delivery |
-
-```yaml
-services:
-  s5w:
-    image: flytachi/s5w:latest
-    environment:
-      ADMIN_LOGIN: admin
-      ADMIN_PASSWORD: change-me
-      PUBLIC_BASE_URL: https://s5.example.com   # links in the panel point to the app domain
-    volumes:
-      - s5w_data:/var/lib/s5w
-    networks: [proxy]
-    stop_grace_period: 45s
-    restart: unless-stopped
-
-volumes:
-  s5w_data:
-
-networks:
-  proxy:
-    external: true   # the network the proxy lives in
-```
-
-- `PUBLIC_BASE_URL` is needed: otherwise file addresses in the panel are built from the panel's domain.
-- `TRUSTED_PROXIES` needs no setting: a proxy in a docker network is already trusted.
-- Request body size: nginx-proxy-manager allows 2000 MB by default, which is enough.
-  Plain nginx allows 1 MB — raise it: `client_max_body_size 32m;`. The panel uploads
-  files over 16 MiB in chunks, so 32 MB covers any size.
-- The panel's domain is worth closing further on the proxy side: an access list, basic auth.
-
-### Without the panel
-
-```bash
-docker run -d --name s5w -p 9090:9090 \
-  -e ADMIN_UI=false \
-  -e ADMIN_LOGIN=admin -e ADMIN_PASSWORD=change-me \
-  -v s5w_data:/var/lib/s5w \
-  --stop-timeout 45 --restart unless-stopped \
-  flytachi/s5w:latest
-```
-
-In this mode the admin API is open (`/admin/…` on 9090): buckets and tokens are
-created by requests to it.
-
----
 
 ## Operations
 
 ```bash
-docker logs -f s5w                                         # logs
-docker exec -it s5w sh                                     # shell
-docker exec s5w su-exec winter php call app status        # components: state, PID, restarts
-docker exec s5w psql -U s5w -h /run/postgresql s5w         # psql into the bundled database
-docker exec s5w su-exec winter php call db migrate         # create missing tables
+docker logs -f s5w                                     # logs
+docker exec s5w su-exec winter php call app status     # components: state, PID, restarts
+docker exec -it s5w psql -U s5w -h /run/postgresql s5w # the bundled database
 ```
 
-Maintenance runs inside the container on a schedule:
+- **Backup** — stop the container and archive the volume; restore by unpacking into a new volume.
+- **Health** — `GET /v1/check` without a token answers `401` while the application is up.
+- **Upgrade** — pull the new image and recreate the container on the same volume. Read the
+  [changelog](CHANGELOG.md) first.
 
-| When | What |
+Backup and restore commands, a ready healthcheck, monitoring and troubleshooting:
+**[Operations](https://winterframe.net/en/apps/s5w/operations)**.
+
+## Documentation
+
+| | |
 |---|---|
-| every 20 s | flush traffic counters to the database |
-| every 5 min | delete files whose folder retention expired |
-| hourly | delete abandoned chunked uploads |
-| 03:15 | delete expired and revoked temporary links |
-| 03:30 | delete content records nothing refers to |
-| Sun 03:45 | delete files on disk the database does not know |
-| 04:00 | delete directories of deleted buckets |
-| 04:10 | delete traffic statistics older than a year |
-| 04:20 | recompute used space per bucket |
-
----
-
-## Features
-
-- **Buckets** — isolated spaces with their own quota, cache policy and access tokens.
-- **Folders** — optional. A folder has a visibility and a retention (a day to a year);
-  when it expires, files are deleted by themselves.
-- **Deduplication** — identical content is stored once per bucket (by SHA-256).
-  A duplicate costs a database row, not disk space.
-- **Chunked uploads** — for large files: chunks of 4–16 MiB, resumable after a break.
-  Abandoned uploads are deleted after 24 h.
-- **Image processing** at upload: resize, EXIF rotation, re-encode to `webp`, `jpeg`,
-  `png` or `avif`.
-- **Three delivery channels:** `/o` — public, `/p` — by token, `/t` — signed temporary
-  links with an expiry and an optional download limit. All support `Range`, `ETag` and
-  conditional requests.
-- **Traffic statistics** — egress, ingress and request counts per bucket.
-
----
-
-## Good to know
-
-- **Without `ADMIN_LOGIN` and `ADMIN_PASSWORD` nobody can sign in to the panel** — by design.
-- **`WINTER_KEY` lives in the volume.** Lose the volume and every panel session becomes invalid.
-- **Give the container time to stop:** `--stop-timeout 45` / `stop_grace_period: 45s`.
-  With the default 10 s the database may be killed and recover on the next start.
-- **Migrations do not change existing tables.** `call db migrate` creates missing
-  tables but does not add columns to existing ones — such an `ALTER` is written by hand.
-  That is why migrations run only when the database is created, not on every start.
-- **Public addresses `/o/{bucketId}/{slug}`** open without authorization, but only for
-  files marked public.
-
----
+| [Overview](https://winterframe.net/en/apps/s5w/overview) | What it is, when it fits, limits in numbers |
+| [Architecture](https://winterframe.net/en/apps/s5w/architecture) | Processes, storage by hash, deduplication, quotas, schedule |
+| [Security](https://winterframe.net/en/apps/s5w/security) | Tokens, panel sign-in, public files, link signing |
+| [Resources](https://winterframe.net/en/apps/s5w/resources) | Memory, disk, request size and timeouts |
+| [Upgrading from 1.0.x](https://winterframe.net/en/apps/s5w/upgrading) | What changes for existing installations |
 
 ## Development
-
-**Your own image:**
 
 ```bash
 docker build -t s5w:local .
 ```
 
-The panel (Nuxt, `frontend/`) is built during the image build; no Node.js needed on the machine.
-What s5w adds to the base image [`flytachi/winter`](https://hub.docker.com/r/flytachi/winter)
-— PostgreSQL, gd (webp, avif), exif — is installed by the scripts in `docker/dependencies/`.
+The admin panel (Nuxt, `frontend/`) is built during the image build — no Node.js needed on the
+machine. What S5W adds to the [`flytachi/winter`](https://hub.docker.com/r/flytachi/winter) base
+image — PostgreSQL, gd (webp, avif), exif — is installed by the scripts in `docker/dependencies/`.
 
-**The panel locally.** With the project mounted into the container (`./:/app`), the local
-build `frontend/.output` is served instead of the one built into the image. Build it on the host:
+**The panel locally.** With the project mounted into the container (`./:/app`), the local build
+`frontend/.output` is served instead of the one built into the image:
 
 ```bash
 cd frontend && npm install
 npm run generate     # → frontend/.output/public, served on :9091
-npm run dev          # or with hot reload on :3000, /api → :9090/admin
+npm run dev          # hot reload on :3000, /api → :9090/admin (needs ADMIN_API=public)
 ```
 
 `S5W_BACKEND` points `npm run dev` at another backend (default `http://127.0.0.1:9090`).
-The dev server reaches `/admin` from outside the container, so the backend needs
-`ADMIN_API=public` for it.
+
+---
+
+<div align="center">
+
+Built on the [Winter](https://winterframe.net) framework · Swoole · PHP 8.5 · PostgreSQL 18<br />
+Licensed under the [Apache License 2.0](LICENSE)
+
+</div>
