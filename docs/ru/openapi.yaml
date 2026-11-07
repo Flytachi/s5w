@@ -12,10 +12,12 @@ info:
     **Уровни токена:** `BASIC` («только отдача» в панели) — `GET /v1/check` и скачивание
     `/p/{id}`; `FULL` («полный доступ») — всё.
 
-    **Форматы.** Списки отвечают `{ "meta": {…}, "data": [ … ] }`. Ошибки — `{ "code", "message" }`,
-    при ошибке проверки параметров ещё `errors` по полям. Перечисления в запросах передаются
-    числом (`"retention": 3`), кроме строкового `format`; в ответах — объектом
-    `{ "id": 3, "name": "MONTH" }`. Удаление отвечает `204` без тела.
+    **Форматы.** Списки отвечают `{ "meta": {…}, "data": [ … ] }` — кроме `GET /v1/files/{id}/links`,
+    который отдаёт массив. Ошибки — `{ "code", "message" }`, при ошибке проверки параметров ещё
+    `errors` по полям; исключение — тело больше 32 МиБ: его отсекает сервер до приложения, ответ
+    `413` без тела. Перечисления в запросах передаются числом (`"retention": 3`), кроме строкового
+    `format`; в ответах — объектом `{ "id": 3, "name": "MONTH" }`. Удаление отвечает `204` без
+    тела — кроме `DELETE /v1/links`: `200` и `{ "epoch" }`.
 
     **Время** — RFC 3339 (ISO 8601) с часовым поясом: `2026-11-08T17:10:44+00:00`. Во всех
     ответах одинаково; стандартные библиотеки разбирают его без подготовки.
@@ -30,9 +32,11 @@ info:
     | `401` | нет токена или он неизвестен |
     | `403` | токен отключён, истёк или его уровня мало |
     | `404` | нет такого файла, загрузки, ссылки или папки (в `/v1/folders/{name}`) |
-    | `409` | конфликт: имя занято, смещение части не совпало, загрузка не закончена |
-    | `413` | не хватает квоты, тело больше 32 МиБ, часть больше 16 МиБ |
+    | `409` | конфликт: имя занято, смещение части не совпало, загрузка не закончена, бакет не активен |
+    | `413` | не хватает квоты, тело больше 32 МиБ (без тела ответа), часть больше 16 МиБ |
+    | `416` | диапазон `Range` за пределами файла |
     | `422` | параметры не прошли проверку, нет указанной папки, хеш не совпал, картинку нельзя обработать |
+    | `501` | на сервере нет обработки картинок или кодека для нужного формата |
     | `507` | на сервере кончается место |
 servers:
 - url: '{baseUrl}'
@@ -64,7 +68,8 @@ tags:
 - name: Раздача
   description: |
     Как файл получает браузер, приложение или CDN: публично (`/o`), по токену (`/p`) и по
-    временной ссылке (`/t`). Все три поддерживают `Range`, `ETag` и условные запросы.
+    временной ссылке (`/t`). Все три поддерживают `ETag` и условные запросы; `Range` — тоже, кроме
+    временной ссылки с лимитом скачиваний.
 paths:
   /v1/check:
     get:
@@ -90,7 +95,7 @@ paths:
                 $ref: '#/components/schemas/Check'
               example:
                 bucket:
-                  id: 26cf7ca6-fa2b-410a-887f-1ed75396531d
+                  id: 2faa480a-4f40-4131-b2ce-5cd6ced969a8
                   name: postman
                 access:
                   id: 2
@@ -127,7 +132,8 @@ paths:
       description: |
         Создаёт папку в бакете. Вложенных папок нет.
 
-        Срок хранения считается от загрузки файла; истёкшие файлы удаляются сами, раз в 5 минут.
+        Срок хранения считается от загрузки файла (у перенесённого в папку — от переноса); истёкшие
+        файлы удаляются сами, раз в 5 минут.
 
         **Токен:** `FULL`.
       x-token-level: FULL
@@ -162,7 +168,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Folder'
               example:
-                name: demo-1794086470130
+                name: demo-1794090654451
                 public: false
                 retention:
                   id: 3
@@ -170,8 +176,8 @@ paths:
                 cache:
                   maxAge: null
                   visibility: null
-                createdAt: '2026-11-07T21:21:10+00:00'
-                updatedAt: '2026-11-07T21:21:10+00:00'
+                createdAt: '2026-11-07T22:30:54+00:00'
+                updatedAt: '2026-11-07T22:30:54+00:00'
         '401':
           description: Токена нет или он неизвестен.
           content:
@@ -179,7 +185,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Такая папка уже есть.
+          description: Такая папка уже есть или бакет не активен.
           content:
             application/json:
               schema:
@@ -270,7 +276,7 @@ paths:
                   previous: null
                   next: null
                 data:
-                - name: demo-1794086470130
+                - name: demo-1794090654451
                   public: false
                   retention:
                     id: 3
@@ -278,8 +284,8 @@ paths:
                   cache:
                     maxAge: null
                     visibility: null
-                  createdAt: '2026-11-07T21:21:10+00:00'
-                  updatedAt: '2026-11-07T21:21:10+00:00'
+                  createdAt: '2026-11-07T22:30:54+00:00'
+                  updatedAt: '2026-11-07T22:30:54+00:00'
         '401':
           description: Токена нет или он неизвестен.
           content:
@@ -313,7 +319,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Folder'
               example:
-                name: demo-1794086470130
+                name: demo-1794090654451
                 public: false
                 retention:
                   id: 3
@@ -321,8 +327,8 @@ paths:
                 cache:
                   maxAge: null
                   visibility: null
-                createdAt: '2026-11-07T21:21:10+00:00'
-                updatedAt: '2026-11-07T21:21:10+00:00'
+                createdAt: '2026-11-07T22:30:54+00:00'
+                updatedAt: '2026-11-07T22:30:54+00:00'
         '401':
           description: Токена нет или он неизвестен.
           content:
@@ -393,7 +399,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Folder'
               example:
-                name: demo-1794086470130
+                name: demo-1794090654451
                 public: false
                 retention:
                   id: 2
@@ -401,8 +407,8 @@ paths:
                 cache:
                   maxAge: null
                   visibility: null
-                createdAt: '2026-11-07T21:21:10+00:00'
-                updatedAt: '2026-11-07T21:21:10+00:00'
+                createdAt: '2026-11-07T22:30:54+00:00'
+                updatedAt: '2026-11-07T22:30:54+00:00'
         '401':
           description: Токена нет или он неизвестен.
           content:
@@ -467,8 +473,8 @@ paths:
       operationId: setFolderCache
       summary: Задать папке политику кэша
       description: |
-        Задаёт заголовок `Cache-Control` для файлов папки — вместо политики бакета. `null` в поле —
-        наследовать от бакета.
+        Задаёт заголовок `Cache-Control` для файлов папки — вместо политики бакета. Это полная замена:
+        оба поля задаются заново, пропущенное поле тоже становится `null` — наследовать от бакета.
 
         Для закрытых файлов и каналов `/p`, `/t` видимость всегда не выше `PRIVATE`, а `max-age` не
         дольше оставшегося срока файла или ссылки.
@@ -510,7 +516,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Folder'
               example:
-                name: demo-1794086470130
+                name: demo-1794090654451
                 public: false
                 retention:
                   id: 2
@@ -520,8 +526,8 @@ paths:
                   visibility:
                     id: 1
                     name: SHARED
-                createdAt: '2026-11-07T21:21:10+00:00'
-                updatedAt: '2026-11-07T21:21:10+00:00'
+                createdAt: '2026-11-07T22:30:54+00:00'
+                updatedAt: '2026-11-07T22:30:54+00:00'
         '401':
           description: Токена нет или он неизвестен.
           content:
@@ -530,6 +536,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Нет такой папки.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Параметры не прошли проверку.
           content:
             application/json:
               schema:
@@ -607,7 +619,7 @@ paths:
                 upload:
                   summary: успех
                   value:
-                    id: -ps4-0KkCpjsadLA
+                    id: AylIE4zS-HZ0xw4T
                     name: photo.png
                     folder: null
                     content:
@@ -621,14 +633,14 @@ paths:
                       applied: false
                       reason: no options
                     expiresAt: null
-                    privateUrl: https://s5.example.com/p/-ps4-0KkCpjsadLA
-                    publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/-ps4-0KkCpjsadLA
-                    createdAt: '2026-11-07T21:21:10+00:00'
-                    updatedAt: '2026-11-07T21:21:10+00:00'
+                    privateUrl: https://s5.example.com/p/AylIE4zS-HZ0xw4T
+                    publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/AylIE4zS-HZ0xw4T
+                    createdAt: '2026-11-07T22:30:54+00:00'
+                    updatedAt: '2026-11-07T22:30:54+00:00'
                 upload-image:
                   summary: успех
                   value:
-                    id: wpn4AiYxv22Tks-u
+                    id: Ptxdcn6oTpezlthV
                     name: photo.webp
                     folder: null
                     content:
@@ -654,10 +666,10 @@ paths:
                         size: 2250
                         mime: image/webp
                     expiresAt: null
-                    privateUrl: https://s5.example.com/p/wpn4AiYxv22Tks-u
-                    publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/wpn4AiYxv22Tks-u
-                    createdAt: '2026-11-07T21:21:10+00:00'
-                    updatedAt: '2026-11-07T21:21:10+00:00'
+                    privateUrl: https://s5.example.com/p/Ptxdcn6oTpezlthV
+                    publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/Ptxdcn6oTpezlthV
+                    createdAt: '2026-11-07T22:30:54+00:00'
+                    updatedAt: '2026-11-07T22:30:54+00:00'
         '400':
           description: Файл не передан.
           content:
@@ -680,7 +692,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '413':
-          description: Не хватает квоты бакета или запрос больше 32 МиБ.
+          description: 'Не хватает квоты бакета. Запрос больше 32 МиБ тоже получает 413, но без тела: его отсекает
+            сервер.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '501':
+          description: Нет обработки картинок или кодека для нужного формата.
           content:
             application/json:
               schema:
@@ -789,39 +808,39 @@ paths:
                   previous: null
                   next: null
                 data:
-                - id: Dyh-JjigglJ8whPY
+                - id: kGEulw_1MorsmfNd
                   name: notes-copy.txt
                   folder: null
                   content:
                     size: 99
                     mime: text/plain
                     extension: txt
-                    hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                    hash: 726741689cbf65c0a51847ee69b3b0ee60c152cfc5acfd4482bca056ef7f8126
                   public: true
                   deduplicated: false
                   processed: null
                   expiresAt: null
-                  privateUrl: https://s5.example.com/p/Dyh-JjigglJ8whPY
-                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/Dyh-JjigglJ8whPY
-                  createdAt: '2026-11-07T21:21:10+00:00'
-                  updatedAt: '2026-11-07T21:21:10+00:00'
-                - id: d_QSaL4bHSBG02ri
+                  privateUrl: https://s5.example.com/p/kGEulw_1MorsmfNd
+                  publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/kGEulw_1MorsmfNd
+                  createdAt: '2026-11-07T22:30:54+00:00'
+                  updatedAt: '2026-11-07T22:30:54+00:00'
+                - id: NS8SDENmOHEnT5Rb
                   name: notes.txt
                   folder: null
                   content:
                     size: 99
                     mime: text/plain
                     extension: txt
-                    hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                    hash: 726741689cbf65c0a51847ee69b3b0ee60c152cfc5acfd4482bca056ef7f8126
                   public: true
                   deduplicated: false
                   processed: null
                   expiresAt: null
-                  privateUrl: https://s5.example.com/p/d_QSaL4bHSBG02ri
-                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri
-                  createdAt: '2026-11-07T21:21:10+00:00'
-                  updatedAt: '2026-11-07T21:21:10+00:00'
-                - id: wpn4AiYxv22Tks-u
+                  privateUrl: https://s5.example.com/p/NS8SDENmOHEnT5Rb
+                  publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/NS8SDENmOHEnT5Rb
+                  createdAt: '2026-11-07T22:30:54+00:00'
+                  updatedAt: '2026-11-07T22:30:54+00:00'
+                - id: Ptxdcn6oTpezlthV
                   name: photo.webp
                   folder: null
                   content:
@@ -833,11 +852,11 @@ paths:
                   deduplicated: false
                   processed: null
                   expiresAt: null
-                  privateUrl: https://s5.example.com/p/wpn4AiYxv22Tks-u
-                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/wpn4AiYxv22Tks-u
-                  createdAt: '2026-11-07T21:21:10+00:00'
-                  updatedAt: '2026-11-07T21:21:10+00:00'
-                - id: -ps4-0KkCpjsadLA
+                  privateUrl: https://s5.example.com/p/Ptxdcn6oTpezlthV
+                  publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/Ptxdcn6oTpezlthV
+                  createdAt: '2026-11-07T22:30:54+00:00'
+                  updatedAt: '2026-11-07T22:30:54+00:00'
+                - id: AylIE4zS-HZ0xw4T
                   name: photo.png
                   folder: null
                   content:
@@ -849,10 +868,10 @@ paths:
                   deduplicated: false
                   processed: null
                   expiresAt: null
-                  privateUrl: https://s5.example.com/p/-ps4-0KkCpjsadLA
-                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/-ps4-0KkCpjsadLA
-                  createdAt: '2026-11-07T21:21:10+00:00'
-                  updatedAt: '2026-11-07T21:21:10+00:00'
+                  privateUrl: https://s5.example.com/p/AylIE4zS-HZ0xw4T
+                  publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/AylIE4zS-HZ0xw4T
+                  createdAt: '2026-11-07T22:30:54+00:00'
+                  updatedAt: '2026-11-07T22:30:54+00:00'
         '401':
           description: Токена нет или он неизвестен.
           content:
@@ -861,6 +880,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           description: Токен отключён, истёк или его уровня не хватает.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Нет папки из параметра `folder`.
           content:
             application/json:
               schema:
@@ -894,22 +919,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/File'
               example:
-                id: d_QSaL4bHSBG02ri
+                id: NS8SDENmOHEnT5Rb
                 name: notes.txt
                 folder: null
                 content:
                   size: 99
                   mime: text/plain
                   extension: txt
-                  hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                  hash: 726741689cbf65c0a51847ee69b3b0ee60c152cfc5acfd4482bca056ef7f8126
                 public: true
                 deduplicated: false
                 processed: null
                 expiresAt: null
-                privateUrl: https://s5.example.com/p/d_QSaL4bHSBG02ri
-                publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri
-                createdAt: '2026-11-07T21:21:10+00:00'
-                updatedAt: '2026-11-07T21:21:10+00:00'
+                privateUrl: https://s5.example.com/p/NS8SDENmOHEnT5Rb
+                publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/NS8SDENmOHEnT5Rb
+                createdAt: '2026-11-07T22:30:54+00:00'
+                updatedAt: '2026-11-07T22:30:54+00:00'
         '401':
           description: Токена нет или он неизвестен.
           content:
@@ -983,41 +1008,41 @@ paths:
                 files-rename:
                   summary: успех
                   value:
-                    id: d_QSaL4bHSBG02ri
+                    id: NS8SDENmOHEnT5Rb
                     name: notes-renamed.txt
                     folder: null
                     content:
                       size: 99
                       mime: text/plain
                       extension: txt
-                      hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                      hash: 726741689cbf65c0a51847ee69b3b0ee60c152cfc5acfd4482bca056ef7f8126
                     public: true
                     deduplicated: false
                     processed: null
                     expiresAt: null
-                    privateUrl: https://s5.example.com/p/d_QSaL4bHSBG02ri
-                    publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri
-                    createdAt: '2026-11-07T21:21:10+00:00'
-                    updatedAt: '2026-11-07T21:21:10+00:00'
+                    privateUrl: https://s5.example.com/p/NS8SDENmOHEnT5Rb
+                    publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/NS8SDENmOHEnT5Rb
+                    createdAt: '2026-11-07T22:30:54+00:00'
+                    updatedAt: '2026-11-07T22:30:54+00:00'
                 files-move:
                   summary: успех
                   value:
-                    id: d_QSaL4bHSBG02ri
+                    id: NS8SDENmOHEnT5Rb
                     name: notes-renamed.txt
-                    folder: demo-1794086470130
+                    folder: demo-1794090654451
                     content:
                       size: 99
                       mime: text/plain
                       extension: txt
-                      hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                      hash: 726741689cbf65c0a51847ee69b3b0ee60c152cfc5acfd4482bca056ef7f8126
                     public: false
                     deduplicated: false
                     processed: null
-                    expiresAt: '2026-11-14T21:21:10+00:00'
-                    privateUrl: https://s5.example.com/p/d_QSaL4bHSBG02ri
+                    expiresAt: '2026-11-14T22:30:54+00:00'
+                    privateUrl: https://s5.example.com/p/NS8SDENmOHEnT5Rb
                     publicUrl: null
-                    createdAt: '2026-11-07T21:21:10+00:00'
-                    updatedAt: '2026-11-07T21:21:10+00:00'
+                    createdAt: '2026-11-07T22:30:54+00:00'
+                    updatedAt: '2026-11-07T22:30:54+00:00'
         '401':
           description: Токена нет или он неизвестен.
           content:
@@ -1091,7 +1116,8 @@ paths:
       summary: Начать загрузку
       description: |
         Открывает загрузку: сервер заранее проверяет квоту и место на диске и возвращает `id`
-        загрузки и рекомендуемый размер части `chunkSize`. Загрузка ждёт продолжения 24 часа.
+        загрузки и рекомендуемый размер части `chunkSize`. Загрузка ждёт продолжения 24 часа с последней
+        принятой части; каждая часть продлевает срок.
 
         **Дедупликация по `sha256`.** Если такое содержимое в бакете уже есть, файл создаётся сразу:
         в ответе `chunkSize: 0` и готовый `file` с `deduplicated: true` — отправлять части и завершать
@@ -1157,12 +1183,12 @@ paths:
                 up-start:
                   summary: успех
                   value:
-                    id: 3bc19c9a-4be5-49c8-8c2c-bc8e261461f5
+                    id: c1123500-df22-4fde-839c-ae4964b337bf
                     name: notes.txt
                     size: 99
                     offset: 0
                     chunkSize: 8388608
-                    expiresAt: '2026-11-08T21:21:10+00:00'
+                    expiresAt: '2026-11-08T22:30:54+00:00'
                     file: null
                 up-dedup:
                   summary: успех
@@ -1174,31 +1200,31 @@ paths:
                     chunkSize: 0
                     expiresAt: ''
                     file:
-                      id: Dyh-JjigglJ8whPY
+                      id: kGEulw_1MorsmfNd
                       name: notes-copy.txt
                       folder: null
                       content:
                         size: 99
                         mime: text/plain
                         extension: txt
-                        hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                        hash: 726741689cbf65c0a51847ee69b3b0ee60c152cfc5acfd4482bca056ef7f8126
                       public: true
                       deduplicated: true
                       processed: null
                       expiresAt: null
-                      privateUrl: https://s5.example.com/p/Dyh-JjigglJ8whPY
-                      publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/Dyh-JjigglJ8whPY
-                      createdAt: '2026-11-07T21:21:10+00:00'
-                      updatedAt: '2026-11-07T21:21:10+00:00'
+                      privateUrl: https://s5.example.com/p/kGEulw_1MorsmfNd
+                      publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/kGEulw_1MorsmfNd
+                      createdAt: '2026-11-07T22:30:54+00:00'
+                      updatedAt: '2026-11-07T22:30:54+00:00'
                 up-cancel-start:
                   summary: успех
                   value:
-                    id: 45524d32-81e3-490d-b72e-a9ee239a0da3
+                    id: 43064a70-5b03-4862-8494-2f922fe715bd
                     name: cancel-me.bin
                     size: 10485760
                     offset: 0
                     chunkSize: 8388608
-                    expiresAt: '2026-11-08T21:21:10+00:00'
+                    expiresAt: '2026-11-08T22:30:54+00:00'
                     file: null
         '401':
           description: Токена нет или он неизвестен.
@@ -1235,7 +1261,7 @@ paths:
       operationId: getUpload
       summary: Узнать, сколько дошло
       description: |
-        Состояние загрузки: в `offset` — сколько байт сервер уже получил. После обрыва связи продолжайте с этого места.
+        Состояние загрузки: в `offset` — сколько байт сервер уже получил. После обрыва связи продолжайте с этого места, пока загрузка не истекла (24 часа с последней части).
 
         **Токен:** `FULL`.
       x-token-level: FULL
@@ -1256,12 +1282,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Upload'
               example:
-                id: 3bc19c9a-4be5-49c8-8c2c-bc8e261461f5
+                id: c1123500-df22-4fde-839c-ae4964b337bf
                 name: notes.txt
                 size: 99
                 offset: 99
                 chunkSize: 8388608
-                expiresAt: '2026-11-08T21:21:10+00:00'
+                expiresAt: '2026-11-08T22:30:54+00:00'
                 file: null
         '401':
           description: Токена нет или он неизвестен.
@@ -1324,12 +1350,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Upload'
               example:
-                id: 3bc19c9a-4be5-49c8-8c2c-bc8e261461f5
+                id: c1123500-df22-4fde-839c-ae4964b337bf
                 name: notes.txt
                 size: 99
                 offset: 99
                 chunkSize: 8388608
-                expiresAt: '2026-11-08T21:21:10+00:00'
+                expiresAt: '2026-11-08T22:30:54+00:00'
                 file: null
         '400':
           description: Часть пустая или меньше 4 МиБ и не последняя.
@@ -1373,7 +1399,7 @@ paths:
       operationId: cancelUpload
       summary: Отменить загрузку
       description: |
-        Отменяет загрузку и сразу удаляет полученное. Брошенная загрузка удалится и сама через 24 часа.
+        Отменяет загрузку и сразу удаляет полученное. Брошенная загрузка удалится и сама: через 24 часа с последней части уборщик снимет её в течение часа.
 
         **Токен:** `FULL`.
       x-token-level: FULL
@@ -1408,7 +1434,12 @@ paths:
       operationId: completeUpload
       summary: Завершить загрузку
       description: |
-        Закрывает загрузку и создаёт файл: проверяет хеш, обрабатывает картинку, если просили, переносит содержимое в хранилище.
+        Закрывает загрузку и создаёт файл: проверяет хеш, обрабатывает картинку, если просили, переносит
+        содержимое в хранилище.
+
+        **Любая ошибка завершения удаляет загрузку** — хеш не совпал, квота кончилась, папку удалили,
+        картинку нельзя обработать: загружать придётся заново. Исключение — `409` «получено не всё»:
+        тогда загрузка остаётся, её можно дослать.
 
         **Токен:** `FULL`.
       x-token-level: FULL
@@ -1429,24 +1460,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/File'
               example:
-                id: d_QSaL4bHSBG02ri
+                id: NS8SDENmOHEnT5Rb
                 name: notes.txt
                 folder: null
                 content:
                   size: 99
                   mime: text/plain
                   extension: txt
-                  hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                  hash: 726741689cbf65c0a51847ee69b3b0ee60c152cfc5acfd4482bca056ef7f8126
                 public: true
                 deduplicated: false
                 processed:
                   applied: false
                   reason: no options
                 expiresAt: null
-                privateUrl: https://s5.example.com/p/d_QSaL4bHSBG02ri
-                publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri
-                createdAt: '2026-11-07T21:21:10+00:00'
-                updatedAt: '2026-11-07T21:21:10+00:00'
+                privateUrl: https://s5.example.com/p/NS8SDENmOHEnT5Rb
+                publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/NS8SDENmOHEnT5Rb
+                createdAt: '2026-11-07T22:30:54+00:00'
+                updatedAt: '2026-11-07T22:30:54+00:00'
         '401':
           description: Токена нет или он неизвестен.
           content:
@@ -1460,7 +1491,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Получено не всё.
+          description: Получено не всё — загрузка остаётся; или данных на диске меньше объявленного — загрузка удалена.
           content:
             application/json:
               schema:
@@ -1468,8 +1499,15 @@ paths:
               example:
                 code: 409
                 message: 'Upload is not finished: 0 bytes of 10485760 received'
+        '413':
+          description: Квота бакета кончилась к моменту завершения; загрузка удалена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
-          description: Содержимое не совпало с `sha256`; загрузка удалена.
+          description: Содержимое не совпало с `sha256`, папку удалили или картинку нельзя обработать; загрузка
+            удалена.
           content:
             application/json:
               schema:
@@ -1477,6 +1515,12 @@ paths:
               example:
                 code: 422
                 message: Uploaded data does not match the declared checksum
+        '501':
+          description: Нет обработки картинок или кодека для нужного формата; загрузка удалена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1/files/{id}/link:
     post:
       tags:
@@ -1487,8 +1531,11 @@ paths:
         Выдаёт подписанную ссылку `/t/…` на файл. Она открывается без токена, но только до срока.
 
         **Два вида.** Без `maxDownloads` и `revocable` ссылка **подписанная**: в базе не хранится,
-        `id: null`, отозвать по одной нельзя — только все ссылки бакета разом. С любым из этих полей —
-        **учитываемая**: хранится, считает скачивания, отзывается по одной.
+        `id: null`, отозвать по одной нельзя — только все ссылки бакета разом; `note` у неё не
+        сохраняется. С любым из этих полей — **учитываемая**: хранится, отзывается по одной, видна в
+        списках. Скачивания она считает только при `maxDownloads` — у ссылки с одним `revocable`
+        счётчик `downloads` всегда `0`. У ссылки с `maxDownloads` не работает `Range`: файл отдаётся
+        только целиком.
 
         **Токен:** `FULL`.
       x-token-level: FULL
@@ -1514,11 +1561,11 @@ paths:
                   minimum: 1
                   maximum: 2592000
                   default: 3600
-                  description: 'Срок жизни, секунд: до 30 дней.'
+                  description: 'Срок жизни, секунд: до 30 дней. Без поля — 3600.'
                 disposition:
                   $ref: '#/components/schemas/Disposition'
                   default: 0
-                  description: Открыть в браузере или скачать.
+                  description: Открыть в браузере (если тип это позволяет) или скачать.
                 maxDownloads:
                   type: integer
                   minimum: 1
@@ -1531,9 +1578,7 @@ paths:
                 note:
                   type: string
                   maxLength: 255
-                  description: Заметка для себя.
-              required:
-              - ttl
+                  description: Заметка для себя; сохраняется только у учитываемой ссылки.
       responses:
         '201':
           description: Ссылка выдана.
@@ -1546,8 +1591,8 @@ paths:
                   summary: успех
                   value:
                     id: null
-                    url: https://s5.example.com/t/AQAAAAAAAAADau-kVgAAAAABzw4AyX-bHblFCyuA82mNpw
-                    expiresAt: '2026-11-07T22:21:10+00:00'
+                    url: https://s5.example.com/t/AQAAAAAAAAADau-0rgAAAAABbN-GiQikFncSIZnI8_HiqQ
+                    expiresAt: '2026-11-07T23:30:54+00:00'
                     revocable: false
                     maxDownloads: null
                     downloads: 0
@@ -1560,8 +1605,8 @@ paths:
                   summary: успех
                   value:
                     id: 1
-                    url: https://s5.example.com/t/AQAAAAAAAAADavDnxgMAAAABAAAAAAAAAAE03U_0Q532vTqsB62CC3c9
-                    expiresAt: '2026-11-08T21:21:10+00:00'
+                    url: https://s5.example.com/t/AQAAAAAAAAADavD4HgMAAAABAAAAAAAAAAHxXz1-CV6JPG97iActjNVO
+                    expiresAt: '2026-11-08T22:30:54+00:00'
                     revocable: true
                     maxDownloads: 3
                     downloads: 0
@@ -1601,7 +1646,7 @@ paths:
       operationId: fileLinks
       summary: Ссылки одного файла
       description: |
-        Последние 20 учитываемых ссылок файла, новые первыми — с числом скачиваний, сроком и признаком отзыва; истёкшие и отозванные тоже, пока их не удалит ночная очистка. Подписанных здесь нет — они нигде не хранятся.
+        Последние 20 учитываемых ссылок файла, новые первыми — с числом скачиваний, сроком и признаком отзыва; истёкшие, отозванные и исчерпанные тоже: ссылка хранится до 7 дней после своего `expiresAt`. Подписанных здесь нет — они нигде не хранятся.
 
         **Токен:** `FULL`.
       x-token-level: FULL
@@ -1626,8 +1671,8 @@ paths:
                   $ref: '#/components/schemas/Link'
               example:
               - id: 1
-                url: https://s5.example.com/t/AQAAAAAAAAADavDnxgMAAAABAAAAAAAAAAE03U_0Q532vTqsB62CC3c9
-                expiresAt: '2026-11-08T21:21:10+00:00'
+                url: https://s5.example.com/t/AQAAAAAAAAADavD4HgMAAAABAAAAAAAAAAHxXz1-CV6JPG97iActjNVO
+                expiresAt: '2026-11-08T22:30:54+00:00'
                 revocable: true
                 maxDownloads: 3
                 downloads: 0
@@ -1655,7 +1700,7 @@ paths:
       operationId: listLinks
       summary: Все ссылки бакета
       description: |
-        Учитываемые ссылки всего бакета постранично, новые первыми — включая истёкшие и отозванные, пока их не удалит ночная очистка.
+        Учитываемые ссылки всего бакета постранично, новые первыми — включая истёкшие, отозванные и исчерпанные: ссылка хранится до 7 дней после своего `expiresAt`.
 
         **Токен:** `FULL`.
       x-token-level: FULL
@@ -1701,8 +1746,8 @@ paths:
                   next: null
                 data:
                 - id: 1
-                  url: https://s5.example.com/t/AQAAAAAAAAADavDnxgMAAAABAAAAAAAAAAE03U_0Q532vTqsB62CC3c9
-                  expiresAt: '2026-11-08T21:21:10+00:00'
+                  url: https://s5.example.com/t/AQAAAAAAAAADavD4HgMAAAABAAAAAAAAAAHxXz1-CV6JPG97iActjNVO
+                  expiresAt: '2026-11-08T22:30:54+00:00'
                   revocable: true
                   maxDownloads: 3
                   downloads: 0
@@ -1823,7 +1868,8 @@ paths:
       - name: Range
         in: header
         required: false
-        description: Диапазон байтов, например `bytes=0-1023` — ответ `206`.
+        description: Диапазон байтов, например `bytes=0-1023` — ответ `206`; за пределами файла — `416`. У временной
+          ссылки с лимитом скачиваний игнорируется.
         schema:
           type: string
       - name: If-None-Match
@@ -1859,6 +1905,8 @@ paths:
               example:
                 code: 404
                 message: File not found
+        '416':
+          description: Диапазон `Range` за пределами файла.
   /p/{id}:
     get:
       tags:
@@ -1868,7 +1916,8 @@ paths:
       description: |
         Отдаёт **любой** файл бакета — и публичный, и закрытый — по токену; адрес из `privateUrl`.
         Достаточно токена `BASIC`: такой можно встроить в клиентское приложение — перечислить файлы
-        он не сможет, только скачать те, чьи `id` знает. Ответ кэшируется только браузером.
+        он не сможет, только скачать те, чьи `id` знает. Ответ кэшируется только браузером (`private`),
+        а по умолчанию — с `max-age=0`: браузер каждый раз переспрашивает, и `ETag` делает это дешёвым.
 
         **Токен:** `BASIC`.
       x-token-level: BASIC
@@ -1892,7 +1941,8 @@ paths:
       - name: Range
         in: header
         required: false
-        description: Диапазон байтов, например `bytes=0-1023` — ответ `206`.
+        description: Диапазон байтов, например `bytes=0-1023` — ответ `206`; за пределами файла — `416`. У временной
+          ссылки с лимитом скачиваний игнорируется.
         schema:
           type: string
       - name: If-None-Match
@@ -1934,14 +1984,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '416':
+          description: Диапазон `Range` за пределами файла.
   /t/{token}:
     get:
       tags:
       - Раздача
       operationId: getTemporary
       summary: Открыть временную ссылку
-      description: Отдаёт файл по временной ссылке без токена. После срока, отзыва или исчерпания лимита — `404`.
-        Открыть или скачать — задаётся при выдаче полем `disposition`.
+      description: 'Отдаёт файл по временной ссылке без токена. После срока, отзыва или исчерпания лимита — `404`.
+        Скачать — если при выдаче `disposition: 1` или тип нельзя показывать в браузере (те же правила, что у `/o`).
+        У ссылки с `maxDownloads` `Range` не работает: файл отдаётся только целиком, `200`.'
       security: []
       parameters:
       - name: token
@@ -1955,7 +2008,8 @@ paths:
       - name: Range
         in: header
         required: false
-        description: Диапазон байтов, например `bytes=0-1023` — ответ `206`.
+        description: Диапазон байтов, например `bytes=0-1023` — ответ `206`; за пределами файла — `416`. У временной
+          ссылки с лимитом скачиваний игнорируется.
         schema:
           type: string
       - name: If-None-Match
@@ -1991,6 +2045,8 @@ paths:
               example:
                 code: 404
                 message: Link is invalid or has expired
+        '416':
+          description: Диапазон `Range` за пределами файла.
 components:
   securitySchemes:
     token:
@@ -2137,12 +2193,14 @@ components:
           description: Открывается ли без токена по `publicUrl`.
         deduplicated:
           type: boolean
-          description: '`true` — такое содержимое уже было в бакете, место не потрачено.'
+          description: 'Только в ответе загрузки: `true` — такое содержимое уже было в бакете, место не потрачено.
+            В остальных ответах всегда `false`.'
         processed:
           oneOf:
           - $ref: '#/components/schemas/ProcessedImage'
           - type: 'null'
-          description: Что сделала обработка картинки; `null`, если её не просили.
+          description: 'Только в ответе загрузки — что сделала обработка картинки; без опций это `{ "applied": false,
+            "reason": "no options" }`. В остальных ответах (и при дедупликации по `sha256`) всегда `null`.'
         expiresAt:
           type:
           - string
@@ -2240,7 +2298,8 @@ components:
           description: Рекомендуемый размер части, байт (8 МиБ). `0` — передавать ничего не нужно.
         expiresAt:
           type: string
-          description: Когда загрузка удалится, если её не завершить (через 24 часа). Пустая строка — при дедупликации.
+          description: 'Когда загрузка истечёт: 24 часа с последней принятой части. Истёкшую удаляет уборщик в течение
+            часа. Пустая строка — при дедупликации.'
         file:
           oneOf:
           - $ref: '#/components/schemas/File'
@@ -2320,7 +2379,7 @@ components:
           description: Лимит скачиваний; `null` — без лимита.
         downloads:
           type: integer
-          description: Сколько раз скачали.
+          description: Сколько раз скачали — считается только при `maxDownloads`; иначе всегда `0`.
         revoked:
           type: boolean
           description: Отозвана ли.
@@ -2329,7 +2388,7 @@ components:
           description: 'Открыть или скачать: `{ "id": 1, "name": "ATTACHMENT" }`.'
         note:
           type: string
-          description: Заметка.
+          description: Заметка; у подписанной ссылки всегда пустая.
       required:
       - id
       - url
@@ -2359,7 +2418,7 @@ components:
       - 5
       - 6
       description: |
-        Срок хранения файлов папки, считая от загрузки.
+        Срок хранения файлов папки: от загрузки файла, а у перенесённого в папку — от переноса.
 
         - `0` — NONE — бессрочно
         - `1` — DAY — сутки
@@ -2400,7 +2459,7 @@ components:
       description: |
         Открыть файл в браузере или скачать.
 
-        - `0` — INLINE — открыть в браузере
+        - `0` — INLINE — открыть в браузере, если тип это позволяет (как у `/o`)
         - `1` — ATTACHMENT — скачать
       x-enum-varnames:
       - INLINE

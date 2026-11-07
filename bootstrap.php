@@ -12,10 +12,10 @@ use Main\Threads\Process\AdminUi;
 
 require __DIR__ . '/vendor/autoload.php';
 
-#[EnableHttp(port: 9090)]
 #[EnableAsync]
 #[EnableCaching]
 #[EnableScheduler]
+#[EnableHttp(port: 9090)]
 final class Application extends WinterApplication
 {
     public static function main(array $argv): never

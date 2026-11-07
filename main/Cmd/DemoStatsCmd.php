@@ -17,8 +17,10 @@ use Main\Repositories\BucketTrafficRepository;
  * Бакет с придуманной историей расхода — чтобы посмотреть, как выглядят графики,
  * не дожидаясь настоящего трафика.
  *
- * Пишет **только** в свой бакет `demo-stats` и в его строки `bucket_traffic`. Ничего
- * чужого не трогает, повторный запуск переписывает историю того же бакета заново.
+ * Пишет только в бакет `demo-stats` и в его строки `bucket_traffic`; повторный запуск
+ * переписывает историю того же бакета заново. Свой бакет узнаётся по имени и по метке в
+ * описании, которую ставит create(): бакет `demo-stats` без неё — чужой, и команда его не
+ * трогает ни при заполнении, ни при `--drop`.
  * Убрать целиком — удалить бакет: строки статистики уйдут каскадом.
  *
  *   call script main.Cmd.DemoStatsCmd            90 суток
@@ -34,6 +36,9 @@ final class DemoStatsCmd extends Cmd
     public static string $title = 'fill a demo bucket with made-up traffic history';
 
     private const string NAME = 'demo-stats';
+
+    /** Метка своего бакета: её ставит create(); бакет с тем же именем без неё — чужой. */
+    private const string DESCRIPTION = 'придуманная история расхода для просмотра графиков';
 
     /** Час пик — вечер; ночью почти тихо. Индекс — час UTC. */
     private const array HOURLY = [
@@ -53,6 +58,11 @@ final class DemoStatsCmd extends Cmd
         $days = max(1, min(366, $days));
 
         $bucket = $this->buckets->findBy(Qb::eq('name', self::NAME));
+        if ($bucket !== null && $bucket->description !== self::DESCRIPTION) {
+            self::printWarning('bucket "' . self::NAME . '" exists but was not created by this command — left untouched');
+            self::printInfo('rename or delete it in the panel, then run again');
+            return;
+        }
 
         if (array_key_exists('drop', $this->args['options'])) {
             if ($bucket === null) {
@@ -86,7 +96,7 @@ final class DemoStatsCmd extends Cmd
     {
         $bucket = new Bucket();
         $bucket->name = self::NAME;
-        $bucket->description = 'придуманная история расхода для просмотра графиков';
+        $bucket->description = self::DESCRIPTION;
         $bucket->quota_bytes = 50 * 1024 * 1024 * 1024;
         $bucket->used_bytes = 0;
         $bucket->status = BucketStatus::ACTIVE->value;
@@ -150,6 +160,6 @@ final class DemoStatsCmd extends Cmd
     {
         self::printInfo('call script main.Cmd.DemoStatsCmd [days=90] [--drop]');
         self::printInfo('  creates or refills the "' . self::NAME . '" bucket; --drop removes it entirely');
-        self::printInfo('  touches nothing else — safe to run next to real data');
+        self::printInfo('  touches only its own bucket: a "' . self::NAME . '" bucket it did not create is left alone');
     }
 }

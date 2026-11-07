@@ -51,7 +51,7 @@ class BucketTraffic
     #[BigInteger]
     public int $delivery_hits = 0;
 
-    /** Обращения с токеном доступа — нагрузка на управляющий контур. */
+    /** Обращения с токеном доступа — весь `/v1` и приватная раздача `/p` (она же в `delivery_hits`). */
     #[BigInteger]
     public int $api_hits = 0;
 }

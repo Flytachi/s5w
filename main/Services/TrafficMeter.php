@@ -27,7 +27,8 @@ use Psr\Log\LoggerInterface;
  * не на 416, — а обращение случилось в любом случае. Разница между этими числами и
  * есть эффективность клиентского кэша.
  *
- * @see BucketTraffic описание полей и почему отрезок — час
+ * @see BucketTraffic описание полей
+ * @see BucketTrafficService почему отрезок — час, а не дата
  */
 #[Singleton]
 final class TrafficMeter

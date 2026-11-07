@@ -25,11 +25,6 @@ final class BlobStore
         return $this->rootPath() . '/' . $bucketId;
     }
 
-    public function bucketExists(string $bucketId): bool
-    {
-        return is_dir($this->bucketPath($bucketId));
-    }
-
     public function createBucketDir(string $bucketId): void
     {
         $path = $this->bucketPath($bucketId);
@@ -72,11 +67,6 @@ final class BlobStore
         return is_file($this->blobPath($bucketId, $hash));
     }
 
-    public function blobSize(string $bucketId, string $hash): int
-    {
-        return (int) @filesize($this->blobPath($bucketId, $hash));
-    }
-
     public function blobWrite(string $bucketId, string $hash, string $srcPath): void
     {
         $this->createBucketDir($bucketId);
@@ -109,8 +99,8 @@ final class BlobStore
     }
 
     /**
-     * Недокачанные файлы лежат вне chest: там их сочли бы мусором и стёрли
-     * ближайшим ночным проходом.
+     * Недокачанные файлы лежат в staging, вне `buckets/`: там их счёл бы мусором
+     * еженедельный проход OrphanBlobFilesSweeper (файлы старше суток без записи в blobs).
      */
     public function uploadRoot(): string
     {

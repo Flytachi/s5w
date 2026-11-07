@@ -30,7 +30,8 @@ final class BlobService
     private BlobStore $store;
 
     /**
-     * @param string $srcPath временный файл; при успешной укладке он уезжает в хранилище
+     * @param string $srcPath временный файл; уезжает в хранилище, только если содержимое новое —
+     *                        при дедупликации остаётся на месте
      * @param string|null $sourceName исходное имя — только как подсказка для типа
      */
     public function store(string $bucketId, string $srcPath, ?string $sourceName = null): StoredBlob
@@ -179,7 +180,9 @@ final class BlobService
     }
 
     /**
-     * @return Blob|null осиротевший блоб, если сняли последнюю ссылку и вызов
+     * @return Blob|null осиротевший блоб, если сняли последнюю ссылку внутри чужой транзакции —
+     *                   его файл удаляет вызывающий после commit; в своей транзакции файл
+     *                   удаляется здесь же, и возвращается null
      */
     public function release(string $bucketId, int $blobId): ?Blob
     {

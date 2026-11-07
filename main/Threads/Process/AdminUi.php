@@ -92,6 +92,14 @@ final class AdminUi extends Process
     private function file(Response $response, string $path): void
     {
         $file = $this->resolve(rawurldecode($path));
+        if ($file === null && str_starts_with($path, '/_nuxt/')) {
+            // Ассета с таким хешем нет (обычно — страница от прошлой сборки). Оболочка здесь
+            // ушла бы под адресом скрипта с вечным кэшем, и браузер держал бы её год.
+            $response->status(404);
+            $response->header('Cache-Control', 'no-store');
+            $response->end('Not Found');
+            return;
+        }
         if ($file === null) {
             // Маршрут SPA: оболочка, а дальше разбирается роутер в браузере.
             $file = $this->root . '/200.html';
@@ -100,7 +108,8 @@ final class AdminUi extends Process
         $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
         $response->header('Content-Type', self::TYPES[$ext] ?? 'application/octet-stream');
         // В `_nuxt/` имена с хешем содержимого — их можно держать в кэше вечно. Всё
-        // остальное, оболочка прежде всего, проверяется на каждом заходе.
+        // остальное, оболочка прежде всего, проверяется на каждом заходе. Промах в `_nuxt/`
+        // сюда не доходит — он получает 404 выше.
         $response->header('Cache-Control', str_starts_with($path, '/_nuxt/')
             ? 'public, max-age=31536000, immutable'
             : 'no-cache');

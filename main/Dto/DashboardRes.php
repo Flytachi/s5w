@@ -8,7 +8,8 @@ final class DashboardRes
 {
     /**
      * @param TrafficBucket[] $top Самые нагруженные бакеты отрезка.
-     * @param string[] $quiet Имена бакетов, которые за отрезок не обслужили ни одного запроса.
+     * @param string[] $quiet Имена бакетов без трафика в байтах за отрезок (отдача + приём = 0);
+     *                        обращения без тела (304, HEAD, API) сюда не влияют.
      * @param BucketCardRes[] $fill Бакеты с квотой, от самых заполненных.
      * @param array{total: int, active: int, full: int, inactive: int, expired: int} $tokens
      * @param array{total: int, active: int, revoked: int, expired: int} $links

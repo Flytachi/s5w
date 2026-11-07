@@ -23,25 +23,4 @@ final class TrafficDay
 
         return $row;
     }
-
-    private const array SHORT = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-    private const array FULL = ['', 'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'];
-
-    /** Короткая подпись под столбиком: «14», а для первого дня месяца — «1 авг». */
-    public function label(): string
-    {
-        [, $m, $d] = array_map('intval', explode('-', $this->day));
-
-        return $d === 1 ? self::SHORT[$m] . ' ' . $d : (string) $d;
-    }
-
-    /** Заголовок подсказки: «14 августа 2026». */
-    public function title(): string
-    {
-        [$y, $m, $d] = array_map('intval', explode('-', $this->day));
-
-        return self::FULL[$m] . ' ' . $d . ', ' . $y;
-    }
 }

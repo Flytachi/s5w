@@ -12,10 +12,13 @@ info:
     **Token levels:** `BASIC` ("delivery only" in the panel) — `GET /v1/check` and downloads from
     `/p/{id}`; `FULL` ("full access") — everything.
 
-    **Formats.** Lists answer `{ "meta": {…}, "data": [ … ] }`. Errors answer `{ "code", "message" }`,
-    plus per-field `errors` when validation failed. Enumerations are sent as numbers in requests
+    **Formats.** Lists answer `{ "meta": {…}, "data": [ … ] }` — except `GET /v1/files/{id}/links`,
+    which answers an array. Errors answer `{ "code", "message" }`, plus per-field `errors` when
+    validation failed; the exception is a body over 32 MiB: the server cuts it off before the
+    application, answering `413` with no body. Enumerations are sent as numbers in requests
     (`"retention": 3`), except the string `format`; responses carry them as an object
-    `{ "id": 3, "name": "MONTH" }`. Deleting answers `204` with an empty body.
+    `{ "id": 3, "name": "MONTH" }`. Deleting answers `204` with an empty body — except
+    `DELETE /v1/links`: `200` and `{ "epoch" }`.
 
     **Time** is RFC 3339 (ISO 8601) with a time zone: `2026-11-08T17:10:44+00:00`. The same in
     every response; standard libraries parse it as is.
@@ -30,9 +33,11 @@ info:
     | `401` | no token, or the token is unknown |
     | `403` | the token is disabled, expired, or its level is too low |
     | `404` | no such file, upload, link, or folder (on `/v1/folders/{name}`) |
-    | `409` | conflict: the name is taken, the chunk offset does not match, the upload is not finished |
-    | `413` | over the quota, a body over 32 MiB, a chunk over 16 MiB |
+    | `409` | conflict: the name is taken, the chunk offset does not match, the upload is not finished, the bucket is not active |
+    | `413` | over the quota, a body over 32 MiB (no response body), a chunk over 16 MiB |
+    | `416` | a `Range` outside the file |
     | `422` | validation failed, the given folder does not exist, the hash does not match, the image cannot be processed |
+    | `501` | the server has no image processing or no encoder for the requested format |
     | `507` | the server is running out of disk space |
 servers:
 - url: '{baseUrl}'
@@ -64,7 +69,8 @@ tags:
 - name: Delivery
   description: |
     How a browser, an app or a CDN gets the file: publicly (`/o`), with a token (`/p`) and through
-    a temporary link (`/t`). All three support `Range`, `ETag` and conditional requests.
+    a temporary link (`/t`). All three support `ETag` and conditional requests; `Range` too, except a
+    temporary link with a download limit.
 paths:
   /v1/check:
     get:
@@ -90,7 +96,7 @@ paths:
                 $ref: '#/components/schemas/Check'
               example:
                 bucket:
-                  id: 26cf7ca6-fa2b-410a-887f-1ed75396531d
+                  id: 2faa480a-4f40-4131-b2ce-5cd6ced969a8
                   name: postman
                 access:
                   id: 2
@@ -127,8 +133,8 @@ paths:
       description: |
         Creates a folder in the bucket. Folders do not nest.
 
-        Retention counts from the upload of each file; expired files are deleted by themselves, every
-        5 minutes.
+        Retention counts from the upload of each file (from the move, for a file moved in); expired files
+        are deleted by themselves, every 5 minutes.
 
         **Token:** `FULL`.
       x-token-level: FULL
@@ -163,7 +169,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Folder'
               example:
-                name: demo-1794086473351
+                name: demo-1794090657532
                 public: false
                 retention:
                   id: 3
@@ -171,8 +177,8 @@ paths:
                 cache:
                   maxAge: null
                   visibility: null
-                createdAt: '2026-11-07T21:21:13+00:00'
-                updatedAt: '2026-11-07T21:21:13+00:00'
+                createdAt: '2026-11-07T22:30:57+00:00'
+                updatedAt: '2026-11-07T22:30:57+00:00'
         '401':
           description: No token, or the token is unknown.
           content:
@@ -180,7 +186,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Such a folder already exists.
+          description: Such a folder already exists, or the bucket is not active.
           content:
             application/json:
               schema:
@@ -271,7 +277,7 @@ paths:
                   previous: null
                   next: null
                 data:
-                - name: demo-1794086473351
+                - name: demo-1794090657532
                   public: false
                   retention:
                     id: 3
@@ -279,8 +285,8 @@ paths:
                   cache:
                     maxAge: null
                     visibility: null
-                  createdAt: '2026-11-07T21:21:13+00:00'
-                  updatedAt: '2026-11-07T21:21:13+00:00'
+                  createdAt: '2026-11-07T22:30:57+00:00'
+                  updatedAt: '2026-11-07T22:30:57+00:00'
         '401':
           description: No token, or the token is unknown.
           content:
@@ -314,7 +320,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Folder'
               example:
-                name: demo-1794086473351
+                name: demo-1794090657532
                 public: false
                 retention:
                   id: 3
@@ -322,8 +328,8 @@ paths:
                 cache:
                   maxAge: null
                   visibility: null
-                createdAt: '2026-11-07T21:21:13+00:00'
-                updatedAt: '2026-11-07T21:21:13+00:00'
+                createdAt: '2026-11-07T22:30:57+00:00'
+                updatedAt: '2026-11-07T22:30:57+00:00'
         '401':
           description: No token, or the token is unknown.
           content:
@@ -395,7 +401,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Folder'
               example:
-                name: demo-1794086473351
+                name: demo-1794090657532
                 public: false
                 retention:
                   id: 2
@@ -403,8 +409,8 @@ paths:
                 cache:
                   maxAge: null
                   visibility: null
-                createdAt: '2026-11-07T21:21:13+00:00'
-                updatedAt: '2026-11-07T21:21:13+00:00'
+                createdAt: '2026-11-07T22:30:57+00:00'
+                updatedAt: '2026-11-07T22:30:57+00:00'
         '401':
           description: No token, or the token is unknown.
           content:
@@ -469,8 +475,9 @@ paths:
       operationId: setFolderCache
       summary: Set the cache policy of a folder
       description: |
-        Sets the `Cache-Control` header for the files of the folder — instead of the bucket policy.
-        `null` in a field — inherit from the bucket.
+        Sets the `Cache-Control` header for the files of the folder — instead of the bucket policy. This is
+        a full replacement: both fields are set anew, and an omitted field becomes `null` too — inherit
+        from the bucket.
 
         For private files and the `/p`, `/t` channels the visibility is never above `PRIVATE`, and
         `max-age` never longer than what is left of the file or the link.
@@ -512,7 +519,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Folder'
               example:
-                name: demo-1794086473351
+                name: demo-1794090657532
                 public: false
                 retention:
                   id: 2
@@ -522,8 +529,8 @@ paths:
                   visibility:
                     id: 1
                     name: SHARED
-                createdAt: '2026-11-07T21:21:13+00:00'
-                updatedAt: '2026-11-07T21:21:13+00:00'
+                createdAt: '2026-11-07T22:30:57+00:00'
+                updatedAt: '2026-11-07T22:30:57+00:00'
         '401':
           description: No token, or the token is unknown.
           content:
@@ -532,6 +539,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: No such folder.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation failed.
           content:
             application/json:
               schema:
@@ -609,7 +622,7 @@ paths:
                 upload:
                   summary: success
                   value:
-                    id: jxQhMDwKDDSOyGT9
+                    id: 60I4PpbPsXVagANk
                     name: photo.png
                     folder: null
                     content:
@@ -623,14 +636,14 @@ paths:
                       applied: false
                       reason: no options
                     expiresAt: null
-                    privateUrl: https://s5.example.com/p/jxQhMDwKDDSOyGT9
-                    publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/jxQhMDwKDDSOyGT9
-                    createdAt: '2026-11-07T21:21:13+00:00'
-                    updatedAt: '2026-11-07T21:21:13+00:00'
+                    privateUrl: https://s5.example.com/p/60I4PpbPsXVagANk
+                    publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/60I4PpbPsXVagANk
+                    createdAt: '2026-11-07T22:30:57+00:00'
+                    updatedAt: '2026-11-07T22:30:57+00:00'
                 upload-image:
                   summary: success
                   value:
-                    id: sTWn2gk6AbcCeRrF
+                    id: 0FwMWr8RLbjRUCfD
                     name: photo.webp
                     folder: null
                     content:
@@ -656,10 +669,10 @@ paths:
                         size: 2250
                         mime: image/webp
                     expiresAt: null
-                    privateUrl: https://s5.example.com/p/sTWn2gk6AbcCeRrF
-                    publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/sTWn2gk6AbcCeRrF
-                    createdAt: '2026-11-07T21:21:13+00:00'
-                    updatedAt: '2026-11-07T21:21:13+00:00'
+                    privateUrl: https://s5.example.com/p/0FwMWr8RLbjRUCfD
+                    publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/0FwMWr8RLbjRUCfD
+                    createdAt: '2026-11-07T22:30:57+00:00'
+                    updatedAt: '2026-11-07T22:30:57+00:00'
         '400':
           description: No file was sent.
           content:
@@ -682,7 +695,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '413':
-          description: Over the bucket quota, or the request is over 32 MiB.
+          description: 'Over the bucket quota. A request over 32 MiB gets 413 too, but with no body: the server
+            cuts it off.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '501':
+          description: No image processing, or no encoder for the requested format.
           content:
             application/json:
               schema:
@@ -791,39 +811,39 @@ paths:
                   previous: null
                   next: null
                 data:
-                - id: YO9KHmnXB6rBOZLE
+                - id: cZtMNnijaQ3Cy1OF
                   name: notes-copy.txt
                   folder: null
                   content:
                     size: 66
                     mime: text/plain
                     extension: txt
-                    hash: 49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293
+                    hash: 2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a
                   public: true
                   deduplicated: false
                   processed: null
                   expiresAt: null
-                  privateUrl: https://s5.example.com/p/YO9KHmnXB6rBOZLE
-                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/YO9KHmnXB6rBOZLE
-                  createdAt: '2026-11-07T21:21:13+00:00'
-                  updatedAt: '2026-11-07T21:21:13+00:00'
-                - id: V8WUp3zASsxaieR3
+                  privateUrl: https://s5.example.com/p/cZtMNnijaQ3Cy1OF
+                  publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/cZtMNnijaQ3Cy1OF
+                  createdAt: '2026-11-07T22:30:57+00:00'
+                  updatedAt: '2026-11-07T22:30:57+00:00'
+                - id: tT3q5_AMMrYnVEPp
                   name: notes.txt
                   folder: null
                   content:
                     size: 66
                     mime: text/plain
                     extension: txt
-                    hash: 49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293
+                    hash: 2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a
                   public: true
                   deduplicated: false
                   processed: null
                   expiresAt: null
-                  privateUrl: https://s5.example.com/p/V8WUp3zASsxaieR3
-                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3
-                  createdAt: '2026-11-07T21:21:13+00:00'
-                  updatedAt: '2026-11-07T21:21:13+00:00'
-                - id: sTWn2gk6AbcCeRrF
+                  privateUrl: https://s5.example.com/p/tT3q5_AMMrYnVEPp
+                  publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/tT3q5_AMMrYnVEPp
+                  createdAt: '2026-11-07T22:30:57+00:00'
+                  updatedAt: '2026-11-07T22:30:57+00:00'
+                - id: 0FwMWr8RLbjRUCfD
                   name: photo.webp
                   folder: null
                   content:
@@ -835,11 +855,11 @@ paths:
                   deduplicated: false
                   processed: null
                   expiresAt: null
-                  privateUrl: https://s5.example.com/p/sTWn2gk6AbcCeRrF
-                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/sTWn2gk6AbcCeRrF
-                  createdAt: '2026-11-07T21:21:13+00:00'
-                  updatedAt: '2026-11-07T21:21:13+00:00'
-                - id: jxQhMDwKDDSOyGT9
+                  privateUrl: https://s5.example.com/p/0FwMWr8RLbjRUCfD
+                  publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/0FwMWr8RLbjRUCfD
+                  createdAt: '2026-11-07T22:30:57+00:00'
+                  updatedAt: '2026-11-07T22:30:57+00:00'
+                - id: 60I4PpbPsXVagANk
                   name: photo.png
                   folder: null
                   content:
@@ -851,10 +871,10 @@ paths:
                   deduplicated: false
                   processed: null
                   expiresAt: null
-                  privateUrl: https://s5.example.com/p/jxQhMDwKDDSOyGT9
-                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/jxQhMDwKDDSOyGT9
-                  createdAt: '2026-11-07T21:21:13+00:00'
-                  updatedAt: '2026-11-07T21:21:13+00:00'
+                  privateUrl: https://s5.example.com/p/60I4PpbPsXVagANk
+                  publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/60I4PpbPsXVagANk
+                  createdAt: '2026-11-07T22:30:57+00:00'
+                  updatedAt: '2026-11-07T22:30:57+00:00'
         '401':
           description: No token, or the token is unknown.
           content:
@@ -863,6 +883,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           description: The token is disabled, expired, or its level is too low.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The folder from the `folder` parameter does not exist.
           content:
             application/json:
               schema:
@@ -896,22 +922,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/File'
               example:
-                id: V8WUp3zASsxaieR3
+                id: tT3q5_AMMrYnVEPp
                 name: notes.txt
                 folder: null
                 content:
                   size: 66
                   mime: text/plain
                   extension: txt
-                  hash: 49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293
+                  hash: 2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a
                 public: true
                 deduplicated: false
                 processed: null
                 expiresAt: null
-                privateUrl: https://s5.example.com/p/V8WUp3zASsxaieR3
-                publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3
-                createdAt: '2026-11-07T21:21:13+00:00'
-                updatedAt: '2026-11-07T21:21:13+00:00'
+                privateUrl: https://s5.example.com/p/tT3q5_AMMrYnVEPp
+                publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/tT3q5_AMMrYnVEPp
+                createdAt: '2026-11-07T22:30:57+00:00'
+                updatedAt: '2026-11-07T22:30:57+00:00'
         '401':
           description: No token, or the token is unknown.
           content:
@@ -984,41 +1010,41 @@ paths:
                 files-rename:
                   summary: success
                   value:
-                    id: V8WUp3zASsxaieR3
+                    id: tT3q5_AMMrYnVEPp
                     name: notes-renamed.txt
                     folder: null
                     content:
                       size: 66
                       mime: text/plain
                       extension: txt
-                      hash: 49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293
+                      hash: 2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a
                     public: true
                     deduplicated: false
                     processed: null
                     expiresAt: null
-                    privateUrl: https://s5.example.com/p/V8WUp3zASsxaieR3
-                    publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3
-                    createdAt: '2026-11-07T21:21:13+00:00'
-                    updatedAt: '2026-11-07T21:21:13+00:00'
+                    privateUrl: https://s5.example.com/p/tT3q5_AMMrYnVEPp
+                    publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/tT3q5_AMMrYnVEPp
+                    createdAt: '2026-11-07T22:30:57+00:00'
+                    updatedAt: '2026-11-07T22:30:57+00:00'
                 files-move:
                   summary: success
                   value:
-                    id: V8WUp3zASsxaieR3
+                    id: tT3q5_AMMrYnVEPp
                     name: notes-renamed.txt
-                    folder: demo-1794086473351
+                    folder: demo-1794090657532
                     content:
                       size: 66
                       mime: text/plain
                       extension: txt
-                      hash: 49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293
+                      hash: 2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a
                     public: false
                     deduplicated: false
                     processed: null
-                    expiresAt: '2026-11-14T21:21:13+00:00'
-                    privateUrl: https://s5.example.com/p/V8WUp3zASsxaieR3
+                    expiresAt: '2026-11-14T22:30:57+00:00'
+                    privateUrl: https://s5.example.com/p/tT3q5_AMMrYnVEPp
                     publicUrl: null
-                    createdAt: '2026-11-07T21:21:13+00:00'
-                    updatedAt: '2026-11-07T21:21:13+00:00'
+                    createdAt: '2026-11-07T22:30:57+00:00'
+                    updatedAt: '2026-11-07T22:30:57+00:00'
         '401':
           description: No token, or the token is unknown.
           content:
@@ -1092,7 +1118,8 @@ paths:
       summary: Start an upload
       description: |
         Opens an upload: the server checks the quota and the free disk space up front and returns the
-        upload `id` and the recommended chunk size `chunkSize`. The upload waits 24 hours to be continued.
+        upload `id` and the recommended chunk size `chunkSize`. The upload waits 24 hours after the last
+        accepted chunk; every chunk extends the term.
 
         **Deduplication by `sha256`.** When the bucket already holds this content, the file is created at
         once: the answer has `chunkSize: 0` and a ready `file` with `deduplicated: true` — no chunks and
@@ -1158,12 +1185,12 @@ paths:
                 up-start:
                   summary: success
                   value:
-                    id: 001f7966-edff-431d-8ac4-2ba204ef810f
+                    id: b7336f5b-8896-4e90-96e0-df39f22a115a
                     name: notes.txt
                     size: 66
                     offset: 0
                     chunkSize: 8388608
-                    expiresAt: '2026-11-08T21:21:13+00:00'
+                    expiresAt: '2026-11-08T22:30:57+00:00'
                     file: null
                 up-dedup:
                   summary: success
@@ -1175,31 +1202,31 @@ paths:
                     chunkSize: 0
                     expiresAt: ''
                     file:
-                      id: YO9KHmnXB6rBOZLE
+                      id: cZtMNnijaQ3Cy1OF
                       name: notes-copy.txt
                       folder: null
                       content:
                         size: 66
                         mime: text/plain
                         extension: txt
-                        hash: 49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293
+                        hash: 2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a
                       public: true
                       deduplicated: true
                       processed: null
                       expiresAt: null
-                      privateUrl: https://s5.example.com/p/YO9KHmnXB6rBOZLE
-                      publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/YO9KHmnXB6rBOZLE
-                      createdAt: '2026-11-07T21:21:13+00:00'
-                      updatedAt: '2026-11-07T21:21:13+00:00'
+                      privateUrl: https://s5.example.com/p/cZtMNnijaQ3Cy1OF
+                      publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/cZtMNnijaQ3Cy1OF
+                      createdAt: '2026-11-07T22:30:57+00:00'
+                      updatedAt: '2026-11-07T22:30:57+00:00'
                 up-cancel-start:
                   summary: success
                   value:
-                    id: e6385381-9365-4db1-af45-b9c791c8da24
+                    id: 27ee7332-4cb4-4712-9818-598b4eb12de5
                     name: cancel-me.bin
                     size: 10485760
                     offset: 0
                     chunkSize: 8388608
-                    expiresAt: '2026-11-08T21:21:13+00:00'
+                    expiresAt: '2026-11-08T22:30:57+00:00'
                     file: null
         '401':
           description: No token, or the token is unknown.
@@ -1236,7 +1263,7 @@ paths:
       operationId: getUpload
       summary: Check what arrived
       description: |
-        The state of the upload: `offset` is how many bytes the server has. After a break, continue from there.
+        The state of the upload: `offset` is how many bytes the server has. After a break, continue from there while the upload has not expired (24 hours after the last chunk).
 
         **Token:** `FULL`.
       x-token-level: FULL
@@ -1257,12 +1284,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Upload'
               example:
-                id: 001f7966-edff-431d-8ac4-2ba204ef810f
+                id: b7336f5b-8896-4e90-96e0-df39f22a115a
                 name: notes.txt
                 size: 66
                 offset: 66
                 chunkSize: 8388608
-                expiresAt: '2026-11-08T21:21:13+00:00'
+                expiresAt: '2026-11-08T22:30:57+00:00'
                 file: null
         '401':
           description: No token, or the token is unknown.
@@ -1325,12 +1352,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Upload'
               example:
-                id: 001f7966-edff-431d-8ac4-2ba204ef810f
+                id: b7336f5b-8896-4e90-96e0-df39f22a115a
                 name: notes.txt
                 size: 66
                 offset: 66
                 chunkSize: 8388608
-                expiresAt: '2026-11-08T21:21:13+00:00'
+                expiresAt: '2026-11-08T22:30:57+00:00'
                 file: null
         '400':
           description: The chunk is empty, or under 4 MiB and not the last.
@@ -1374,7 +1401,7 @@ paths:
       operationId: cancelUpload
       summary: Cancel an upload
       description: |
-        Cancels the upload and deletes what arrived at once. An abandoned upload is deleted by itself after 24 hours anyway.
+        Cancels the upload and deletes what arrived at once. An abandoned upload is deleted anyway: 24 hours after the last chunk, the sweeper removes it within an hour.
 
         **Token:** `FULL`.
       x-token-level: FULL
@@ -1409,7 +1436,12 @@ paths:
       operationId: completeUpload
       summary: Complete the upload
       description: |
-        Closes the upload and creates the file: checks the hash, processes the image when asked, moves the content into storage.
+        Closes the upload and creates the file: checks the hash, processes the image when asked, moves the
+        content into storage.
+
+        **Any completion error deletes the upload** — hash mismatch, the quota ran out, the folder was
+        deleted, the image cannot be processed: the upload starts over. The exception is `409` "not
+        everything arrived": the upload stays and can be finished.
 
         **Token:** `FULL`.
       x-token-level: FULL
@@ -1430,24 +1462,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/File'
               example:
-                id: V8WUp3zASsxaieR3
+                id: tT3q5_AMMrYnVEPp
                 name: notes.txt
                 folder: null
                 content:
                   size: 66
                   mime: text/plain
                   extension: txt
-                  hash: 49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293
+                  hash: 2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a
                 public: true
                 deduplicated: false
                 processed:
                   applied: false
                   reason: no options
                 expiresAt: null
-                privateUrl: https://s5.example.com/p/V8WUp3zASsxaieR3
-                publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3
-                createdAt: '2026-11-07T21:21:13+00:00'
-                updatedAt: '2026-11-07T21:21:13+00:00'
+                privateUrl: https://s5.example.com/p/tT3q5_AMMrYnVEPp
+                publicUrl: https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/tT3q5_AMMrYnVEPp
+                createdAt: '2026-11-07T22:30:57+00:00'
+                updatedAt: '2026-11-07T22:30:57+00:00'
         '401':
           description: No token, or the token is unknown.
           content:
@@ -1461,7 +1493,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Not everything has arrived.
+          description: Not everything has arrived — the upload stays; or the data on disk is shorter than declared
+            — the upload is deleted.
           content:
             application/json:
               schema:
@@ -1469,8 +1502,15 @@ paths:
               example:
                 code: 409
                 message: 'Upload is not finished: 0 bytes of 10485760 received'
+        '413':
+          description: The bucket quota ran out by completion; the upload is deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
-          description: The content does not match `sha256`; the upload is deleted.
+          description: The content does not match `sha256`, the folder was deleted, or the image cannot be processed;
+            the upload is deleted.
           content:
             application/json:
               schema:
@@ -1478,6 +1518,12 @@ paths:
               example:
                 code: 422
                 message: Uploaded data does not match the declared checksum
+        '501':
+          description: No image processing or no encoder for the format; the upload is deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1/files/{id}/link:
     post:
       tags:
@@ -1488,8 +1534,10 @@ paths:
         Issues a signed `/t/…` link to the file. It opens without a token, but only until it expires.
 
         **Two kinds.** Without `maxDownloads` and `revocable` the link is **signed**: it is not stored,
-        `id: null`, and cannot be revoked on its own — only all links of the bucket at once. With either
-        field it is **tracked**: stored, counts downloads, revocable on its own.
+        `id: null`, cannot be revoked on its own — only all links of the bucket at once — and does not
+        keep a `note`. With either field it is **tracked**: stored, revocable on its own, listed. It counts
+        downloads only with `maxDownloads` — with `revocable` alone `downloads` stays `0`. A link with
+        `maxDownloads` does not support `Range`: the file is served whole only.
 
         **Token:** `FULL`.
       x-token-level: FULL
@@ -1515,11 +1563,11 @@ paths:
                   minimum: 1
                   maximum: 2592000
                   default: 3600
-                  description: 'Lifetime, seconds: up to 30 days.'
+                  description: 'Lifetime, seconds: up to 30 days. Without the field — 3600.'
                 disposition:
                   $ref: '#/components/schemas/Disposition'
                   default: 0
-                  description: Open in the browser or download.
+                  description: Open in the browser (if the type allows it) or download.
                 maxDownloads:
                   type: integer
                   minimum: 1
@@ -1532,9 +1580,7 @@ paths:
                 note:
                   type: string
                   maxLength: 255
-                  description: A note for yourself.
-              required:
-              - ttl
+                  description: A note for yourself; kept only on a tracked link.
       responses:
         '201':
           description: The link is issued.
@@ -1547,8 +1593,8 @@ paths:
                   summary: success
                   value:
                     id: null
-                    url: https://s5.example.com/t/AQAAAAAAAAALau-kWQAAAAADghF5GyLaqPHXN-PzTOBrbg
-                    expiresAt: '2026-11-07T22:21:13+00:00'
+                    url: https://s5.example.com/t/AQAAAAAAAAALau-0sQAAAAADGcZfqEMAcFy4RevV_H5Vlw
+                    expiresAt: '2026-11-07T23:30:57+00:00'
                     revocable: false
                     maxDownloads: null
                     downloads: 0
@@ -1561,8 +1607,8 @@ paths:
                   summary: success
                   value:
                     id: 3
-                    url: https://s5.example.com/t/AQAAAAAAAAALavDnyQMAAAADAAAAAAAAAAOjKJibeSXM8HGQ2QCt3jts
-                    expiresAt: '2026-11-08T21:21:13+00:00'
+                    url: https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr
+                    expiresAt: '2026-11-08T22:30:57+00:00'
                     revocable: true
                     maxDownloads: 3
                     downloads: 0
@@ -1602,7 +1648,7 @@ paths:
       operationId: fileLinks
       summary: Links of a file
       description: |
-        The last 20 tracked links of the file, newest first — with download counts, expiry and the revoked flag; expired and revoked ones too, until the nightly sweep deletes them. Signed links are not here — they are not stored anywhere.
+        The last 20 tracked links of the file, newest first — with download counts, expiry and the revoked flag; expired, revoked and used-up ones too: a link is kept until 7 days after its `expiresAt`. Signed links are not here — they are not stored anywhere.
 
         **Token:** `FULL`.
       x-token-level: FULL
@@ -1627,8 +1673,8 @@ paths:
                   $ref: '#/components/schemas/Link'
               example:
               - id: 3
-                url: https://s5.example.com/t/AQAAAAAAAAALavDnyQMAAAADAAAAAAAAAAOjKJibeSXM8HGQ2QCt3jts
-                expiresAt: '2026-11-08T21:21:13+00:00'
+                url: https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr
+                expiresAt: '2026-11-08T22:30:57+00:00'
                 revocable: true
                 maxDownloads: 3
                 downloads: 0
@@ -1656,7 +1702,7 @@ paths:
       operationId: listLinks
       summary: All links of the bucket
       description: |
-        Tracked links of the whole bucket page by page, newest first — expired and revoked ones included until the nightly sweep deletes them.
+        Tracked links of the whole bucket page by page, newest first — expired, revoked and used-up ones included: a link is kept until 7 days after its `expiresAt`.
 
         **Token:** `FULL`.
       x-token-level: FULL
@@ -1702,8 +1748,8 @@ paths:
                   next: null
                 data:
                 - id: 3
-                  url: https://s5.example.com/t/AQAAAAAAAAALavDnyQMAAAADAAAAAAAAAAOjKJibeSXM8HGQ2QCt3jts
-                  expiresAt: '2026-11-08T21:21:13+00:00'
+                  url: https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr
+                  expiresAt: '2026-11-08T22:30:57+00:00'
                   revocable: true
                   maxDownloads: 3
                   downloads: 0
@@ -1824,7 +1870,8 @@ paths:
       - name: Range
         in: header
         required: false
-        description: A byte range, e.g. `bytes=0-1023` — answers `206`.
+        description: A byte range, e.g. `bytes=0-1023` — answers `206`; outside the file — `416`. Ignored on a temporary
+          link with a download limit.
         schema:
           type: string
       - name: If-None-Match
@@ -1860,6 +1907,8 @@ paths:
               example:
                 code: 404
                 message: File not found
+        '416':
+          description: The `Range` is outside the file.
   /p/{id}:
     get:
       tags:
@@ -1869,7 +1918,8 @@ paths:
       description: |
         Serves **any** file of the bucket — public or private — with a token; the address from
         `privateUrl`. A `BASIC` token is enough: such a token can ship inside a client app — it cannot
-        list files, only fetch those whose `id` it knows. The answer is cached by the browser only.
+        list files, only fetch those whose `id` it knows. The answer is cached by the browser only
+        (`private`), and by default with `max-age=0`: the browser asks every time, and `ETag` keeps that cheap.
 
         **Token:** `BASIC`.
       x-token-level: BASIC
@@ -1893,7 +1943,8 @@ paths:
       - name: Range
         in: header
         required: false
-        description: A byte range, e.g. `bytes=0-1023` — answers `206`.
+        description: A byte range, e.g. `bytes=0-1023` — answers `206`; outside the file — `416`. Ignored on a temporary
+          link with a download limit.
         schema:
           type: string
       - name: If-None-Match
@@ -1935,14 +1986,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '416':
+          description: The `Range` is outside the file.
   /t/{token}:
     get:
       tags:
       - Delivery
       operationId: getTemporary
       summary: Open a temporary link
-      description: Serves the file through a temporary link, without a token. After expiry, revocation or the download
-        limit — `404`. Open or download is set when issuing, by `disposition`.
+      description: 'Serves the file through a temporary link, without a token. After expiry, revocation or the download
+        limit — `404`. It downloads when issued with `disposition: 1` or when the type may not be shown in a browser
+        (the same rules as `/o`). A link with `maxDownloads` does not support `Range`: the file is served whole,
+        `200`.'
       security: []
       parameters:
       - name: token
@@ -1956,7 +2011,8 @@ paths:
       - name: Range
         in: header
         required: false
-        description: A byte range, e.g. `bytes=0-1023` — answers `206`.
+        description: A byte range, e.g. `bytes=0-1023` — answers `206`; outside the file — `416`. Ignored on a temporary
+          link with a download limit.
         schema:
           type: string
       - name: If-None-Match
@@ -1992,6 +2048,8 @@ paths:
               example:
                 code: 404
                 message: Link is invalid or has expired
+        '416':
+          description: The `Range` is outside the file.
 components:
   securitySchemes:
     token:
@@ -2138,12 +2196,14 @@ components:
           description: Whether it opens without a token at `publicUrl`.
         deduplicated:
           type: boolean
-          description: '`true` — this content was already in the bucket, no space was spent.'
+          description: 'Only in an upload response: `true` — this content was already in the bucket, no space was
+            spent. Always `false` in other responses.'
         processed:
           oneOf:
           - $ref: '#/components/schemas/ProcessedImage'
           - type: 'null'
-          description: What image processing did; `null` when it was not asked for.
+          description: 'Only in an upload response — what image processing did; without options it is `{ "applied":
+            false, "reason": "no options" }`. Always `null` in other responses (and on `sha256` deduplication).'
         expiresAt:
           type:
           - string
@@ -2241,7 +2301,8 @@ components:
           description: Recommended chunk size, bytes (8 MiB). `0` — nothing needs to be sent.
         expiresAt:
           type: string
-          description: When the upload is deleted unless completed (after 24 hours). An empty string on deduplication.
+          description: 'When the upload expires: 24 hours after the last accepted chunk. The sweeper deletes an
+            expired one within an hour. An empty string on deduplication.'
         file:
           oneOf:
           - $ref: '#/components/schemas/File'
@@ -2321,7 +2382,7 @@ components:
           description: Download limit; `null` — none.
         downloads:
           type: integer
-          description: How many times downloaded.
+          description: How many times downloaded — counted only with `maxDownloads`; otherwise always `0`.
         revoked:
           type: boolean
           description: Whether revoked.
@@ -2330,7 +2391,7 @@ components:
           description: 'Open or download: `{ "id": 1, "name": "ATTACHMENT" }`.'
         note:
           type: string
-          description: Note.
+          description: Note; always empty for a signed link.
       required:
       - id
       - url
@@ -2360,7 +2421,7 @@ components:
       - 5
       - 6
       description: |
-        How long the files of the folder live, counted from upload.
+        How long the files of the folder live: from the upload, or from the move for a file moved in.
 
         - `0` — NONE — forever
         - `1` — DAY — a day
@@ -2401,7 +2462,7 @@ components:
       description: |
         Open the file in the browser or download it.
 
-        - `0` — INLINE — open in the browser
+        - `0` — INLINE — open in the browser if the type allows it (as on `/o`)
         - `1` — ATTACHMENT — download
       x-enum-varnames:
       - INLINE

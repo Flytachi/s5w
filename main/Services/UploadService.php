@@ -270,7 +270,8 @@ final class UploadService
                 $baseUrl,
             );
         } catch (\Throwable $e) {
-            // Содержимое уже не восстановить: staging либо уехал, либо испорчен.
+            // Любая ошибка финала снимает сессию — даже если staging цел (квота, пропавшая
+            // папка, ошибка обработки картинки): клиент загружает заново.
             $this->discard($upload);
             throw $e;
         } finally {
@@ -288,7 +289,7 @@ final class UploadService
         $this->discard($this->require($bucketId, $uploadId));
     }
 
-    /** @return int число снятых сессий */
+    /** Сводка по сессиям для панели: всего, байт в staging, просрочено. */
     public function counts(): UploadCounts
     {
         return $this->repo
@@ -352,8 +353,8 @@ final class UploadService
     }
 
     /**
-     * Файлы в staging, за которыми не стоит ни одной сессии: остатки падений между
-     * вставкой строки и созданием файла или наоборот.
+     * Файлы в staging, за которыми не стоит ни одной сессии: строку уже удалили, а файл
+     * снять не успели (падение между удалением строки и uploadDelete).
      *
      * @return int число снятых файлов
      */

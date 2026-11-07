@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "c02844be-6eff-56c4-92be-ea055fa97486",
     "name": "S5W — client API",
-    "description": "# S5W — client API\n\nEverything an application needs from S5W: put a file in, get a link to it, deliver it.\nFull documentation: https://winterframe.net/en/apps/s5w/overview\n\n## Getting started — 3 steps\n\n1. **Import** this file into Postman — it holds everything needed.\n2. **Fill in two variables** of the collection: open the collection → **Variables** tab:\n\n| Variable | What it is | Example |\n|---|---|---|\n| `baseUrl` | the API address, scheme included, no trailing `/` | `https://s5.example.com` |\n| `token` | a bucket token from the admin panel, \"full access\" level | `s5w_9f3c…` |\n\n3. **Send \"0. Check the token\".** A `200` means everything is set.\n\n> **Put the token into \"Current value\"** and leave \"Initial value\" empty. The current value stays\n> on your machine and never gets exported — the collection can be shared safely.\n\n## How requests work\n\nEverything an application needs from S5W: put a file in, get a link to it, deliver it.\n\n**The bucket is decided by the token.** It is not part of any API address: a token is issued\nfor one bucket and works only there.\n\n**Token levels:** `BASIC` (\"delivery only\" in the panel) — `GET /v1/check` and downloads from\n`/p/{id}`; `FULL` (\"full access\") — everything.\n\n**Formats.** Lists answer `{ \"meta\": {…}, \"data\": [ … ] }`. Errors answer `{ \"code\", \"message\" }`,\nplus per-field `errors` when validation failed. Enumerations are sent as numbers in requests\n(`\"retention\": 3`), except the string `format`; responses carry them as an object\n`{ \"id\": 3, \"name\": \"MONTH\" }`. Deleting answers `204` with an empty body.\n\n**Time** is RFC 3339 (ISO 8601) with a time zone: `2026-11-08T17:10:44+00:00`. The same in\nevery response; standard libraries parse it as is.\n\n## Status codes\n\n| Code | When |\n|---|---|\n| `200` / `201` | success / created |\n| `204` | deleted, no body |\n| `400` | no file sent; an empty or too small upload chunk |\n| `401` | no token, or the token is unknown |\n| `403` | the token is disabled, expired, or its level is too low |\n| `404` | no such file, upload, link, or folder (on `/v1/folders/{name}`) |\n| `409` | conflict: the name is taken, the chunk offset does not match, the upload is not finished |\n| `413` | over the quota, a body over 32 MiB, a chunk over 16 MiB |\n| `422` | validation failed, the given folder does not exist, the hash does not match, the image cannot be processed |\n| `507` | the server is running out of disk space |\n\n## Running it all\n\nPress **Run** on the collection — the requests go top to bottom. Each one stores what the next\nneeds, and **\"8. Cleanup\"** deletes everything created — the run can be repeated. Only two requests\nof section 2 need a file from disk — pick it in the **Body** tab; without it only they fail.\n\nThe same API as an OpenAPI spec is `openapi.yaml` next to this file.",
+    "description": "# S5W — client API\n\nEverything an application needs from S5W: put a file in, get a link to it, deliver it.\nFull documentation: https://winterframe.net/en/apps/s5w/overview\n\n## Getting started — 3 steps\n\n1. **Import** this file into Postman — it holds everything needed.\n2. **Fill in two variables** of the collection: open the collection → **Variables** tab:\n\n| Variable | What it is | Example |\n|---|---|---|\n| `baseUrl` | the API address, scheme included, no trailing `/` | `https://s5.example.com` |\n| `token` | a bucket token from the admin panel, \"full access\" level | `s5w_9f3c…` |\n\n3. **Send \"0. Check the token\".** A `200` means everything is set.\n\n> **Put the token into \"Current value\"** and leave \"Initial value\" empty. The current value stays\n> on your machine and never gets exported — the collection can be shared safely.\n\n## How requests work\n\nEverything an application needs from S5W: put a file in, get a link to it, deliver it.\n\n**The bucket is decided by the token.** It is not part of any API address: a token is issued\nfor one bucket and works only there.\n\n**Token levels:** `BASIC` (\"delivery only\" in the panel) — `GET /v1/check` and downloads from\n`/p/{id}`; `FULL` (\"full access\") — everything.\n\n**Formats.** Lists answer `{ \"meta\": {…}, \"data\": [ … ] }` — except `GET /v1/files/{id}/links`,\nwhich answers an array. Errors answer `{ \"code\", \"message\" }`, plus per-field `errors` when\nvalidation failed; the exception is a body over 32 MiB: the server cuts it off before the\napplication, answering `413` with no body. Enumerations are sent as numbers in requests\n(`\"retention\": 3`), except the string `format`; responses carry them as an object\n`{ \"id\": 3, \"name\": \"MONTH\" }`. Deleting answers `204` with an empty body — except\n`DELETE /v1/links`: `200` and `{ \"epoch\" }`.\n\n**Time** is RFC 3339 (ISO 8601) with a time zone: `2026-11-08T17:10:44+00:00`. The same in\nevery response; standard libraries parse it as is.\n\n## Status codes\n\n| Code | When |\n|---|---|\n| `200` / `201` | success / created |\n| `204` | deleted, no body |\n| `400` | no file sent; an empty or too small upload chunk |\n| `401` | no token, or the token is unknown |\n| `403` | the token is disabled, expired, or its level is too low |\n| `404` | no such file, upload, link, or folder (on `/v1/folders/{name}`) |\n| `409` | conflict: the name is taken, the chunk offset does not match, the upload is not finished, the bucket is not active |\n| `413` | over the quota, a body over 32 MiB (no response body), a chunk over 16 MiB |\n| `416` | a `Range` outside the file |\n| `422` | validation failed, the given folder does not exist, the hash does not match, the image cannot be processed |\n| `501` | the server has no image processing or no encoder for the requested format |\n| `507` | the server is running out of disk space |\n\n## Running it all\n\nPress **Run** on the collection — the requests go top to bottom. Each one stores what the next\nneeds, and **\"8. Cleanup\"** deletes everything created — the run can be repeated. Only two requests\nof section 2 need a file from disk — pick it in the **Body** tab; without it only they fail.\n\nThe same API as an OpenAPI spec is `openapi.yaml` next to this file.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -63,7 +63,7 @@
               "value": "176"
             }
           ],
-          "body": "{\n  \"bucket\": {\n    \"id\": \"26cf7ca6-fa2b-410a-887f-1ed75396531d\",\n    \"name\": \"postman\"\n  },\n  \"access\": {\n    \"id\": 2,\n    \"name\": \"FULL\"\n  },\n  \"expiresAt\": null,\n  \"bytes\": {\n    \"quota\": 104857600,\n    \"used\": 0,\n    \"free\": 104857600\n  }\n}"
+          "body": "{\n  \"bucket\": {\n    \"id\": \"2faa480a-4f40-4131-b2ce-5cd6ced969a8\",\n    \"name\": \"postman\"\n  },\n  \"access\": {\n    \"id\": 2,\n    \"name\": \"FULL\"\n  },\n  \"expiresAt\": null,\n  \"bytes\": {\n    \"quota\": 104857600,\n    \"used\": 0,\n    \"free\": 104857600\n  }\n}"
         },
         {
           "name": "401 — no token",
@@ -159,7 +159,7 @@
                 "folders"
               ]
             },
-            "description": "Creates a folder in the bucket. Folders do not nest.\n\nRetention counts from the upload of each file; expired files are deleted by themselves, every\n5 minutes.\n\n> Here the name is generated (`demo-…`) so the run can be repeated.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | Letters, digits, space, `.`, `_`, `-`; starts with a letter or a digit. |\n| `public` | boolean |  | `true` — files of the folder open at `/o/…` without a token. |\n| `retention` | `0` · `1` · `2` · `3` · `4` · `5` · `6` |  | Retention of the files. (`0` forever, `1` a day, `2` a week, `3` a month, `4` a quarter, `5` half a year, `6` a year) |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The folder is created. |\n| `401` | No token, or the token is unknown. |\n| `409` | Such a folder already exists. |\n| `422` | The name does not fit. |",
+            "description": "Creates a folder in the bucket. Folders do not nest.\n\nRetention counts from the upload of each file (from the move, for a file moved in); expired files\nare deleted by themselves, every 5 minutes.\n\n> Here the name is generated (`demo-…`) so the run can be repeated.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | Letters, digits, space, `.`, `_`, `-`; starts with a letter or a digit. |\n| `public` | boolean |  | `true` — files of the folder open at `/o/…` without a token. |\n| `retention` | `0` · `1` · `2` · `3` · `4` · `5` · `6` |  | Retention of the files. (`0` forever, `1` a day, `2` a week, `3` a month, `4` a quarter, `5` half a year, `6` a year) |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The folder is created. |\n| `401` | No token, or the token is unknown. |\n| `409` | Such a folder already exists, or the bucket is not active. |\n| `422` | The name does not fit. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"{{folderName}}\",\n  \"public\": false,\n  \"retention\": 3\n}",
@@ -214,7 +214,7 @@
                   "value": "202"
                 }
               ],
-              "body": "{\n  \"name\": \"demo-1794086473351\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 3,\n    \"name\": \"MONTH\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
+              "body": "{\n  \"name\": \"demo-1794090657532\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 3,\n    \"name\": \"MONTH\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n  \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n}"
             },
             {
               "name": "409 — folder already exists",
@@ -388,7 +388,7 @@
                   "value": "292"
                 }
               ],
-              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"name\": \"demo-1794086473351\",\n      \"public\": false,\n      \"retention\": {\n        \"id\": 3,\n        \"name\": \"MONTH\"\n      },\n      \"cache\": {\n        \"maxAge\": null,\n        \"visibility\": null\n      },\n      \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n    }\n  ]\n}"
+              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"name\": \"demo-1794090657532\",\n      \"public\": false,\n      \"retention\": {\n        \"id\": 3,\n        \"name\": \"MONTH\"\n      },\n      \"cache\": {\n        \"maxAge\": null,\n        \"visibility\": null\n      },\n      \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n      \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n    }\n  ]\n}"
             }
           ],
           "event": [
@@ -452,7 +452,7 @@
                   "value": "202"
                 }
               ],
-              "body": "{\n  \"name\": \"demo-1794086473351\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 3,\n    \"name\": \"MONTH\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
+              "body": "{\n  \"name\": \"demo-1794090657532\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 3,\n    \"name\": \"MONTH\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n  \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n}"
             },
             {
               "name": "404 — no such folder",
@@ -572,7 +572,7 @@
                   "value": "201"
                 }
               ],
-              "body": "{\n  \"name\": \"demo-1794086473351\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 2,\n    \"name\": \"WEEK\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
+              "body": "{\n  \"name\": \"demo-1794090657532\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 2,\n    \"name\": \"WEEK\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n  \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n}"
             }
           ],
           "event": [
@@ -609,7 +609,7 @@
                 "cache"
               ]
             },
-            "description": "Sets the `Cache-Control` header for the files of the folder — instead of the bucket policy.\n`null` in a field — inherit from the bucket.\n\nFor private files and the `/p`, `/t` channels the visibility is never above `PRIVATE`, and\n`max-age` never longer than what is left of the file or the link.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `name` | path | yes | Folder name. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `maxAge` | integer | null |  | Seconds to cache. |\n| `visibility` | `1` · `2` · `3` |  | Who caches. (`1` shared cache: browser and CDN, `2` browser only, `3` do not cache) |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The folder with the new `cache`. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such folder. |",
+            "description": "Sets the `Cache-Control` header for the files of the folder — instead of the bucket policy. This is\na full replacement: both fields are set anew, and an omitted field becomes `null` too — inherit\nfrom the bucket.\n\nFor private files and the `/p`, `/t` channels the visibility is never above `PRIVATE`, and\n`max-age` never longer than what is left of the file or the link.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `name` | path | yes | Folder name. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `maxAge` | integer or null |  | Seconds to cache. |\n| `visibility` | `1` · `2` · `3` |  | Who caches. (`1` shared cache: browser and CDN, `2` browser only, `3` do not cache) |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The folder with the new `cache`. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such folder. |\n| `422` | Validation failed. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"maxAge\": 604800,\n  \"visibility\": 1\n}",
@@ -666,7 +666,7 @@
                   "value": "223"
                 }
               ],
-              "body": "{\n  \"name\": \"demo-1794086473351\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 2,\n    \"name\": \"WEEK\"\n  },\n  \"cache\": {\n    \"maxAge\": 604800,\n    \"visibility\": {\n      \"id\": 1,\n      \"name\": \"SHARED\"\n    }\n  },\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
+              "body": "{\n  \"name\": \"demo-1794090657532\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 2,\n    \"name\": \"WEEK\"\n  },\n  \"cache\": {\n    \"maxAge\": 604800,\n    \"visibility\": {\n      \"id\": 1,\n      \"name\": \"SHARED\"\n    }\n  },\n  \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n  \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n}"
             }
           ],
           "event": [
@@ -702,7 +702,7 @@
                 "files"
               ]
             },
-            "description": "Uploads a file in one `multipart/form-data` request and returns its addresses at once. The\nlimit is **32 MiB** for the whole request; larger files go through the chunked upload.\n\n**The name** is unique within the folder: when taken, a number is added — `photo (1).png`. `/`,\n`\\` and control characters are replaced with `-`.\n\n**Deduplication.** When the bucket already holds this content, no disk space and no quota are\nspent, and the answer says `deduplicated: true`.\n\n**Image processing.** With `format`, `maxWidth`, `maxHeight`, `quality` the image is shrunk,\nrotated by EXIF and re-encoded before it is stored; the result is what is kept. Images are only\nshrunk, animation is left alone. Changing the format changes the extension too:\n`photo.png` → `photo.webp`.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `file` | file | yes | The file itself. |\n| `folder` | string |  | Folder name. Without it — the bucket root, and the file is public. |\n| `name` | string |  | File name. Without it — the name of the uploaded file. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Output format; `ORIGINAL` — keep. |\n| `maxWidth` | integer |  | Shrink to this width, keeping proportions. |\n| `maxHeight` | integer |  | Shrink to this height, keeping proportions. |\n| `quality` | integer |  | Quality; without it — by format: AVIF 55, PNG 60, WEBP and JPEG 82. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The file is uploaded. |\n| `400` | No file was sent. |\n| `401` | No token, or the token is unknown. |\n| `403` | The token is disabled, expired, or its level is too low. |\n| `413` | Over the bucket quota, or the request is over 32 MiB. |\n| `422` | The given folder does not exist, validation failed, or the image cannot be processed. |",
+            "description": "Uploads a file in one `multipart/form-data` request and returns its addresses at once. The\nlimit is **32 MiB** for the whole request; larger files go through the chunked upload.\n\n**The name** is unique within the folder: when taken, a number is added — `photo (1).png`. `/`,\n`\\` and control characters are replaced with `-`.\n\n**Deduplication.** When the bucket already holds this content, no disk space and no quota are\nspent, and the answer says `deduplicated: true`.\n\n**Image processing.** With `format`, `maxWidth`, `maxHeight`, `quality` the image is shrunk,\nrotated by EXIF and re-encoded before it is stored; the result is what is kept. Images are only\nshrunk, animation is left alone. Changing the format changes the extension too:\n`photo.png` → `photo.webp`.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `file` | file | yes | The file itself. |\n| `folder` | string |  | Folder name. Without it — the bucket root, and the file is public. |\n| `name` | string |  | File name. Without it — the name of the uploaded file. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Output format; `ORIGINAL` — keep. |\n| `maxWidth` | integer |  | Shrink to this width, keeping proportions. |\n| `maxHeight` | integer |  | Shrink to this height, keeping proportions. |\n| `quality` | integer |  | Quality; without it — by format: AVIF 55, PNG 60, WEBP and JPEG 82. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The file is uploaded. |\n| `400` | No file was sent. |\n| `401` | No token, or the token is unknown. |\n| `403` | The token is disabled, expired, or its level is too low. |\n| `413` | Over the bucket quota. A request over 32 MiB gets 413 too, but with no body: the server cuts it off. |\n| `501` | No image processing, or no encoder for the requested format. |\n| `422` | The given folder does not exist, validation failed, or the image cannot be processed. |",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -784,7 +784,7 @@
                   "value": "525"
                 }
               ],
-              "body": "{\n  \"id\": \"jxQhMDwKDDSOyGT9\",\n  \"name\": \"photo.png\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 4654,\n    \"mime\": \"image/png\",\n    \"extension\": \"png\",\n    \"hash\": \"ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": false,\n    \"reason\": \"no options\"\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/jxQhMDwKDDSOyGT9\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/jxQhMDwKDDSOyGT9\",\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
+              "body": "{\n  \"id\": \"60I4PpbPsXVagANk\",\n  \"name\": \"photo.png\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 4654,\n    \"mime\": \"image/png\",\n    \"extension\": \"png\",\n    \"hash\": \"ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": false,\n    \"reason\": \"no options\"\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/60I4PpbPsXVagANk\",\n  \"publicUrl\": \"https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/60I4PpbPsXVagANk\",\n  \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n  \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n}"
             },
             {
               "name": "400 — no file picked",
@@ -919,7 +919,7 @@
                 "files"
               ]
             },
-            "description": "Uploads a file in one `multipart/form-data` request and returns its addresses at once. The\nlimit is **32 MiB** for the whole request; larger files go through the chunked upload.\n\n**The name** is unique within the folder: when taken, a number is added — `photo (1).png`. `/`,\n`\\` and control characters are replaced with `-`.\n\n**Deduplication.** When the bucket already holds this content, no disk space and no quota are\nspent, and the answer says `deduplicated: true`.\n\n**Image processing.** With `format`, `maxWidth`, `maxHeight`, `quality` the image is shrunk,\nrotated by EXIF and re-encoded before it is stored; the result is what is kept. Images are only\nshrunk, animation is left alone. Changing the format changes the extension too:\n`photo.png` → `photo.webp`.\n\nHere the image is re-encoded to `webp` and shrunk to 800 px wide. `processed` in the answer shows what was done.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `file` | file | yes | The file itself. |\n| `folder` | string |  | Folder name. Without it — the bucket root, and the file is public. |\n| `name` | string |  | File name. Without it — the name of the uploaded file. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Output format; `ORIGINAL` — keep. |\n| `maxWidth` | integer |  | Shrink to this width, keeping proportions. |\n| `maxHeight` | integer |  | Shrink to this height, keeping proportions. |\n| `quality` | integer |  | Quality; without it — by format: AVIF 55, PNG 60, WEBP and JPEG 82. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The file is uploaded. |\n| `400` | No file was sent. |\n| `401` | No token, or the token is unknown. |\n| `403` | The token is disabled, expired, or its level is too low. |\n| `413` | Over the bucket quota, or the request is over 32 MiB. |\n| `422` | The given folder does not exist, validation failed, or the image cannot be processed. |",
+            "description": "Uploads a file in one `multipart/form-data` request and returns its addresses at once. The\nlimit is **32 MiB** for the whole request; larger files go through the chunked upload.\n\n**The name** is unique within the folder: when taken, a number is added — `photo (1).png`. `/`,\n`\\` and control characters are replaced with `-`.\n\n**Deduplication.** When the bucket already holds this content, no disk space and no quota are\nspent, and the answer says `deduplicated: true`.\n\n**Image processing.** With `format`, `maxWidth`, `maxHeight`, `quality` the image is shrunk,\nrotated by EXIF and re-encoded before it is stored; the result is what is kept. Images are only\nshrunk, animation is left alone. Changing the format changes the extension too:\n`photo.png` → `photo.webp`.\n\nHere the image is re-encoded to `webp` and shrunk to 800 px wide. `processed` in the answer shows what was done.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `file` | file | yes | The file itself. |\n| `folder` | string |  | Folder name. Without it — the bucket root, and the file is public. |\n| `name` | string |  | File name. Without it — the name of the uploaded file. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Output format; `ORIGINAL` — keep. |\n| `maxWidth` | integer |  | Shrink to this width, keeping proportions. |\n| `maxHeight` | integer |  | Shrink to this height, keeping proportions. |\n| `quality` | integer |  | Quality; without it — by format: AVIF 55, PNG 60, WEBP and JPEG 82. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The file is uploaded. |\n| `400` | No file was sent. |\n| `401` | No token, or the token is unknown. |\n| `403` | The token is disabled, expired, or its level is too low. |\n| `413` | Over the bucket quota. A request over 32 MiB gets 413 too, but with no body: the server cuts it off. |\n| `501` | No image processing, or no encoder for the requested format. |\n| `422` | The given folder does not exist, validation failed, or the image cannot be processed. |",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -1011,7 +1011,7 @@
                   "value": "690"
                 }
               ],
-              "body": "{\n  \"id\": \"sTWn2gk6AbcCeRrF\",\n  \"name\": \"photo.webp\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 2250,\n    \"mime\": \"image/webp\",\n    \"extension\": \"webp\",\n    \"hash\": \"250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": true,\n    \"operations\": [\n      \"resize:800x533\",\n      \"encode:webp@82\"\n    ],\n    \"source\": {\n      \"width\": 1200,\n      \"height\": 800,\n      \"size\": 4654,\n      \"mime\": \"image/png\"\n    },\n    \"result\": {\n      \"width\": 800,\n      \"height\": 533,\n      \"size\": 2250,\n      \"mime\": \"image/webp\"\n    }\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/sTWn2gk6AbcCeRrF\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/sTWn2gk6AbcCeRrF\",\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
+              "body": "{\n  \"id\": \"0FwMWr8RLbjRUCfD\",\n  \"name\": \"photo.webp\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 2250,\n    \"mime\": \"image/webp\",\n    \"extension\": \"webp\",\n    \"hash\": \"250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": true,\n    \"operations\": [\n      \"resize:800x533\",\n      \"encode:webp@82\"\n    ],\n    \"source\": {\n      \"width\": 1200,\n      \"height\": 800,\n      \"size\": 4654,\n      \"mime\": \"image/png\"\n    },\n    \"result\": {\n      \"width\": 800,\n      \"height\": 533,\n      \"size\": 2250,\n      \"mime\": \"image/webp\"\n    }\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/0FwMWr8RLbjRUCfD\",\n  \"publicUrl\": \"https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/0FwMWr8RLbjRUCfD\",\n  \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n  \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n}"
             },
             {
               "name": "422 — image options on a non-image",
@@ -1110,7 +1110,7 @@
                 "uploads"
               ]
             },
-            "description": "Opens an upload: the server checks the quota and the free disk space up front and returns the\nupload `id` and the recommended chunk size `chunkSize`. The upload waits 24 hours to be continued.\n\n**Deduplication by `sha256`.** When the bucket already holds this content, the file is created at\nonce: the answer has `chunkSize: 0` and a ready `file` with `deduplicated: true` — no chunks and\nno completion are needed. With image options the hash lookup is skipped: the hash is of the\nsource, while the processed result is what gets stored.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | Name of the future file. |\n| `size` | integer | yes | File size, bytes. |\n| `sha256` | string |  | Content hash, 64 hex characters: integrity check on completion and deduplication. |\n| `folder` | string |  | Folder name. Checked at once: `422` when it does not exist. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Output format; `ORIGINAL` — keep. |\n| `maxWidth` | integer |  | Shrink to this width, keeping proportions. |\n| `maxHeight` | integer |  | Shrink to this height, keeping proportions. |\n| `quality` | integer |  | Quality; without it — by format: AVIF 55, PNG 60, WEBP and JPEG 82. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The upload is open — or the file was created at once by `sha256`. |\n| `401` | No token, or the token is unknown. |\n| `413` | Over the bucket quota. |\n| `422` | The given folder does not exist, or validation failed. |\n| `507` | Less than 512 MiB would be left on the server disk. |",
+            "description": "Opens an upload: the server checks the quota and the free disk space up front and returns the\nupload `id` and the recommended chunk size `chunkSize`. The upload waits 24 hours after the last\naccepted chunk; every chunk extends the term.\n\n**Deduplication by `sha256`.** When the bucket already holds this content, the file is created at\nonce: the answer has `chunkSize: 0` and a ready `file` with `deduplicated: true` — no chunks and\nno completion are needed. With image options the hash lookup is skipped: the hash is of the\nsource, while the processed result is what gets stored.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | Name of the future file. |\n| `size` | integer | yes | File size, bytes. |\n| `sha256` | string |  | Content hash, 64 hex characters: integrity check on completion and deduplication. |\n| `folder` | string |  | Folder name. Checked at once: `422` when it does not exist. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Output format; `ORIGINAL` — keep. |\n| `maxWidth` | integer |  | Shrink to this width, keeping proportions. |\n| `maxHeight` | integer |  | Shrink to this height, keeping proportions. |\n| `quality` | integer |  | Quality; without it — by format: AVIF 55, PNG 60, WEBP and JPEG 82. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The upload is open — or the file was created at once by `sha256`. |\n| `401` | No token, or the token is unknown. |\n| `413` | Over the bucket quota. |\n| `422` | The given folder does not exist, or validation failed. |\n| `507` | Less than 512 MiB would be left on the server disk. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"notes.txt\",\n  \"size\": {{chunkSize}},\n  \"sha256\": \"{{contentHash}}\"\n}",
@@ -1165,7 +1165,7 @@
                   "value": "157"
                 }
               ],
-              "body": "{\n  \"id\": \"001f7966-edff-431d-8ac4-2ba204ef810f\",\n  \"name\": \"notes.txt\",\n  \"size\": 66,\n  \"offset\": 0,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n  \"file\": null\n}"
+              "body": "{\n  \"id\": \"b7336f5b-8896-4e90-96e0-df39f22a115a\",\n  \"name\": \"notes.txt\",\n  \"size\": 66,\n  \"offset\": 0,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n  \"file\": null\n}"
             },
             {
               "name": "413 — over the quota",
@@ -1324,7 +1324,7 @@
                   "value": "158"
                 }
               ],
-              "body": "{\n  \"id\": \"001f7966-edff-431d-8ac4-2ba204ef810f\",\n  \"name\": \"notes.txt\",\n  \"size\": 66,\n  \"offset\": 66,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n  \"file\": null\n}"
+              "body": "{\n  \"id\": \"b7336f5b-8896-4e90-96e0-df39f22a115a\",\n  \"name\": \"notes.txt\",\n  \"size\": 66,\n  \"offset\": 66,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n  \"file\": null\n}"
             },
             {
               "name": "409 — offset mismatch",
@@ -1450,7 +1450,7 @@
                 "{{uploadId}}"
               ]
             },
-            "description": "The state of the upload: `offset` is how many bytes the server has. After a break, continue from there.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | Upload id from `POST /v1/uploads`. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The upload. |\n| `401` | No token, or the token is unknown. |\n| `404` | The upload does not exist or has expired. |"
+            "description": "The state of the upload: `offset` is how many bytes the server has. After a break, continue from there while the upload has not expired (24 hours after the last chunk).\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | Upload id from `POST /v1/uploads`. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The upload. |\n| `401` | No token, or the token is unknown. |\n| `404` | The upload does not exist or has expired. |"
           },
           "response": [
             {
@@ -1483,7 +1483,7 @@
                   "value": "158"
                 }
               ],
-              "body": "{\n  \"id\": \"001f7966-edff-431d-8ac4-2ba204ef810f\",\n  \"name\": \"notes.txt\",\n  \"size\": 66,\n  \"offset\": 66,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n  \"file\": null\n}"
+              "body": "{\n  \"id\": \"b7336f5b-8896-4e90-96e0-df39f22a115a\",\n  \"name\": \"notes.txt\",\n  \"size\": 66,\n  \"offset\": 66,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n  \"file\": null\n}"
             },
             {
               "name": "404 — no such upload",
@@ -1543,7 +1543,7 @@
                 "complete"
               ]
             },
-            "description": "Closes the upload and creates the file: checks the hash, processes the image when asked, moves the content into storage.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | Upload id from `POST /v1/uploads`. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The file is created. |\n| `401` | No token, or the token is unknown. |\n| `404` | The upload does not exist or has expired. |\n| `409` | Not everything has arrived. |\n| `422` | The content does not match `sha256`; the upload is deleted. |"
+            "description": "Closes the upload and creates the file: checks the hash, processes the image when asked, moves the\ncontent into storage.\n\n**Any completion error deletes the upload** — hash mismatch, the quota ran out, the folder was\ndeleted, the image cannot be processed: the upload starts over. The exception is `409` \"not\neverything arrived\": the upload stays and can be finished.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | Upload id from `POST /v1/uploads`. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The file is created. |\n| `401` | No token, or the token is unknown. |\n| `404` | The upload does not exist or has expired. |\n| `409` | Not everything has arrived — the upload stays; or the data on disk is shorter than declared — the upload is deleted. |\n| `413` | The bucket quota ran out by completion; the upload is deleted. |\n| `422` | The content does not match `sha256`, the folder was deleted, or the image cannot be processed; the upload is deleted. |\n| `501` | No image processing or no encoder for the format; the upload is deleted. |"
           },
           "response": [
             {
@@ -1577,7 +1577,7 @@
                   "value": "524"
                 }
               ],
-              "body": "{\n  \"id\": \"V8WUp3zASsxaieR3\",\n  \"name\": \"notes.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": false,\n    \"reason\": \"no options\"\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/V8WUp3zASsxaieR3\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3\",\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
+              "body": "{\n  \"id\": \"tT3q5_AMMrYnVEPp\",\n  \"name\": \"notes.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": false,\n    \"reason\": \"no options\"\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/tT3q5_AMMrYnVEPp\",\n  \"publicUrl\": \"https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/tT3q5_AMMrYnVEPp\",\n  \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n  \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n}"
             },
             {
               "name": "409 — not everything arrived",
@@ -1728,7 +1728,7 @@
                   "value": "585"
                 }
               ],
-              "body": "{\n  \"id\": \"\",\n  \"name\": \"notes-copy.txt\",\n  \"size\": 66,\n  \"offset\": 66,\n  \"chunkSize\": 0,\n  \"expiresAt\": \"\",\n  \"file\": {\n    \"id\": \"YO9KHmnXB6rBOZLE\",\n    \"name\": \"notes-copy.txt\",\n    \"folder\": null,\n    \"content\": {\n      \"size\": 66,\n      \"mime\": \"text/plain\",\n      \"extension\": \"txt\",\n      \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n    },\n    \"public\": true,\n    \"deduplicated\": true,\n    \"processed\": null,\n    \"expiresAt\": null,\n    \"privateUrl\": \"https://s5.example.com/p/YO9KHmnXB6rBOZLE\",\n    \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/YO9KHmnXB6rBOZLE\",\n    \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n    \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n  }\n}"
+              "body": "{\n  \"id\": \"\",\n  \"name\": \"notes-copy.txt\",\n  \"size\": 66,\n  \"offset\": 66,\n  \"chunkSize\": 0,\n  \"expiresAt\": \"\",\n  \"file\": {\n    \"id\": \"cZtMNnijaQ3Cy1OF\",\n    \"name\": \"notes-copy.txt\",\n    \"folder\": null,\n    \"content\": {\n      \"size\": 66,\n      \"mime\": \"text/plain\",\n      \"extension\": \"txt\",\n      \"hash\": \"2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a\"\n    },\n    \"public\": true,\n    \"deduplicated\": true,\n    \"processed\": null,\n    \"expiresAt\": null,\n    \"privateUrl\": \"https://s5.example.com/p/cZtMNnijaQ3Cy1OF\",\n    \"publicUrl\": \"https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/cZtMNnijaQ3Cy1OF\",\n    \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n    \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n  }\n}"
             }
           ],
           "event": [
@@ -1822,7 +1822,7 @@
                   "value": "167"
                 }
               ],
-              "body": "{\n  \"id\": \"e6385381-9365-4db1-af45-b9c791c8da24\",\n  \"name\": \"cancel-me.bin\",\n  \"size\": 10485760,\n  \"offset\": 0,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n  \"file\": null\n}"
+              "body": "{\n  \"id\": \"27ee7332-4cb4-4712-9818-598b4eb12de5\",\n  \"name\": \"cancel-me.bin\",\n  \"size\": 10485760,\n  \"offset\": 0,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n  \"file\": null\n}"
             }
           ],
           "event": [
@@ -1854,7 +1854,7 @@
                 "{{cancelUploadId}}"
               ]
             },
-            "description": "Cancels the upload and deletes what arrived at once. An abandoned upload is deleted by itself after 24 hours anyway.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | Upload id from `POST /v1/uploads`. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `204` | Cancelled, no body. |\n| `401` | No token, or the token is unknown. |\n| `404` | The upload does not exist or has expired. |"
+            "description": "Cancels the upload and deletes what arrived at once. An abandoned upload is deleted anyway: 24 hours after the last chunk, the sweeper removes it within an hour.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | Upload id from `POST /v1/uploads`. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `204` | Cancelled, no body. |\n| `401` | No token, or the token is unknown. |\n| `404` | The upload does not exist or has expired. |"
           },
           "response": [
             {
@@ -1906,7 +1906,7 @@
     },
     {
       "name": "4. Delivery",
-      "description": "How a browser, an app or a CDN gets the file: publicly (`/o`), with a token (`/p`) and through\na temporary link (`/t`). All three support `Range`, `ETag` and conditional requests.",
+      "description": "How a browser, an app or a CDN gets the file: publicly (`/o`), with a token (`/p`) and through\na temporary link (`/t`). All three support `ETag` and conditional requests; `Range` too, except a\ntemporary link with a download limit.",
       "item": [
         {
           "name": "Download a public file · /o",
@@ -1924,7 +1924,7 @@
                 "{{fileId}}"
               ]
             },
-            "description": "Serves a public file **without a token** — the address from `publicUrl`. Put it into\n`<img src>`, hand it to users and to a CDN. Works only for public files — in the bucket root or\nin a folder with `public: true`; others answer `404`.\n\nImages, video, audio, PDF and plain text open in the browser, everything else downloads; HTML\nand SVG always download. `?download=1` asks for a download in any case.\n\n**Token:** not needed\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `bucketId` | path | yes | Bucket id. |\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n| `download` | query |  | `1` — download (`Content-Disposition: attachment`) instead of opening. |\n| `Range` | header |  | A byte range, e.g. `bytes=0-1023` — answers `206`. |\n| `If-None-Match` | header |  | An `ETag` received before: when the file has not changed — `304` with no body. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file content. Headers: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | The requested byte range; `Content-Range` header. |\n| `304` | The file has not changed since that `ETag` — no body. |\n| `404` | The file is not public or does not exist. |",
+            "description": "Serves a public file **without a token** — the address from `publicUrl`. Put it into\n`<img src>`, hand it to users and to a CDN. Works only for public files — in the bucket root or\nin a folder with `public: true`; others answer `404`.\n\nImages, video, audio, PDF and plain text open in the browser, everything else downloads; HTML\nand SVG always download. `?download=1` asks for a download in any case.\n\n**Token:** not needed\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `bucketId` | path | yes | Bucket id. |\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n| `download` | query |  | `1` — download (`Content-Disposition: attachment`) instead of opening. |\n| `Range` | header |  | A byte range, e.g. `bytes=0-1023` — answers `206`; outside the file — `416`. Ignored on a temporary link with a download limit. |\n| `If-None-Match` | header |  | An `ETag` received before: when the file has not changed — `304` with no body. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file content. Headers: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | The requested byte range; `Content-Range` header. |\n| `304` | The file has not changed since that `ETag` — no body. |\n| `404` | The file is not public or does not exist. |\n| `416` | The `Range` is outside the file. |",
             "auth": {
               "type": "noauth"
             }
@@ -1956,7 +1956,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef9649-42\""
+                  "value": "\"6aefa6a1-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -2085,7 +2085,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef9649-42\""
+                  "value": "\"6aefa6a1-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -2177,7 +2177,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef9649-42\""
+                  "value": "\"6aefa6a1-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -2280,7 +2280,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef9649-42\""
+                  "value": "\"6aefa6a1-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -2334,7 +2334,7 @@
                 "{{fileId}}"
               ]
             },
-            "description": "Serves **any** file of the bucket — public or private — with a token; the address from\n`privateUrl`. A `BASIC` token is enough: such a token can ship inside a client app — it cannot\nlist files, only fetch those whose `id` it knows. The answer is cached by the browser only.\n\n**Token:** `BASIC`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n| `download` | query |  | `1` — download (`Content-Disposition: attachment`) instead of opening. |\n| `Range` | header |  | A byte range, e.g. `bytes=0-1023` — answers `206`. |\n| `If-None-Match` | header |  | An `ETag` received before: when the file has not changed — `304` with no body. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file content. Headers: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | The requested byte range; `Content-Range` header. |\n| `304` | The file has not changed since that `ETag` — no body. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |"
+            "description": "Serves **any** file of the bucket — public or private — with a token; the address from\n`privateUrl`. A `BASIC` token is enough: such a token can ship inside a client app — it cannot\nlist files, only fetch those whose `id` it knows. The answer is cached by the browser only\n(`private`), and by default with `max-age=0`: the browser asks every time, and `ETag` keeps that cheap.\n\n**Token:** `BASIC`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n| `download` | query |  | `1` — download (`Content-Disposition: attachment`) instead of opening. |\n| `Range` | header |  | A byte range, e.g. `bytes=0-1023` — answers `206`; outside the file — `416`. Ignored on a temporary link with a download limit. |\n| `If-None-Match` | header |  | An `ETag` received before: when the file has not changed — `304` with no body. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file content. Headers: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | The requested byte range; `Content-Range` header. |\n| `304` | The file has not changed since that `ETag` — no body. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `416` | The `Range` is outside the file. |"
           },
           "response": [
             {
@@ -2359,7 +2359,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef9649-42\""
+                  "value": "\"6aefa6a1-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -2463,7 +2463,7 @@
                 }
               ]
             },
-            "description": "Returns the files of the bucket page by page, with search and sorting.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `page` | query |  | Page number, from 1. |\n| `limit` | query |  | Records per page. |\n| `search` | query |  | Search by name, case-insensitive. |\n| `folder` | query |  | Folder name. An empty value (`folder=`) — the root only. Without it — all files. |\n| `sort` | query |  | Sort field. |\n| `dir` | query |  | Direction. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | A page of files. |\n| `401` | No token, or the token is unknown. |\n| `403` | The token is disabled, expired, or its level is too low. |"
+            "description": "Returns the files of the bucket page by page, with search and sorting.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `page` | query |  | Page number, from 1. |\n| `limit` | query |  | Records per page. |\n| `search` | query |  | Search by name, case-insensitive. |\n| `folder` | query |  | Folder name. An empty value (`folder=`) — the root only. Without it — all files. |\n| `sort` | query |  | Sort field. |\n| `dir` | query |  | Direction. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | A page of files. |\n| `401` | No token, or the token is unknown. |\n| `403` | The token is disabled, expired, or its level is too low. |\n| `422` | The folder from the `folder` parameter does not exist. |"
           },
           "response": [
             {
@@ -2510,10 +2510,10 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "616"
+                  "value": "613"
                 }
               ],
-              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 4,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": \"YO9KHmnXB6rBOZLE\",\n      \"name\": \"notes-copy.txt\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 66,\n        \"mime\": \"text/plain\",\n        \"extension\": \"txt\",\n        \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/YO9KHmnXB6rBOZLE\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/YO9KHmnXB6rBOZLE\",\n      \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n    },\n    {\n      \"id\": \"V8WUp3zASsxaieR3\",\n      \"name\": \"notes.txt\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 66,\n        \"mime\": \"text/plain\",\n        \"extension\": \"txt\",\n        \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/V8WUp3zASsxaieR3\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3\",\n      \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n    },\n    {\n      \"id\": \"sTWn2gk6AbcCeRrF\",\n      \"name\": \"photo.webp\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 2250,\n        \"mime\": \"image/webp\",\n        \"extension\": \"webp\",\n        \"hash\": \"250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/sTWn2gk6AbcCeRrF\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/sTWn2gk6AbcCeRrF\",\n      \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n    },\n    {\n      \"id\": \"jxQhMDwKDDSOyGT9\",\n      \"name\": \"photo.png\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 4654,\n        \"mime\": \"image/png\",\n        \"extension\": \"png\",\n        \"hash\": \"ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/jxQhMDwKDDSOyGT9\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/jxQhMDwKDDSOyGT9\",\n      \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n    }\n  ]\n}"
+              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 4,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": \"cZtMNnijaQ3Cy1OF\",\n      \"name\": \"notes-copy.txt\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 66,\n        \"mime\": \"text/plain\",\n        \"extension\": \"txt\",\n        \"hash\": \"2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/cZtMNnijaQ3Cy1OF\",\n      \"publicUrl\": \"https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/cZtMNnijaQ3Cy1OF\",\n      \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n      \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n    },\n    {\n      \"id\": \"tT3q5_AMMrYnVEPp\",\n      \"name\": \"notes.txt\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 66,\n        \"mime\": \"text/plain\",\n        \"extension\": \"txt\",\n        \"hash\": \"2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/tT3q5_AMMrYnVEPp\",\n      \"publicUrl\": \"https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/tT3q5_AMMrYnVEPp\",\n      \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n      \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n    },\n    {\n      \"id\": \"0FwMWr8RLbjRUCfD\",\n      \"name\": \"photo.webp\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 2250,\n        \"mime\": \"image/webp\",\n        \"extension\": \"webp\",\n        \"hash\": \"250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/0FwMWr8RLbjRUCfD\",\n      \"publicUrl\": \"https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/0FwMWr8RLbjRUCfD\",\n      \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n      \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n    },\n    {\n      \"id\": \"60I4PpbPsXVagANk\",\n      \"name\": \"photo.png\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 4654,\n        \"mime\": \"image/png\",\n        \"extension\": \"png\",\n        \"hash\": \"ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/60I4PpbPsXVagANk\",\n      \"publicUrl\": \"https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/60I4PpbPsXVagANk\",\n      \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n      \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n    }\n  ]\n}"
             }
           ],
           "event": [
@@ -2577,7 +2577,7 @@
                   "value": "489"
                 }
               ],
-              "body": "{\n  \"id\": \"V8WUp3zASsxaieR3\",\n  \"name\": \"notes.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/V8WUp3zASsxaieR3\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3\",\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
+              "body": "{\n  \"id\": \"tT3q5_AMMrYnVEPp\",\n  \"name\": \"notes.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/tT3q5_AMMrYnVEPp\",\n  \"publicUrl\": \"https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/tT3q5_AMMrYnVEPp\",\n  \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n  \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n}"
             },
             {
               "name": "404 — no such file",
@@ -2641,7 +2641,7 @@
                 "{{fileId}}"
               ]
             },
-            "description": "Changes the name of the file and the folder it is in. The content and the `id` stay.\n\n`folder` says **where the file will be after the request**. To only rename a file inside a\nfolder, pass that folder's name — otherwise the file moves to the root.\n\nA moved file takes the rules of its new folder — visibility and retention; retention counts from\nthe move. **Moving to the root makes the file public**: it opens at `/o/…` without a token.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | New name. `/`, `\\` and control characters become `-`; the extension is not adjusted. |\n| `folder` | string | null |  | The folder the file should end up in. Without it — the root. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file with its new `name`, `folder`, `public` and `expiresAt`. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `409` | The name is already taken in that folder. |\n| `422` | No such folder, or the name is empty once cleaned. |",
+            "description": "Changes the name of the file and the folder it is in. The content and the `id` stay.\n\n`folder` says **where the file will be after the request**. To only rename a file inside a\nfolder, pass that folder's name — otherwise the file moves to the root.\n\nA moved file takes the rules of its new folder — visibility and retention; retention counts from\nthe move. **Moving to the root makes the file public**: it opens at `/o/…` without a token.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | New name. `/`, `\\` and control characters become `-`; the extension is not adjusted. |\n| `folder` | string or null |  | The folder the file should end up in. Without it — the root. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file with its new `name`, `folder`, `public` and `expiresAt`. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `409` | The name is already taken in that folder. |\n| `422` | No such folder, or the name is empty once cleaned. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"notes-renamed.txt\"\n}",
@@ -2697,7 +2697,7 @@
                   "value": "497"
                 }
               ],
-              "body": "{\n  \"id\": \"V8WUp3zASsxaieR3\",\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/V8WUp3zASsxaieR3\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3\",\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
+              "body": "{\n  \"id\": \"tT3q5_AMMrYnVEPp\",\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/tT3q5_AMMrYnVEPp\",\n  \"publicUrl\": \"https://s5.example.com/o/2faa480a-4f40-4131-b2ce-5cd6ced969a8/tT3q5_AMMrYnVEPp\",\n  \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n  \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n}"
             },
             {
               "name": "409 — name taken",
@@ -2775,7 +2775,7 @@
                 "{{fileId}}"
               ]
             },
-            "description": "Changes the name of the file and the folder it is in. The content and the `id` stay.\n\n`folder` says **where the file will be after the request**. To only rename a file inside a\nfolder, pass that folder's name — otherwise the file moves to the root.\n\nA moved file takes the rules of its new folder — visibility and retention; retention counts from\nthe move. **Moving to the root makes the file public**: it opens at `/o/…` without a token.\n\nHere the file moves into a private folder: afterwards `publicUrl` is `null` and `/o/…` stops working.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | New name. `/`, `\\` and control characters become `-`; the extension is not adjusted. |\n| `folder` | string | null |  | The folder the file should end up in. Without it — the root. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file with its new `name`, `folder`, `public` and `expiresAt`. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `409` | The name is already taken in that folder. |\n| `422` | No such folder, or the name is empty once cleaned. |",
+            "description": "Changes the name of the file and the folder it is in. The content and the `id` stay.\n\n`folder` says **where the file will be after the request**. To only rename a file inside a\nfolder, pass that folder's name — otherwise the file moves to the root.\n\nA moved file takes the rules of its new folder — visibility and retention; retention counts from\nthe move. **Moving to the root makes the file public**: it opens at `/o/…` without a token.\n\nHere the file moves into a private folder: afterwards `publicUrl` is `null` and `/o/…` stops working.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | New name. `/`, `\\` and control characters become `-`; the extension is not adjusted. |\n| `folder` | string or null |  | The folder the file should end up in. Without it — the root. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file with its new `name`, `folder`, `public` and `expiresAt`. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `409` | The name is already taken in that folder. |\n| `422` | No such folder, or the name is empty once cleaned. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": \"{{folderName}}\"\n}",
@@ -2831,7 +2831,7 @@
                   "value": "462"
                 }
               ],
-              "body": "{\n  \"id\": \"V8WUp3zASsxaieR3\",\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": \"demo-1794086473351\",\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n  },\n  \"public\": false,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": \"2026-11-14T21:21:13+00:00\",\n  \"privateUrl\": \"https://s5.example.com/p/V8WUp3zASsxaieR3\",\n  \"publicUrl\": null,\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
+              "body": "{\n  \"id\": \"tT3q5_AMMrYnVEPp\",\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": \"demo-1794090657532\",\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"2efdc909f33e07505ad104602c9eb3db5de1b54f0562a5c524020c194930599a\"\n  },\n  \"public\": false,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": \"2026-11-14T22:30:57+00:00\",\n  \"privateUrl\": \"https://s5.example.com/p/tT3q5_AMMrYnVEPp\",\n  \"publicUrl\": null,\n  \"createdAt\": \"2026-11-07T22:30:57+00:00\",\n  \"updatedAt\": \"2026-11-07T22:30:57+00:00\"\n}"
             }
           ],
           "event": [
@@ -2877,7 +2877,7 @@
                 "link"
               ]
             },
-            "description": "Issues a signed `/t/…` link to the file. It opens without a token, but only until it expires.\n\n**Two kinds.** Without `maxDownloads` and `revocable` the link is **signed**: it is not stored,\n`id: null`, and cannot be revoked on its own — only all links of the bucket at once. With either\nfield it is **tracked**: stored, counts downloads, revocable on its own.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `ttl` | integer | yes | Lifetime, seconds: up to 30 days. |\n| `disposition` | `0` · `1` |  | Open in the browser or download. (`0` open in the browser, `1` download) |\n| `maxDownloads` | integer |  | Download limit. Makes the link tracked. |\n| `revocable` | boolean |  | Revocable on its own. Makes the link tracked. |\n| `note` | string |  | A note for yourself. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The link is issued. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `422` | Validation failed — for example, `ttl` over 30 days. |",
+            "description": "Issues a signed `/t/…` link to the file. It opens without a token, but only until it expires.\n\n**Two kinds.** Without `maxDownloads` and `revocable` the link is **signed**: it is not stored,\n`id: null`, cannot be revoked on its own — only all links of the bucket at once — and does not\nkeep a `note`. With either field it is **tracked**: stored, revocable on its own, listed. It counts\ndownloads only with `maxDownloads` — with `revocable` alone `downloads` stays `0`. A link with\n`maxDownloads` does not support `Range`: the file is served whole only.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `ttl` | integer |  | Lifetime, seconds: up to 30 days. Without the field — 3600. |\n| `disposition` | `0` · `1` |  | Open in the browser (if the type allows it) or download. (`0` open in the browser if the type allows it (as on `/o`), `1` download) |\n| `maxDownloads` | integer |  | Download limit. Makes the link tracked. |\n| `revocable` | boolean |  | Revocable on its own. Makes the link tracked. |\n| `note` | string |  | A note for yourself; kept only on a tracked link. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The link is issued. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `422` | Validation failed — for example, `ttl` over 30 days. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"ttl\": 3600,\n  \"disposition\": 0\n}",
@@ -2934,7 +2934,7 @@
                   "value": "247"
                 }
               ],
-              "body": "{\n  \"id\": null,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAALau-kWQAAAAADghF5GyLaqPHXN-PzTOBrbg\",\n  \"expiresAt\": \"2026-11-07T22:21:13+00:00\",\n  \"revocable\": false,\n  \"maxDownloads\": null,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 0,\n    \"name\": \"INLINE\"\n  },\n  \"note\": \"\"\n}"
+              "body": "{\n  \"id\": null,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAALau-0sQAAAAADGcZfqEMAcFy4RevV_H5Vlw\",\n  \"expiresAt\": \"2026-11-07T23:30:57+00:00\",\n  \"revocable\": false,\n  \"maxDownloads\": null,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 0,\n    \"name\": \"INLINE\"\n  },\n  \"note\": \"\"\n}"
             },
             {
               "name": "422 — ttl over 30 days",
@@ -3017,7 +3017,7 @@
                 "link"
               ]
             },
-            "description": "Issues a signed `/t/…` link to the file. It opens without a token, but only until it expires.\n\n**Two kinds.** Without `maxDownloads` and `revocable` the link is **signed**: it is not stored,\n`id: null`, and cannot be revoked on its own — only all links of the bucket at once. With either\nfield it is **tracked**: stored, counts downloads, revocable on its own.\n\nA tracked link for a day and 3 downloads, revocable. After the third download it answers `404`.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `ttl` | integer | yes | Lifetime, seconds: up to 30 days. |\n| `disposition` | `0` · `1` |  | Open in the browser or download. (`0` open in the browser, `1` download) |\n| `maxDownloads` | integer |  | Download limit. Makes the link tracked. |\n| `revocable` | boolean |  | Revocable on its own. Makes the link tracked. |\n| `note` | string |  | A note for yourself. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The link is issued. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `422` | Validation failed — for example, `ttl` over 30 days. |",
+            "description": "Issues a signed `/t/…` link to the file. It opens without a token, but only until it expires.\n\n**Two kinds.** Without `maxDownloads` and `revocable` the link is **signed**: it is not stored,\n`id: null`, cannot be revoked on its own — only all links of the bucket at once — and does not\nkeep a `note`. With either field it is **tracked**: stored, revocable on its own, listed. It counts\ndownloads only with `maxDownloads` — with `revocable` alone `downloads` stays `0`. A link with\n`maxDownloads` does not support `Range`: the file is served whole only.\n\nA tracked link for a day and 3 downloads, revocable. After the third download it answers `404`.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `ttl` | integer |  | Lifetime, seconds: up to 30 days. Without the field — 3600. |\n| `disposition` | `0` · `1` |  | Open in the browser (if the type allows it) or download. (`0` open in the browser if the type allows it (as on `/o`), `1` download) |\n| `maxDownloads` | integer |  | Download limit. Makes the link tracked. |\n| `revocable` | boolean |  | Revocable on its own. Makes the link tracked. |\n| `note` | string |  | A note for yourself; kept only on a tracked link. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The link is issued. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `422` | Validation failed — for example, `ttl` over 30 days. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"ttl\": 86400,\n  \"disposition\": 1,\n  \"maxDownloads\": 3,\n  \"revocable\": true,\n  \"note\": \"for the contractor\"\n}",
@@ -3074,7 +3074,7 @@
                   "value": "272"
                 }
               ],
-              "body": "{\n  \"id\": 3,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavDnyQMAAAADAAAAAAAAAAOjKJibeSXM8HGQ2QCt3jts\",\n  \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n  \"revocable\": true,\n  \"maxDownloads\": 3,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 1,\n    \"name\": \"ATTACHMENT\"\n  },\n  \"note\": \"for the contractor\"\n}"
+              "body": "{\n  \"id\": 3,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr\",\n  \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n  \"revocable\": true,\n  \"maxDownloads\": 3,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 1,\n    \"name\": \"ATTACHMENT\"\n  },\n  \"note\": \"for the contractor\"\n}"
             }
           ],
           "event": [
@@ -3101,7 +3101,7 @@
                 "{{linkUrl}}"
               ]
             },
-            "description": "Serves the file through a temporary link, without a token. After expiry, revocation or the download limit — `404`. Open or download is set when issuing, by `disposition`.\n\n**Token:** not needed\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `token` | path | yes | The signed part of the link after `/t/`. |\n| `Range` | header |  | A byte range, e.g. `bytes=0-1023` — answers `206`. |\n| `If-None-Match` | header |  | An `ETag` received before: when the file has not changed — `304` with no body. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file content. Headers: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | The requested byte range; `Content-Range` header. |\n| `304` | The file has not changed since that `ETag` — no body. |\n| `404` | The link expired, was revoked or is used up. |",
+            "description": "Serves the file through a temporary link, without a token. After expiry, revocation or the download limit — `404`. It downloads when issued with `disposition: 1` or when the type may not be shown in a browser (the same rules as `/o`). A link with `maxDownloads` does not support `Range`: the file is served whole, `200`.\n\n**Token:** not needed\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `token` | path | yes | The signed part of the link after `/t/`. |\n| `Range` | header |  | A byte range, e.g. `bytes=0-1023` — answers `206`; outside the file — `416`. Ignored on a temporary link with a download limit. |\n| `If-None-Match` | header |  | An `ETag` received before: when the file has not changed — `304` with no body. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file content. Headers: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | The requested byte range; `Content-Range` header. |\n| `304` | The file has not changed since that `ETag` — no body. |\n| `404` | The link expired, was revoked or is used up. |\n| `416` | The `Range` is outside the file. |",
             "auth": {
               "type": "noauth"
             }
@@ -3128,7 +3128,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef9649-42\""
+                  "value": "\"6aefa6a1-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -3209,7 +3209,7 @@
                 "links"
               ]
             },
-            "description": "The last 20 tracked links of the file, newest first — with download counts, expiry and the revoked flag; expired and revoked ones too, until the nightly sweep deletes them. Signed links are not here — they are not stored anywhere.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | An array of links. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |"
+            "description": "The last 20 tracked links of the file, newest first — with download counts, expiry and the revoked flag; expired, revoked and used-up ones too: a link is kept until 7 days after its `expiresAt`. Signed links are not here — they are not stored anywhere.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | An array of links. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |"
           },
           "response": [
             {
@@ -3243,7 +3243,7 @@
                   "value": "274"
                 }
               ],
-              "body": "[\n  {\n    \"id\": 3,\n    \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavDnyQMAAAADAAAAAAAAAAOjKJibeSXM8HGQ2QCt3jts\",\n    \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n    \"revocable\": true,\n    \"maxDownloads\": 3,\n    \"downloads\": 0,\n    \"revoked\": false,\n    \"disposition\": {\n      \"id\": 1,\n      \"name\": \"ATTACHMENT\"\n    },\n    \"note\": \"for the contractor\"\n  }\n]"
+              "body": "[\n  {\n    \"id\": 3,\n    \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr\",\n    \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n    \"revocable\": true,\n    \"maxDownloads\": 3,\n    \"downloads\": 0,\n    \"revoked\": false,\n    \"disposition\": {\n      \"id\": 1,\n      \"name\": \"ATTACHMENT\"\n    },\n    \"note\": \"for the contractor\"\n  }\n]"
             }
           ],
           "event": [
@@ -3283,7 +3283,7 @@
                 }
               ]
             },
-            "description": "Tracked links of the whole bucket page by page, newest first — expired and revoked ones included until the nightly sweep deletes them.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `page` | query |  | Page number, from 1. |\n| `limit` | query |  | Records per page. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | A page of links. |\n| `401` | No token, or the token is unknown. |"
+            "description": "Tracked links of the whole bucket page by page, newest first — expired, revoked and used-up ones included: a link is kept until 7 days after its `expiresAt`.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `page` | query |  | Page number, from 1. |\n| `limit` | query |  | Records per page. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | A page of links. |\n| `401` | No token, or the token is unknown. |"
           },
           "response": [
             {
@@ -3325,7 +3325,7 @@
                   "value": "362"
                 }
               ],
-              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": 3,\n      \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavDnyQMAAAADAAAAAAAAAAOjKJibeSXM8HGQ2QCt3jts\",\n      \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n      \"revocable\": true,\n      \"maxDownloads\": 3,\n      \"downloads\": 0,\n      \"revoked\": false,\n      \"disposition\": {\n        \"id\": 1,\n        \"name\": \"ATTACHMENT\"\n      },\n      \"note\": \"for the contractor\"\n    }\n  ]\n}"
+              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": 3,\n      \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr\",\n      \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n      \"revocable\": true,\n      \"maxDownloads\": 3,\n      \"downloads\": 0,\n      \"revoked\": false,\n      \"disposition\": {\n        \"id\": 1,\n        \"name\": \"ATTACHMENT\"\n      },\n      \"note\": \"for the contractor\"\n    }\n  ]\n}"
             }
           ],
           "event": [

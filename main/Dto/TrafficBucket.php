@@ -12,9 +12,4 @@ final class TrafficBucket
     public int $ingress = 0;
     public int $deliveries = 0;
     public int $api = 0;
-
-    public function averageServed(): int
-    {
-        return $this->deliveries > 0 ? intdiv($this->egress, $this->deliveries) : 0;
-    }
 }

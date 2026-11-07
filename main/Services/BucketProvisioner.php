@@ -25,6 +25,9 @@ class BucketProvisioner
     #[Autowired]
     private LoggerInterface $log;
 
+    #[Autowired]
+    private AccessTokenLookup $tokens;
+
     #[Async]
     public function provision(string $bucketId): void
     {
@@ -49,6 +52,9 @@ class BucketProvisioner
     {
         try {
             $this->repo->delete(Qb::eq('id', $bucketId));
+            // Строк токенов больше нет (каскад), а запрос, пришедший между удалением бакета
+            // и этой строкой, мог снова положить токен в кэш — выбрасываем его ещё раз.
+            $this->tokens->forgetAll();
             $this->store->removeBucketDir($bucketId);
             $this->log->info("bucket {$bucketId} purged");
         } catch (\Throwable $e) {

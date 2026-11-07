@@ -31,7 +31,8 @@ final class SharedCounters
 
     /**
      * @param string $name Имя для журнала.
-     * @param int $rows Сколько ключей помещается. Полезных будет около 69% от этого.
+     * @param int $rows Сколько ключей заявлено. Полезных — до 65%: дальше {@see capacity()}
+     *                  считает таблицу полной.
      */
     public function __construct(
         private readonly string $name,

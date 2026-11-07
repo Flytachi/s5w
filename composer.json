@@ -1,6 +1,6 @@
 {
     "name": "project/s5w",
-    "description": "My Project s5w",
+    "description": "Project S5W",
     "type": "project",
     "autoload": {
         "psr-4": {

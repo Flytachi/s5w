@@ -27,29 +27,6 @@ enum CacheVisibility: int
         };
     }
 
-    public function label(): string
-    {
-        return match ($this) {
-            self::SHARED => 'everyone and CDN',
-            self::PRIVATE => 'client only',
-            self::NO_STORE => 'do not store',
-        };
-    }
-
-    public function labelKey(): string
-    {
-        return 'cache.visibility.' . $this->name;
-    }
-
-    public function tone(): string
-    {
-        return match ($this) {
-            self::SHARED => 'ok',
-            self::PRIVATE => 'brand',
-            self::NO_STORE => 'warn',
-        };
-    }
-
     /**
      * @return array{id: int, name: string}
      */
