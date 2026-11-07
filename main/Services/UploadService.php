@@ -76,7 +76,9 @@ final class UploadService
         // Валидируем папку сразу: узнать о её отсутствии после трёх гигабайт обидно.
         $folder = $this->files->resolveFolder($bucketId, $request->folder);
 
-        if ($request->sha256 !== null) {
+        // Хеш — от исходных байтов, а с опциями обработки хранится результат: совпадение
+        // хеша ничего не говорит о нужном варианте. Такая загрузка идёт обычным путём.
+        if ($request->sha256 !== null && !$request->toFileRequest()->wantsImageWork()) {
             $file = $this->files->adopt(
                 $bucketId,
                 strtolower($request->sha256),
