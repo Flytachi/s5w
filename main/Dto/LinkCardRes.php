@@ -6,6 +6,7 @@ namespace Main\Dto;
 
 use Main\Entities\FileEntry;
 use Main\Entities\ShareLink;
+use Main\Support\Time;
 
 final class LinkCardRes
 {
@@ -31,7 +32,7 @@ final class LinkCardRes
             link: ShareLinkRes::from($link, $url),
             file: $file === null ? null : ['slug' => $file->slug, 'name' => $file->name],
             state: self::stateOf($link),
-            createdAt: $link->created_at,
+            createdAt: (string) Time::iso($link->created_at),
         );
     }
 

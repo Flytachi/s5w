@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Main\Dto;
 
 use Main\Entities\Upload;
+use Main\Support\Time;
 
 final class UploadRes
 {
@@ -27,7 +28,7 @@ final class UploadRes
             size: $upload->size_bytes,
             offset: $upload->offset_bytes,
             chunkSize: $chunkSize,
-            expiresAt: $upload->expires_at,
+            expiresAt: (string) Time::iso($upload->expires_at),
         );
     }
 

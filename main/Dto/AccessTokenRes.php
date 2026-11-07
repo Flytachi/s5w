@@ -7,6 +7,7 @@ namespace Main\Dto;
 use Main\Entities\AccessToken;
 use Main\Enum\TokenAccess;
 use Main\Enum\TokenStatus;
+use Main\Support\Time;
 
 final class AccessTokenRes
 {
@@ -40,9 +41,9 @@ final class AccessTokenRes
             tail: $model->tail,
             status: TokenStatus::from($model->status)->toArray(),
             expired: $model->expires_at !== null && strtotime($model->expires_at) <= time(),
-            expiresAt: $model->expires_at,
-            lastUsedAt: $model->last_used_at,
-            createdAt: $model->created_at,
+            expiresAt: Time::iso($model->expires_at),
+            lastUsedAt: Time::iso($model->last_used_at),
+            createdAt: (string) Time::iso($model->created_at),
         );
     }
 }

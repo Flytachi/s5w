@@ -7,6 +7,7 @@ namespace Main\Dto;
 use Main\Entities\AccessToken;
 use Main\Entities\Bucket;
 use Main\Enum\TokenAccess;
+use Main\Support\Time;
 
 final class CheckRes
 {
@@ -28,7 +29,7 @@ final class CheckRes
         return new self(
             bucket: ['id' => $bucket->id, 'name' => $bucket->name],
             access: TokenAccess::from($token->access)->toArray(),
-            expiresAt: $token->expires_at,
+            expiresAt: Time::iso($token->expires_at),
             bytes: [
                 'quota' => $bucket->quota_bytes,
                 'used' => $bucket->used_bytes,

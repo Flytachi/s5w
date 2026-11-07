@@ -1,4 +1,4 @@
-/** A backend timestamp (`2026-10-31 18:56:28.59+00`) as a Date, or null. */
+/** A backend timestamp (RFC 3339, `2026-10-31T18:56:28+00:00`) as a Date, or null. Older forms still parse. */
 export function toDate(value: string | null | undefined): Date | null {
   if (!value) return null
   const date = new Date(value.replace(' ', 'T').replace(/([+-]\d\d)$/, '$1:00'))

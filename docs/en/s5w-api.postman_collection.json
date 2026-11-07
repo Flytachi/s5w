@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "65fa924b-fbc8-5969-9510-dbc6b2ac8172",
-    "name": "S5W — клиентский API",
-    "description": "# S5W — клиентский API\n\nВсё, что нужно приложению от S5W: положить файл, получить на него ссылку, раздать.\n\nПолная документация: **https://winterframe.net/ru/apps/s5w/api**\n\n## Как начать — 3 шага\n\n1. **Импортируйте** этот файл в Postman — всё нужное в нём, отдельное окружение не требуется.\n2. **Заполните две переменные** коллекции: откройте коллекцию → вкладка **Variables**:\n\n| Переменная | Что это | Пример |\n|---|---|---|\n| `baseUrl` | адрес API, со схемой и без `/` в конце | `https://s5.example.com` |\n| `token` | токен бакета из админ-панели, уровень «полный доступ» | `s5w_9f3c…` |\n\n3. **Отправьте «Проверить токен».** Ответ `200` — всё настроено, остальные запросы будут работать.\n\n> **Токен вписывайте в колонку «Current value»**, а «Initial value» оставьте пустым. Текущее\n> значение хранится только у вас в Postman и не попадает в экспорт — коллекцией можно делиться,\n> не раскрывая токен.\n\n## Как устроены запросы\n\n**Авторизация.** Каждый запрос `/v1` несёт токен в заголовке — коллекция подставляет его сама:\n\n```\nAuthorization: Bearer s5w_9f3c…\n```\n\n**Бакет определяется токеном.** Его нет ни в одном адресе API: токен выдан одному бакету и\nработает только в нём.\n\n**Два уровня токена:**\n\n| Уровень | В панели | Что можно |\n|---|---|---|\n| `BASIC` | «только отдача» | `GET /v1/check` и скачивание `GET /p/{id}` |\n| `FULL` | «полный доступ» | всё: файлы, загрузка, папки, ссылки |\n\nКоллекцию запускайте с токеном `FULL`.\n\n**Форматы:**\n\n- **Списки** отвечают `{ \"meta\": {…}, \"data\": [ … ] }`; в `meta` — `current`, `size`, `total`, `pages`, `previous`, `next`.\n- **Ошибки** отвечают `{ \"code\": 422, \"message\": \"…\" }`; при ошибке проверки параметров ещё `errors` — сообщения по полям.\n- **Время** — строка вида `2026-11-08 17:10:44 +00:00`.\n- **Файл** адресуется своим `id` — строкой из 16 символов.\n- **Перечисления в запросах — числами** (`\"retention\": 3`, `\"disposition\": 1`), кроме `format` (`\"WEBP\"`). В ответах — объектом `{ \"id\": 3, \"name\": \"MONTH\" }`.\n- **Удаление** отвечает `204` без тела.\n\n## Коды ответов\n\n| Код | Когда |\n|---|---|\n| `200` / `201` | успех / создано |\n| `204` | удалено, тела нет |\n| `400` | пустая или слишком маленькая часть загрузки |\n| `401` | нет токена или он неизвестен |\n| `403` | токен отключён, истёк или его уровня мало |\n| `404` | нет такого файла, папки, загрузки или ссылки |\n| `409` | конфликт: имя занято, смещение части не совпало, загрузка не закончена |\n| `413` | не хватает квоты, тело больше 32 МиБ, часть больше 16 МиБ |\n| `422` | параметры не прошли проверку, нет указанной папки, хеш не совпал, картинку нельзя обработать |\n| `507` | на сервере кончается место |\n\n## Разделы\n\n| Раздел | Что внутри |\n|---|---|\n| **0. Проверить токен** | первый запрос — проверяет настройку |\n| **1. Папки** | необязательная группировка: видимость, срок хранения, кэш |\n| **2. Загрузка одним запросом** | файлы до 32 МиБ, обработка картинок |\n| **3. Загрузка частями** | большие файлы, продолжение после обрыва, проверка по хешу |\n| **4. Скачивание** | как файл отдаётся браузеру: публично, по токену, частями |\n| **5. Файлы** | список, поиск, переименование, перенос |\n| **6. Временные ссылки** | ссылки со сроком и лимитом скачиваний |\n| **7. Примеры ошибок** | как выглядят 401, 404 и 422 |\n| **8. Уборка** | удаляет всё, что создал прогон |\n\n## Прогон целиком\n\nНажмите **Run** на коллекции — запросы выполнятся сверху вниз. Каждый сохраняет то, что нужно\nследующему (id файла, загрузки, ссылки), а раздел **«8. Уборка»** удаляет всё созданное — прогон\nможно повторять.\n\nФайл с диска нужен только двум запросам раздела 2 — выберите его во вкладке **Body**. Если не\nвыбрать, они ответят ошибкой, но остальной прогон не сломается: файл для следующих шагов\nзагружает раздел 3.",
+    "_postman_id": "c02844be-6eff-56c4-92be-ea055fa97486",
+    "name": "S5W — client API",
+    "description": "# S5W — client API\n\nEverything an application needs from S5W: put a file in, get a link to it, deliver it.\nFull documentation: https://winterframe.net/en/apps/s5w/overview\n\n## Getting started — 3 steps\n\n1. **Import** this file into Postman — it holds everything needed.\n2. **Fill in two variables** of the collection: open the collection → **Variables** tab:\n\n| Variable | What it is | Example |\n|---|---|---|\n| `baseUrl` | the API address, scheme included, no trailing `/` | `https://s5.example.com` |\n| `token` | a bucket token from the admin panel, \"full access\" level | `s5w_9f3c…` |\n\n3. **Send \"0. Check the token\".** A `200` means everything is set.\n\n> **Put the token into \"Current value\"** and leave \"Initial value\" empty. The current value stays\n> on your machine and never gets exported — the collection can be shared safely.\n\n## How requests work\n\nEverything an application needs from S5W: put a file in, get a link to it, deliver it.\n\n**The bucket is decided by the token.** It is not part of any API address: a token is issued\nfor one bucket and works only there.\n\n**Token levels:** `BASIC` (\"delivery only\" in the panel) — `GET /v1/check` and downloads from\n`/p/{id}`; `FULL` (\"full access\") — everything.\n\n**Formats.** Lists answer `{ \"meta\": {…}, \"data\": [ … ] }`. Errors answer `{ \"code\", \"message\" }`,\nplus per-field `errors` when validation failed. Enumerations are sent as numbers in requests\n(`\"retention\": 3`), except the string `format`; responses carry them as an object\n`{ \"id\": 3, \"name\": \"MONTH\" }`. Deleting answers `204` with an empty body.\n\n**Time** is RFC 3339 (ISO 8601) with a time zone: `2026-11-08T17:10:44+00:00`. The same in\nevery response; standard libraries parse it as is.\n\n## Status codes\n\n| Code | When |\n|---|---|\n| `200` / `201` | success / created |\n| `204` | deleted, no body |\n| `400` | no file sent; an empty or too small upload chunk |\n| `401` | no token, or the token is unknown |\n| `403` | the token is disabled, expired, or its level is too low |\n| `404` | no such file, upload, link, or folder (on `/v1/folders/{name}`) |\n| `409` | conflict: the name is taken, the chunk offset does not match, the upload is not finished |\n| `413` | over the quota, a body over 32 MiB, a chunk over 16 MiB |\n| `422` | validation failed, the given folder does not exist, the hash does not match, the image cannot be processed |\n| `507` | the server is running out of disk space |\n\n## Running it all\n\nPress **Run** on the collection — the requests go top to bottom. Each one stores what the next\nneeds, and **\"8. Cleanup\"** deletes everything created — the run can be repeated. Only two requests\nof section 2 need a file from disk — pick it in the **Body** tab; without it only they fail.\n\nThe same API as an OpenAPI spec is `openapi.yaml` next to this file.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -17,7 +17,7 @@
   },
   "item": [
     {
-      "name": "0. Проверить токен",
+      "name": "0. Check the token",
       "request": {
         "method": "GET",
         "header": [],
@@ -31,11 +31,11 @@
             "check"
           ]
         },
-        "description": "**Что делает.** Проверяет токен и показывает, к какому бакету он относится, какой у него уровень\nдоступа и сколько осталось места.\n\n**Когда.** Первым запросом — чтобы убедиться, что `baseUrl` и `token` указаны верно. В приложении —\nнапример, при старте, чтобы сразу увидеть отозванный токен.\n\n**Доступ.** Любой активный токен, даже `BASIC`.\n\n**Ответ `200`:**\n\n| Поле | Что это |\n|---|---|\n| `bucket.id`, `bucket.name` | бакет токена |\n| `access` | уровень: `{ \"id\": 2, \"name\": \"FULL\" }` |\n| `expiresAt` | когда истекает токен; `null` — бессрочный |\n| `bytes.quota`, `bytes.used`, `bytes.free` | квота, занято и свободно, в байтах |\n\n**Ошибки:** `401` — токена нет или он неизвестен; `403` — токен отключён или истёк."
+        "description": "Checks the token and shows which bucket it belongs to, its access level and how much space is\nleft.\n\nUse it as the first request — to make sure the address and the token are right. In an\napplication — for example at start-up, to notice a revoked token at once.\n\n**Token:** `BASIC`\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The token is accepted. |\n| `401` | No token, or the token is unknown. |\n| `403` | The token is disabled, expired, or its level is too low. |"
       },
       "response": [
         {
-          "name": "200 — успех",
+          "name": "200 — success",
           "originalRequest": {
             "method": "GET",
             "header": [],
@@ -63,10 +63,10 @@
               "value": "176"
             }
           ],
-          "body": "{\n  \"bucket\": {\n    \"id\": \"78bf3a62-c52c-49fd-9d53-d9dc2c43bd52\",\n    \"name\": \"postman\"\n  },\n  \"access\": {\n    \"id\": 2,\n    \"name\": \"FULL\"\n  },\n  \"expiresAt\": null,\n  \"bytes\": {\n    \"quota\": 104857600,\n    \"used\": 0,\n    \"free\": 104857600\n  }\n}"
+          "body": "{\n  \"bucket\": {\n    \"id\": \"26cf7ca6-fa2b-410a-887f-1ed75396531d\",\n    \"name\": \"postman\"\n  },\n  \"access\": {\n    \"id\": 2,\n    \"name\": \"FULL\"\n  },\n  \"expiresAt\": null,\n  \"bytes\": {\n    \"quota\": 104857600,\n    \"used\": 0,\n    \"free\": 104857600\n  }\n}"
         },
         {
-          "name": "401 — нет токена",
+          "name": "401 — no token",
           "originalRequest": {
             "method": "GET",
             "header": [],
@@ -93,7 +93,7 @@
           "body": "{\n  \"code\": 401,\n  \"message\": \"Access token required\"\n}"
         },
         {
-          "name": "401 — неизвестный токен",
+          "name": "401 — unknown token",
           "originalRequest": {
             "method": "GET",
             "header": [],
@@ -126,23 +126,21 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "",
-              "pm.test('токен принят', () => pm.response.to.have.status(200));",
+              "pm.test('token accepted', () => pm.response.to.have.status(200));",
               "const json = pm.response.json();",
               "pm.collectionVariables.set('bucketId', json.bucket.id);",
-              "pm.test('для прогона нужен токен FULL', () => pm.expect(json.access.name).to.eql('FULL'));",
-              ""
+              "pm.test('the run needs a FULL token', () => pm.expect(json.access.name).to.eql('FULL'));"
             ]
           }
         }
       ]
     },
     {
-      "name": "1. Папки",
-      "description": "Папки необязательны: файл может лежать прямо в корне бакета.\n\nПапка задаёт файлам общие правила — **видимость** (публичный адрес или только по токену),\n**срок хранения** (файлы удаляются сами) и **кэш**.\n\n> **Корень бакета всегда публичный.** Файл в корне открывается по `/o/…` без токена. Закрытые\n> файлы держите в папке с `public: false`.",
+      "name": "1. Folders",
+      "description": "Optional grouping of files. A folder gives its files common rules — visibility, retention\nand caching. **The bucket root is always public**: keep private files in a folder with\n`public: false`.",
       "item": [
         {
-          "name": "Создать папку",
+          "name": "Create a folder",
           "request": {
             "method": "POST",
             "header": [
@@ -161,7 +159,7 @@
                 "folders"
               ]
             },
-            "description": "**Что делает.** Создаёт папку в бакете.\n\n**Зачем.** Папки необязательны. Это способ задать группе файлов общие правила: видимость,\nсрок хранения и кэш. Вложенных папок нет.\n\n**Тело:**\n\n| Поле | Обязательно | Что это |\n|---|---|---|\n| `name` | да | до 100 символов: буквы, цифры, пробел, `.`, `_`, `-`; начинается с буквы или цифры |\n| `public` | нет, `false` | `true` — файлы папки открываются по публичному адресу `/o/…` без токена |\n| `retention` | нет, `0` | срок хранения файлов: `0` бессрочно, `1` сутки, `2` неделя, `3` месяц, `4` квартал, `5` полгода, `6` год |\n\nСрок считается от загрузки файла; истёкшие файлы удаляются сами.\n\n**Ответ `201`** — папка. **Ошибки:** `409` — такая папка уже есть; `422` — имя не подходит.\n\n> В этом примере имя генерируется само (`demo-…`), чтобы прогон можно было повторять.",
+            "description": "Creates a folder in the bucket. Folders do not nest.\n\nRetention counts from the upload of each file; expired files are deleted by themselves, every\n5 minutes.\n\n> Here the name is generated (`demo-…`) so the run can be repeated.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | Letters, digits, space, `.`, `_`, `-`; starts with a letter or a digit. |\n| `public` | boolean |  | `true` — files of the folder open at `/o/…` without a token. |\n| `retention` | `0` · `1` · `2` · `3` · `4` · `5` · `6` |  | Retention of the files. (`0` forever, `1` a day, `2` a week, `3` a month, `4` a quarter, `5` half a year, `6` a year) |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The folder is created. |\n| `401` | No token, or the token is unknown. |\n| `409` | Such a folder already exists. |\n| `422` | The name does not fit. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"{{folderName}}\",\n  \"public\": false,\n  \"retention\": 3\n}",
@@ -174,7 +172,7 @@
           },
           "response": [
             {
-              "name": "201 — успех",
+              "name": "201 — success",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -213,13 +211,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "204"
+                  "value": "202"
                 }
               ],
-              "body": "{\n  \"name\": \"demo-1794083485605\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 3,\n    \"name\": \"MONTH\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07 20:31:25 +00:00\",\n  \"updatedAt\": \"2026-11-07 20:31:25 +00:00\"\n}"
+              "body": "{\n  \"name\": \"demo-1794086473351\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 3,\n    \"name\": \"MONTH\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
             },
             {
-              "name": "409 — папка уже есть",
+              "name": "409 — folder already exists",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -260,7 +258,7 @@
               "body": "{\n  \"code\": 409,\n  \"message\": \"Folder \\\"capture-dup\\\" already exists\"\n}"
             },
             {
-              "name": "422 — неверное имя",
+              "name": "422 — invalid name",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -316,17 +314,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('папка создана', () => pm.response.to.have.status(201));",
-                  "pm.test('срок хранения — месяц', () => pm.expect(pm.response.json().retention.name).to.eql('MONTH'));",
-                  ""
+                  "pm.test('folder created', () => pm.response.to.have.status(201));",
+                  "pm.test('retention is a month', () => pm.expect(pm.response.json().retention.name).to.eql('MONTH'));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Список папок",
+          "name": "List folders",
           "request": {
             "method": "GET",
             "header": [],
@@ -350,11 +346,11 @@
                 }
               ]
             },
-            "description": "**Что делает.** Возвращает папки бакета постранично.\n\n**Параметры:** `page` — страница, с 1; `limit` — сколько на странице, до 100 (по умолчанию 25);\n`search` — поиск по имени.\n\n**Ответ `200`** — `{ \"meta\": {…}, \"data\": [ папки ] }`."
+            "description": "Returns the folders of the bucket page by page.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `page` | query |  | Page number, from 1. |\n| `limit` | query |  | Records per page. |\n| `search` | query |  | Search by name. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | A page of folders. |\n| `401` | No token, or the token is unknown. |"
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -389,10 +385,10 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "286"
+                  "value": "292"
                 }
               ],
-              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"name\": \"demo-1794083485605\",\n      \"public\": false,\n      \"retention\": {\n        \"id\": 3,\n        \"name\": \"MONTH\"\n      },\n      \"cache\": {\n        \"maxAge\": null,\n        \"visibility\": null\n      },\n      \"createdAt\": \"2026-11-07 20:31:25+00\",\n      \"updatedAt\": \"2026-11-07 20:31:25+00\"\n    }\n  ]\n}"
+              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"name\": \"demo-1794086473351\",\n      \"public\": false,\n      \"retention\": {\n        \"id\": 3,\n        \"name\": \"MONTH\"\n      },\n      \"cache\": {\n        \"maxAge\": null,\n        \"visibility\": null\n      },\n      \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n    }\n  ]\n}"
             }
           ],
           "event": [
@@ -401,14 +397,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('список получен', () => pm.response.to.have.status(200));"
+                  "pm.test('list received', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Получить папку",
+          "name": "Get a folder",
           "request": {
             "method": "GET",
             "header": [],
@@ -423,11 +419,11 @@
                 "{{folderName}}"
               ]
             },
-            "description": "**Что делает.** Возвращает одну папку по имени.\n\n**Ответ `200`** — папка. **Ошибки:** `404` — такой папки нет."
+            "description": "Returns one folder by its name.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `name` | path | yes | Folder name. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The folder. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such folder. |"
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -453,13 +449,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "196"
+                  "value": "202"
                 }
               ],
-              "body": "{\n  \"name\": \"demo-1794083485605\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 3,\n    \"name\": \"MONTH\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07 20:31:25+00\",\n  \"updatedAt\": \"2026-11-07 20:31:25+00\"\n}"
+              "body": "{\n  \"name\": \"demo-1794086473351\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 3,\n    \"name\": \"MONTH\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
             },
             {
-              "name": "404 — нет такой папки",
+              "name": "404 — no such folder",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -493,14 +489,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('папка найдена', () => pm.response.to.have.status(200));"
+                  "pm.test('folder found', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Изменить папку",
+          "name": "Update a folder",
           "request": {
             "method": "PUT",
             "header": [
@@ -520,7 +516,7 @@
                 "{{folderName}}"
               ]
             },
-            "description": "**Что делает.** Меняет имя, видимость и срок хранения папки. Тело — как при создании, все поля\nзадаются заново.\n\n**Что происходит с файлами папки:**\n\n- **видимость** меняется у всех файлов сразу: закрыли папку — их `/o/…` перестаёт работать;\n- **срок хранения** пересчитывается у всех файлов **от даты их загрузки**. Если сократить срок,\n  файлы старше нового срока удалятся при ближайшей очистке — в течение 5 минут.\n\n**Ответ `200`** — папка. **Ошибки:** `404` — папки нет; `409` — новое имя занято.",
+            "description": "Changes the name, visibility and retention. The body is the same as on creation; every field is\nset anew.\n\nThe change applies at once to the files already in the folder:\n\n- **visibility** changes for every file: close the folder and their `/o/…` stops working;\n- **retention** is recalculated for every file **from its upload date**. Shorten it and the\n  files older than the new term are deleted at the next sweep — within 5 minutes.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `name` | path | yes | Folder name. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | Letters, digits, space, `.`, `_`, `-`; starts with a letter or a digit. |\n| `public` | boolean |  | `true` — files of the folder open at `/o/…` without a token. |\n| `retention` | `0` · `1` · `2` · `3` · `4` · `5` · `6` |  | Retention of the files. (`0` forever, `1` a day, `2` a week, `3` a month, `4` a quarter, `5` half a year, `6` a year) |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The folder. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such folder. |\n| `409` | The new name is taken. |\n| `422` | Validation failed. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"{{folderName}}\",\n  \"public\": false,\n  \"retention\": 2\n}",
@@ -533,7 +529,7 @@
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "PUT",
                 "header": [
@@ -573,10 +569,10 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "199"
+                  "value": "201"
                 }
               ],
-              "body": "{\n  \"name\": \"demo-1794083485605\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 2,\n    \"name\": \"WEEK\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07 20:31:25+00\",\n  \"updatedAt\": \"2026-11-07 20:31:25 +00:00\"\n}"
+              "body": "{\n  \"name\": \"demo-1794086473351\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 2,\n    \"name\": \"WEEK\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
             }
           ],
           "event": [
@@ -585,14 +581,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('папка изменена', () => pm.response.to.have.status(200));"
+                  "pm.test('folder updated', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Задать папке политику кэша",
+          "name": "Set the folder cache policy",
           "request": {
             "method": "PATCH",
             "header": [
@@ -613,7 +609,7 @@
                 "cache"
               ]
             },
-            "description": "**Что делает.** Задаёт заголовок `Cache-Control` для файлов папки — вместо политики бакета.\n\n**Тело:**\n\n| Поле | Что это |\n|---|---|\n| `maxAge` | сколько секунд кэшировать, 0–31536000; `null` — как у бакета |\n| `visibility` | `1` — общий кэш (браузер и CDN), `2` — только браузер, `3` — не кэшировать; `null` — как у бакета |\n\nПодробно: https://winterframe.net/ru/apps/s5w/caching\n\n**Ответ `200`** — папка с новым `cache`.",
+            "description": "Sets the `Cache-Control` header for the files of the folder — instead of the bucket policy.\n`null` in a field — inherit from the bucket.\n\nFor private files and the `/p`, `/t` channels the visibility is never above `PRIVATE`, and\n`max-age` never longer than what is left of the file or the link.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `name` | path | yes | Folder name. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `maxAge` | integer | null |  | Seconds to cache. |\n| `visibility` | `1` · `2` · `3` |  | Who caches. (`1` shared cache: browser and CDN, `2` browser only, `3` do not cache) |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The folder with the new `cache`. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such folder. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"maxAge\": 604800,\n  \"visibility\": 1\n}",
@@ -626,7 +622,7 @@
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "PATCH",
                 "header": [
@@ -667,10 +663,10 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "221"
+                  "value": "223"
                 }
               ],
-              "body": "{\n  \"name\": \"demo-1794083485605\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 2,\n    \"name\": \"WEEK\"\n  },\n  \"cache\": {\n    \"maxAge\": 604800,\n    \"visibility\": {\n      \"id\": 1,\n      \"name\": \"SHARED\"\n    }\n  },\n  \"createdAt\": \"2026-11-07 20:31:25+00\",\n  \"updatedAt\": \"2026-11-07 20:31:25 +00:00\"\n}"
+              "body": "{\n  \"name\": \"demo-1794086473351\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 2,\n    \"name\": \"WEEK\"\n  },\n  \"cache\": {\n    \"maxAge\": 604800,\n    \"visibility\": {\n      \"id\": 1,\n      \"name\": \"SHARED\"\n    }\n  },\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
             }
           ],
           "event": [
@@ -679,7 +675,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('политика задана', () => pm.response.to.have.status(200));"
+                  "pm.test('policy set', () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -688,11 +684,11 @@
       ]
     },
     {
-      "name": "2. Загрузка одним запросом",
-      "description": "Для файлов до **32 МиБ**: один запрос `multipart/form-data` — и файл готов.\n\nДля файлов больше, для нестабильной сети и когда важно продолжить после обрыва — раздел\n«3. Загрузка частями».",
+      "name": "2. Single-request upload",
+      "description": "For files up to **32 MiB**: one `multipart/form-data` request and the file is ready. Pick the file\nin the **Body** tab; without it the request answers `400`, but the run goes on.",
       "item": [
         {
-          "name": "Загрузить файл",
+          "name": "Upload a file",
           "request": {
             "method": "POST",
             "header": [],
@@ -706,28 +702,28 @@
                 "files"
               ]
             },
-            "description": "**Что делает.** Загружает файл одним запросом `multipart/form-data` и сразу возвращает его\nадреса.\n\n**Предел — 32 МиБ** на весь запрос. Файлы больше — через раздел «3. Загрузка частями».\n\n**Поля формы:**\n\n| Поле | Обязательно | Что это |\n|---|---|---|\n| `file` | да | сам файл — **выберите его во вкладке Body** |\n| `folder` | нет | имя папки; без него — корень бакета (файл будет публичным) |\n| `name` | нет | имя файла; без него — имя загруженного файла |\n\n**Имя.** Уникально в пределах папки: если занято, добавляется номер — `photo (1).png`.\n`/`, `\\` и управляющие символы заменяются на `-`.\n\n**Дедупликация.** Если такое содержимое в бакете уже есть, место на диске и квота не\nрасходуются, в ответе `deduplicated: true`.\n\n**Ответ `201`:**\n\n| Поле | Что это |\n|---|---|\n| `id` | идентификатор файла, нужен во всех остальных запросах |\n| `content` | `size`, `mime`, `extension`, `hash` (SHA-256) |\n| `public` | открывается ли без токена |\n| `privateUrl` | адрес скачивания по токену — `/p/{id}` |\n| `publicUrl` | публичный адрес — `/o/{bucketId}/{id}`; `null`, если файл не публичный |\n| `expiresAt` | когда удалится по сроку папки; `null` — бессрочно |\n\n**Ошибки:** `400` — файл не передан; `413` — не хватает квоты или файл больше 32 МиБ;\n`422` — нет такой папки.",
+            "description": "Uploads a file in one `multipart/form-data` request and returns its addresses at once. The\nlimit is **32 MiB** for the whole request; larger files go through the chunked upload.\n\n**The name** is unique within the folder: when taken, a number is added — `photo (1).png`. `/`,\n`\\` and control characters are replaced with `-`.\n\n**Deduplication.** When the bucket already holds this content, no disk space and no quota are\nspent, and the answer says `deduplicated: true`.\n\n**Image processing.** With `format`, `maxWidth`, `maxHeight`, `quality` the image is shrunk,\nrotated by EXIF and re-encoded before it is stored; the result is what is kept. Images are only\nshrunk, animation is left alone. Changing the format changes the extension too:\n`photo.png` → `photo.webp`.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `file` | file | yes | The file itself. |\n| `folder` | string |  | Folder name. Without it — the bucket root, and the file is public. |\n| `name` | string |  | File name. Without it — the name of the uploaded file. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Output format; `ORIGINAL` — keep. |\n| `maxWidth` | integer |  | Shrink to this width, keeping proportions. |\n| `maxHeight` | integer |  | Shrink to this height, keeping proportions. |\n| `quality` | integer |  | Quality; without it — by format: AVIF 55, PNG 60, WEBP and JPEG 82. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The file is uploaded. |\n| `400` | No file was sent. |\n| `401` | No token, or the token is unknown. |\n| `403` | The token is disabled, expired, or its level is too low. |\n| `413` | Over the bucket quota, or the request is over 32 MiB. |\n| `422` | The given folder does not exist, validation failed, or the image cannot be processed. |",
             "body": {
               "mode": "formdata",
               "formdata": [
                 {
                   "key": "file",
                   "type": "file",
-                  "description": "Файл с диска",
+                  "description": "A file from disk — pick it here",
                   "src": []
                 },
                 {
                   "key": "name",
                   "value": "report.pdf",
                   "type": "text",
-                  "description": "Имя файла (необязательно)",
+                  "description": "File name (optional)",
                   "disabled": true
                 },
                 {
                   "key": "folder",
                   "value": "{{folderName}}",
                   "type": "text",
-                  "description": "Имя папки (необязательно)",
+                  "description": "Folder name (optional)",
                   "disabled": true
                 }
               ]
@@ -735,7 +731,7 @@
           },
           "response": [
             {
-              "name": "201 — успех",
+              "name": "201 — success",
               "originalRequest": {
                 "method": "POST",
                 "header": [],
@@ -755,21 +751,21 @@
                     {
                       "key": "file",
                       "type": "file",
-                      "description": "Файл с диска",
+                      "description": "A file from disk — pick it here",
                       "src": []
                     },
                     {
                       "key": "name",
                       "value": "report.pdf",
                       "type": "text",
-                      "description": "Имя файла (необязательно)",
+                      "description": "File name (optional)",
                       "disabled": true
                     },
                     {
                       "key": "folder",
                       "value": "{{folderName}}",
                       "type": "text",
-                      "description": "Имя папки (необязательно)",
+                      "description": "Folder name (optional)",
                       "disabled": true
                     }
                   ]
@@ -785,13 +781,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "527"
+                  "value": "525"
                 }
               ],
-              "body": "{\n  \"id\": \"vtHXMHSKcb80e2wj\",\n  \"name\": \"photo.png\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 4654,\n    \"mime\": \"image/png\",\n    \"extension\": \"png\",\n    \"hash\": \"ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": false,\n    \"reason\": \"no options\"\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/vtHXMHSKcb80e2wj\",\n  \"publicUrl\": \"https://s5.example.com/o/78bf3a62-c52c-49fd-9d53-d9dc2c43bd52/vtHXMHSKcb80e2wj\",\n  \"createdAt\": \"2026-11-07 20:31:25 +00:00\",\n  \"updatedAt\": \"2026-11-07 20:31:25 +00:00\"\n}"
+              "body": "{\n  \"id\": \"jxQhMDwKDDSOyGT9\",\n  \"name\": \"photo.png\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 4654,\n    \"mime\": \"image/png\",\n    \"extension\": \"png\",\n    \"hash\": \"ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": false,\n    \"reason\": \"no options\"\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/jxQhMDwKDDSOyGT9\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/jxQhMDwKDDSOyGT9\",\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
             },
             {
-              "name": "400 — файл не выбран",
+              "name": "400 — no file picked",
               "originalRequest": {
                 "method": "POST",
                 "header": [],
@@ -811,21 +807,21 @@
                     {
                       "key": "file",
                       "type": "file",
-                      "description": "Файл с диска",
+                      "description": "A file from disk — pick it here",
                       "src": []
                     },
                     {
                       "key": "name",
                       "value": "report.pdf",
                       "type": "text",
-                      "description": "Имя файла (необязательно)",
+                      "description": "File name (optional)",
                       "disabled": true
                     },
                     {
                       "key": "folder",
                       "value": "{{folderName}}",
                       "type": "text",
-                      "description": "Имя папки (необязательно)",
+                      "description": "Folder name (optional)",
                       "disabled": true
                     }
                   ]
@@ -843,7 +839,7 @@
               "body": "{\n  \"code\": 400,\n  \"message\": \"Uploaded file 'file' is missing\"\n}"
             },
             {
-              "name": "422 — нет такой папки",
+              "name": "422 — no such folder",
               "originalRequest": {
                 "method": "POST",
                 "header": [],
@@ -863,21 +859,21 @@
                     {
                       "key": "file",
                       "type": "file",
-                      "description": "Файл с диска",
+                      "description": "A file from disk — pick it here",
                       "src": []
                     },
                     {
                       "key": "name",
                       "value": "report.pdf",
                       "type": "text",
-                      "description": "Имя файла (необязательно)",
+                      "description": "File name (optional)",
                       "disabled": true
                     },
                     {
                       "key": "folder",
                       "value": "{{folderName}}",
                       "type": "text",
-                      "description": "Имя папки (необязательно)",
+                      "description": "Folder name (optional)",
                       "disabled": true
                     }
                   ]
@@ -901,19 +897,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "if (pm.response.code === 201) {",
-                  "    pm.collectionVariables.set('uploadedFileId', pm.response.json().id);",
-                  "}",
-                  "pm.test('файл загружен (если выбран во вкладке Body)', () => pm.response.to.have.status(201));",
-                  ""
+                  "if (pm.response.code === 201) pm.collectionVariables.set('uploadedFileId', pm.response.json().id);",
+                  "pm.test('file uploaded (if picked in the Body tab)', () => pm.response.to.have.status(201));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Загрузить картинку с обработкой",
+          "name": "Upload an image with processing",
           "request": {
             "method": "POST",
             "header": [],
@@ -927,14 +919,14 @@
                 "files"
               ]
             },
-            "description": "**Что делает.** То же, что «Загрузить файл», но картинка сначала обрабатывается: уменьшается,\nповорачивается по EXIF, перекодируется. Хранится и отдаётся уже результат.\n\n**Поля обработки** (все необязательны):\n\n| Поле | Значения | Что делает |\n|---|---|---|\n| `format` | `ORIGINAL`, `WEBP`, `JPEG`, `PNG`, `AVIF` | формат результата; `ORIGINAL` — не менять |\n| `maxWidth` | 16–10000 | уменьшить до этой ширины, пропорции сохраняются |\n| `maxHeight` | 16–10000 | уменьшить до этой высоты |\n| `quality` | 1–100 | качество; без него — по формату: AVIF 55, PNG 60, WEBP и JPEG 82 |\n\nКартинка только уменьшается, не растягивается. Анимированные GIF/WEBP/PNG сохраняются как есть.\nПри смене формата меняется и расширение: `photo.png` → `photo.webp`.\n\n**Ответ `201`** — файл, а в поле `processed` — что сделано:\n\n```\n\"processed\": {\n  \"applied\": true,\n  \"operations\": [\"resize:800x533\", \"encode:webp@82\"],\n  \"source\": { \"width\": 1200, \"height\": 800, … },\n  \"result\": { \"width\": 800, \"height\": 533, … }\n}\n```\n\nЕсли обработка не понадобилась — `applied: false` и причина в `reason`.\n\n**Ошибки:** `422` — опции заданы, но файл не картинка, или она больше 25 мегапикселей.",
+            "description": "Uploads a file in one `multipart/form-data` request and returns its addresses at once. The\nlimit is **32 MiB** for the whole request; larger files go through the chunked upload.\n\n**The name** is unique within the folder: when taken, a number is added — `photo (1).png`. `/`,\n`\\` and control characters are replaced with `-`.\n\n**Deduplication.** When the bucket already holds this content, no disk space and no quota are\nspent, and the answer says `deduplicated: true`.\n\n**Image processing.** With `format`, `maxWidth`, `maxHeight`, `quality` the image is shrunk,\nrotated by EXIF and re-encoded before it is stored; the result is what is kept. Images are only\nshrunk, animation is left alone. Changing the format changes the extension too:\n`photo.png` → `photo.webp`.\n\nHere the image is re-encoded to `webp` and shrunk to 800 px wide. `processed` in the answer shows what was done.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `file` | file | yes | The file itself. |\n| `folder` | string |  | Folder name. Without it — the bucket root, and the file is public. |\n| `name` | string |  | File name. Without it — the name of the uploaded file. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Output format; `ORIGINAL` — keep. |\n| `maxWidth` | integer |  | Shrink to this width, keeping proportions. |\n| `maxHeight` | integer |  | Shrink to this height, keeping proportions. |\n| `quality` | integer |  | Quality; without it — by format: AVIF 55, PNG 60, WEBP and JPEG 82. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The file is uploaded. |\n| `400` | No file was sent. |\n| `401` | No token, or the token is unknown. |\n| `403` | The token is disabled, expired, or its level is too low. |\n| `413` | Over the bucket quota, or the request is over 32 MiB. |\n| `422` | The given folder does not exist, validation failed, or the image cannot be processed. |",
             "body": {
               "mode": "formdata",
               "formdata": [
                 {
                   "key": "file",
                   "type": "file",
-                  "description": "Картинка: jpeg, png, gif, webp или avif",
+                  "description": "An image: jpeg, png, gif, webp or avif",
                   "src": []
                 },
                 {
@@ -947,13 +939,13 @@
                   "key": "maxWidth",
                   "value": "800",
                   "type": "text",
-                  "description": "Уменьшить до ширины, 16–10000"
+                  "description": "Shrink to width, 16–10000"
                 },
                 {
                   "key": "quality",
                   "value": "80",
                   "type": "text",
-                  "description": "Качество 1–100 (необязательно)",
+                  "description": "Quality 1–100 (optional)",
                   "disabled": true
                 }
               ]
@@ -961,7 +953,7 @@
           },
           "response": [
             {
-              "name": "201 — успех",
+              "name": "201 — success",
               "originalRequest": {
                 "method": "POST",
                 "header": [],
@@ -981,7 +973,7 @@
                     {
                       "key": "file",
                       "type": "file",
-                      "description": "Картинка: jpeg, png, gif, webp или avif",
+                      "description": "An image: jpeg, png, gif, webp or avif",
                       "src": []
                     },
                     {
@@ -994,13 +986,13 @@
                       "key": "maxWidth",
                       "value": "800",
                       "type": "text",
-                      "description": "Уменьшить до ширины, 16–10000"
+                      "description": "Shrink to width, 16–10000"
                     },
                     {
                       "key": "quality",
                       "value": "80",
                       "type": "text",
-                      "description": "Качество 1–100 (необязательно)",
+                      "description": "Quality 1–100 (optional)",
                       "disabled": true
                     }
                   ]
@@ -1016,13 +1008,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "692"
+                  "value": "690"
                 }
               ],
-              "body": "{\n  \"id\": \"PttdQ2wSxSbs7CRs\",\n  \"name\": \"photo.webp\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 2250,\n    \"mime\": \"image/webp\",\n    \"extension\": \"webp\",\n    \"hash\": \"250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": true,\n    \"operations\": [\n      \"resize:800x533\",\n      \"encode:webp@82\"\n    ],\n    \"source\": {\n      \"width\": 1200,\n      \"height\": 800,\n      \"size\": 4654,\n      \"mime\": \"image/png\"\n    },\n    \"result\": {\n      \"width\": 800,\n      \"height\": 533,\n      \"size\": 2250,\n      \"mime\": \"image/webp\"\n    }\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/PttdQ2wSxSbs7CRs\",\n  \"publicUrl\": \"https://s5.example.com/o/78bf3a62-c52c-49fd-9d53-d9dc2c43bd52/PttdQ2wSxSbs7CRs\",\n  \"createdAt\": \"2026-11-07 20:31:25 +00:00\",\n  \"updatedAt\": \"2026-11-07 20:31:25 +00:00\"\n}"
+              "body": "{\n  \"id\": \"sTWn2gk6AbcCeRrF\",\n  \"name\": \"photo.webp\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 2250,\n    \"mime\": \"image/webp\",\n    \"extension\": \"webp\",\n    \"hash\": \"250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": true,\n    \"operations\": [\n      \"resize:800x533\",\n      \"encode:webp@82\"\n    ],\n    \"source\": {\n      \"width\": 1200,\n      \"height\": 800,\n      \"size\": 4654,\n      \"mime\": \"image/png\"\n    },\n    \"result\": {\n      \"width\": 800,\n      \"height\": 533,\n      \"size\": 2250,\n      \"mime\": \"image/webp\"\n    }\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/sTWn2gk6AbcCeRrF\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/sTWn2gk6AbcCeRrF\",\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
             },
             {
-              "name": "422 — опции заданы, а файл не картинка",
+              "name": "422 — image options on a non-image",
               "originalRequest": {
                 "method": "POST",
                 "header": [],
@@ -1042,7 +1034,7 @@
                     {
                       "key": "file",
                       "type": "file",
-                      "description": "Картинка: jpeg, png, gif, webp или avif",
+                      "description": "An image: jpeg, png, gif, webp or avif",
                       "src": []
                     },
                     {
@@ -1055,13 +1047,13 @@
                       "key": "maxWidth",
                       "value": "800",
                       "type": "text",
-                      "description": "Уменьшить до ширины, 16–10000"
+                      "description": "Shrink to width, 16–10000"
                     },
                     {
                       "key": "quality",
                       "value": "80",
                       "type": "text",
-                      "description": "Качество 1–100 (необязательно)",
+                      "description": "Quality 1–100 (optional)",
                       "disabled": true
                     }
                   ]
@@ -1085,12 +1077,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "if (pm.response.code === 201) {",
-                  "    pm.collectionVariables.set('imageFileId', pm.response.json().id);",
-                  "}",
-                  "pm.test('картинка загружена (если выбрана во вкладке Body)', () => pm.response.to.have.status(201));",
-                  ""
+                  "if (pm.response.code === 201) pm.collectionVariables.set('imageFileId', pm.response.json().id);",
+                  "pm.test('image uploaded (if picked in the Body tab)', () => pm.response.to.have.status(201));"
                 ]
               }
             }
@@ -1099,11 +1087,11 @@
       ]
     },
     {
-      "name": "3. Загрузка частями",
-      "description": "Для больших файлов и ненадёжной сети. Файл уходит частями по 4–16 МиБ; после обрыва загрузка\nпродолжается с того места, где остановилась.\n\n**Порядок:** `1. Начать` → `2. Отправить часть` (повторять) → `4. Завершить`.\nПосле обрыва — `3. Узнать, сколько дошло` и продолжить с полученного `offset`.\n\nПередавайте `sha256`: сервер проверит целостность при завершении, а если такой файл в бакете уже\nесть — создаст его сразу, без передачи байтов.",
+      "name": "3. Chunked upload",
+      "description": "For large files and unreliable networks: the file goes in chunks of 4–16 MiB and resumes\nfrom what arrived after a break. Order: start → send chunks → complete.",
       "item": [
         {
-          "name": "1. Начать загрузку",
+          "name": "1. Start an upload",
           "request": {
             "method": "POST",
             "header": [
@@ -1122,7 +1110,7 @@
                 "uploads"
               ]
             },
-            "description": "**Что делает.** Открывает загрузку: сервер заранее проверяет квоту и место на диске и\nвозвращает `id` загрузки.\n\n**Тело:**\n\n| Поле | Обязательно | Что это |\n|---|---|---|\n| `name` | да | имя будущего файла |\n| `size` | да | размер файла в байтах |\n| `sha256` | нет, но лучше передать | хеш содержимого, 64 hex-символа: проверка целостности и дедупликация |\n| `folder` | нет | имя папки |\n| `format`, `maxWidth`, `maxHeight`, `quality` | нет | обработка картинки, как в разделе 2 |\n\n**Ответ `201`:**\n\n| Поле | Что это |\n|---|---|\n| `id` | id загрузки — нужен в следующих шагах |\n| `offset` | сколько байт уже получено, сейчас `0` |\n| `chunkSize` | рекомендуемый размер части, байт (8 МиБ) |\n| `expiresAt` | загрузка живёт 24 часа, потом удаляется |\n| `file` | `null`; если файл уже есть по `sha256` — готовый файл (см. «Загрузить без передачи») |\n\n**Ошибки:** `413` — не хватает квоты; `507` — на диске сервера мало места; `422` — нет такой папки\nили параметры не прошли проверку.",
+            "description": "Opens an upload: the server checks the quota and the free disk space up front and returns the\nupload `id` and the recommended chunk size `chunkSize`. The upload waits 24 hours to be continued.\n\n**Deduplication by `sha256`.** When the bucket already holds this content, the file is created at\nonce: the answer has `chunkSize: 0` and a ready `file` with `deduplicated: true` — no chunks and\nno completion are needed. With image options the hash lookup is skipped: the hash is of the\nsource, while the processed result is what gets stored.\n\n**Token:** `FULL`\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | Name of the future file. |\n| `size` | integer | yes | File size, bytes. |\n| `sha256` | string |  | Content hash, 64 hex characters: integrity check on completion and deduplication. |\n| `folder` | string |  | Folder name. Checked at once: `422` when it does not exist. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Output format; `ORIGINAL` — keep. |\n| `maxWidth` | integer |  | Shrink to this width, keeping proportions. |\n| `maxHeight` | integer |  | Shrink to this height, keeping proportions. |\n| `quality` | integer |  | Quality; without it — by format: AVIF 55, PNG 60, WEBP and JPEG 82. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The upload is open — or the file was created at once by `sha256`. |\n| `401` | No token, or the token is unknown. |\n| `413` | Over the bucket quota. |\n| `422` | The given folder does not exist, or validation failed. |\n| `507` | Less than 512 MiB would be left on the server disk. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"notes.txt\",\n  \"size\": {{chunkSize}},\n  \"sha256\": \"{{contentHash}}\"\n}",
@@ -1135,7 +1123,7 @@
           },
           "response": [
             {
-              "name": "201 — успех",
+              "name": "201 — success",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -1174,13 +1162,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "158"
+                  "value": "157"
                 }
               ],
-              "body": "{\n  \"id\": \"0f440ec9-1c7a-4cba-84eb-e1d27ff9a895\",\n  \"name\": \"notes.txt\",\n  \"size\": 99,\n  \"offset\": 0,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08 20:31:25 +00:00\",\n  \"file\": null\n}"
+              "body": "{\n  \"id\": \"001f7966-edff-431d-8ac4-2ba204ef810f\",\n  \"name\": \"notes.txt\",\n  \"size\": 66,\n  \"offset\": 0,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n  \"file\": null\n}"
             },
             {
-              "name": "413 — не хватает квоты",
+              "name": "413 — over the quota",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -1227,15 +1215,13 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "// В этом примере «файл» — небольшой текст, чтобы прогон работал без выбора файла.",
-                  "// В приложении это байты настоящего файла, а size и sha256 считаются от них.",
-                  "const text = 'Привет от S5W! Это содержимое загружено частями. ' + Date.now();",
+                  "// In this example the \"file\" is a short text, so the run needs no file picked.",
+                  "// In an app these are the bytes of a real file; size and sha256 are computed from them.",
+                  "const text = 'Hello from S5W! This content was uploaded in chunks. ' + Date.now();",
                   "const crypto = require('crypto-js');",
                   "pm.collectionVariables.set('chunkText', text);",
                   "pm.collectionVariables.set('chunkSize', crypto.enc.Utf8.parse(text).sigBytes);",
-                  "pm.collectionVariables.set('contentHash', crypto.SHA256(text).toString());",
-                  ""
+                  "pm.collectionVariables.set('contentHash', crypto.SHA256(text).toString());"
                 ]
               }
             },
@@ -1244,26 +1230,23 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('загрузка открыта', () => pm.response.to.have.status(201));",
+                  "pm.test('upload opened', () => pm.response.to.have.status(201));",
                   "const json = pm.response.json();",
                   "pm.collectionVariables.set('uploadId', json.id);",
-                  "pm.collectionVariables.set('uploadOffset', json.offset);",
-                  ""
+                  "pm.collectionVariables.set('uploadOffset', json.offset);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "2. Отправить часть",
+          "name": "2. Send a chunk",
           "request": {
             "method": "PATCH",
             "header": [
               {
                 "key": "Upload-Offset",
-                "value": "{{uploadOffset}}",
-                "description": "С какого байта начинается часть"
+                "value": "{{uploadOffset}}"
               },
               {
                 "key": "Content-Type",
@@ -1281,7 +1264,7 @@
                 "{{uploadId}}"
               ]
             },
-            "description": "**Что делает.** Добавляет к загрузке очередную часть. **Тело — сырые байты части**, не JSON и\nне форма.\n\n**Заголовки:**\n\n| Заголовок | Что это |\n|---|---|\n| `Upload-Offset` | с какого байта начинается часть. Необязателен, но передавайте его: если часть потерялась или ушла дважды, сервер ответит `409` вместо испорченного файла |\n| `Content-Type` | `application/offset+octet-stream` |\n\n**Размер части** — от 4 до 16 МиБ; меньше можно только последнюю. Повторяйте запрос, пока\n`offset` в ответе не станет равен `size`.\n\n**Ответ `200`** — загрузка с новым `offset`.\n\n**Ошибки:** `409` — `Upload-Offset` не совпал с тем, что уже получено (узнайте настоящее\nсмещение запросом «3. Узнать, сколько дошло»); `400` — часть пустая или меньше 4 МиБ и не\nпоследняя; `413` — часть больше 16 МиБ или выходит за `size`.\n\n> В примере вся «загрузка» помещается в одну часть, поэтому она последняя и может быть маленькой.",
+            "description": "Appends the next chunk to the upload. **The body is the raw bytes of the chunk** — not JSON, not\na form. Repeat until `offset` in the answer equals `size`.\n\nA chunk is 4 to 16 MiB; only the last one may be smaller. Send `Upload-Offset`: when a chunk is\nlost or sent twice, the server answers `409` instead of producing a corrupted file.\n\n> In this example the whole \"upload\" fits in one chunk — it is the last one and may be small.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | Upload id from `POST /v1/uploads`. |\n| `Upload-Offset` | header |  | The byte this chunk starts at. Optional, but worth sending. |\n\n**Request body:** raw bytes — The chunk bytes, 4–16 MiB (the last one — any size).\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The chunk is accepted; `offset` is the new position. |\n| `400` | The chunk is empty, or under 4 MiB and not the last. |\n| `401` | No token, or the token is unknown. |\n| `404` | The upload does not exist or has expired. |\n| `409` | `Upload-Offset` does not match what has arrived. |\n| `413` | The chunk is over 16 MiB or past the declared `size`. |",
             "body": {
               "mode": "raw",
               "raw": "{{chunkText}}",
@@ -1294,14 +1277,13 @@
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "PATCH",
                 "header": [
                   {
                     "key": "Upload-Offset",
-                    "value": "{{uploadOffset}}",
-                    "description": "С какого байта начинается часть"
+                    "value": "{{uploadOffset}}"
                   },
                   {
                     "key": "Content-Type",
@@ -1339,20 +1321,19 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "159"
+                  "value": "158"
                 }
               ],
-              "body": "{\n  \"id\": \"0f440ec9-1c7a-4cba-84eb-e1d27ff9a895\",\n  \"name\": \"notes.txt\",\n  \"size\": 99,\n  \"offset\": 99,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08 20:31:25 +00:00\",\n  \"file\": null\n}"
+              "body": "{\n  \"id\": \"001f7966-edff-431d-8ac4-2ba204ef810f\",\n  \"name\": \"notes.txt\",\n  \"size\": 66,\n  \"offset\": 66,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n  \"file\": null\n}"
             },
             {
-              "name": "409 — смещение не совпало",
+              "name": "409 — offset mismatch",
               "originalRequest": {
                 "method": "PATCH",
                 "header": [
                   {
                     "key": "Upload-Offset",
-                    "value": "{{uploadOffset}}",
-                    "description": "С какого байта начинается часть"
+                    "value": "{{uploadOffset}}"
                   },
                   {
                     "key": "Content-Type",
@@ -1392,14 +1373,13 @@
               "body": "{\n  \"code\": 409,\n  \"message\": \"Chunk offset 4096 does not continue this upload at 0\"\n}"
             },
             {
-              "name": "400 — часть меньше 4 МиБ и не последняя",
+              "name": "400 — chunk under 4 MiB and not last",
               "originalRequest": {
                 "method": "PATCH",
                 "header": [
                   {
                     "key": "Upload-Offset",
-                    "value": "{{uploadOffset}}",
-                    "description": "С какого байта начинается часть"
+                    "value": "{{uploadOffset}}"
                   },
                   {
                     "key": "Content-Type",
@@ -1445,19 +1425,17 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('часть принята', () => pm.response.to.have.status(200));",
+                  "pm.test('chunk accepted', () => pm.response.to.have.status(200));",
                   "const json = pm.response.json();",
                   "pm.collectionVariables.set('uploadOffset', json.offset);",
-                  "pm.test('получено всё — можно завершать', () => pm.expect(json.offset).to.eql(json.size));",
-                  ""
+                  "pm.test('everything arrived — ready to complete', () => pm.expect(json.offset).to.eql(json.size));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "3. Узнать, сколько дошло",
+          "name": "3. Check what arrived",
           "request": {
             "method": "GET",
             "header": [],
@@ -1472,11 +1450,11 @@
                 "{{uploadId}}"
               ]
             },
-            "description": "**Что делает.** Показывает состояние загрузки: в `offset` — сколько байт сервер уже получил.\n\n**Когда.** После обрыва связи: узнайте `offset` и продолжайте отправлять части с этого места.\nЗагрузка ждёт продолжения 24 часа.\n\n**Ответ `200`** — загрузка. **Ошибки:** `404` — загрузки нет или она истекла."
+            "description": "The state of the upload: `offset` is how many bytes the server has. After a break, continue from there.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | Upload id from `POST /v1/uploads`. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The upload. |\n| `401` | No token, or the token is unknown. |\n| `404` | The upload does not exist or has expired. |"
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -1502,13 +1480,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "155"
+                  "value": "158"
                 }
               ],
-              "body": "{\n  \"id\": \"0f440ec9-1c7a-4cba-84eb-e1d27ff9a895\",\n  \"name\": \"notes.txt\",\n  \"size\": 99,\n  \"offset\": 99,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08 20:31:25+00\",\n  \"file\": null\n}"
+              "body": "{\n  \"id\": \"001f7966-edff-431d-8ac4-2ba204ef810f\",\n  \"name\": \"notes.txt\",\n  \"size\": 66,\n  \"offset\": 66,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n  \"file\": null\n}"
             },
             {
-              "name": "404 — нет такой загрузки",
+              "name": "404 — no such upload",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -1542,14 +1520,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('состояние получено', () => pm.response.to.have.status(200));"
+                  "pm.test('state received', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "4. Завершить загрузку",
+          "name": "4. Complete the upload",
           "request": {
             "method": "POST",
             "header": [],
@@ -1565,11 +1543,11 @@
                 "complete"
               ]
             },
-            "description": "**Что делает.** Закрывает загрузку и создаёт файл: проверяет хеш, обрабатывает картинку, если\nпросили, переносит содержимое в хранилище.\n\n**Ответ `201`** — готовый файл, как в «Загрузить файл».\n\n**Ошибки:** `409` — получено не всё (в сообщении — сколько байт дошло); `422` — содержимое не\nсовпало с `sha256`, загрузка удалена, начните заново."
+            "description": "Closes the upload and creates the file: checks the hash, processes the image when asked, moves the content into storage.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | Upload id from `POST /v1/uploads`. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The file is created. |\n| `401` | No token, or the token is unknown. |\n| `404` | The upload does not exist or has expired. |\n| `409` | Not everything has arrived. |\n| `422` | The content does not match `sha256`; the upload is deleted. |"
           },
           "response": [
             {
-              "name": "201 — успех",
+              "name": "201 — success",
               "originalRequest": {
                 "method": "POST",
                 "header": [],
@@ -1596,13 +1574,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "526"
+                  "value": "524"
                 }
               ],
-              "body": "{\n  \"id\": \"2qZpERAO3IoPsIcO\",\n  \"name\": \"notes.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 99,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"7a50930b73b8d32ded8d79804a8053610e0ce6f339ad498d68d3ed24415d47b5\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": false,\n    \"reason\": \"no options\"\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/2qZpERAO3IoPsIcO\",\n  \"publicUrl\": \"https://s5.example.com/o/78bf3a62-c52c-49fd-9d53-d9dc2c43bd52/2qZpERAO3IoPsIcO\",\n  \"createdAt\": \"2026-11-07 20:31:25 +00:00\",\n  \"updatedAt\": \"2026-11-07 20:31:25 +00:00\"\n}"
+              "body": "{\n  \"id\": \"V8WUp3zASsxaieR3\",\n  \"name\": \"notes.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": false,\n    \"reason\": \"no options\"\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/V8WUp3zASsxaieR3\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3\",\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
             },
             {
-              "name": "409 — получено не всё",
+              "name": "409 — not everything arrived",
               "originalRequest": {
                 "method": "POST",
                 "header": [],
@@ -1631,7 +1609,7 @@
               "body": "{\n  \"code\": 409,\n  \"message\": \"Upload is not finished: 0 bytes of 10485760 received\"\n}"
             },
             {
-              "name": "422 — хеш не совпал",
+              "name": "422 — hash mismatch",
               "originalRequest": {
                 "method": "POST",
                 "header": [],
@@ -1666,19 +1644,17 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('файл создан', () => pm.response.to.have.status(201));",
+                  "pm.test('file created', () => pm.response.to.have.status(201));",
                   "const json = pm.response.json();",
                   "pm.collectionVariables.set('fileId', json.id);",
-                  "pm.test('хеш совпал с переданным', () => pm.expect(json.content.hash).to.eql(pm.collectionVariables.get('contentHash')));",
-                  ""
+                  "pm.test('hash matches the one sent', () => pm.expect(json.content.hash).to.eql(pm.collectionVariables.get('contentHash')));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Загрузить без передачи, если файл уже есть",
+          "name": "Skip the transfer when the file is already there",
           "request": {
             "method": "POST",
             "header": [
@@ -1697,7 +1673,7 @@
                 "uploads"
               ]
             },
-            "description": "**Что делает.** Если в бакете уже есть файл с таким же содержимым (по `sha256`), сервер сразу\nсоздаёт новый файл на нём — **без передачи байтов**.\n\n**Как понять, что сработало.** В ответе `chunkSize: 0`, а в `file` — готовый файл с\n`deduplicated: true`. Отправлять части и завершать не нужно.\n\n**Если такого содержимого нет** — ответ как у «1. Начать загрузку», дальше обычные шаги.\n\n**Не работает вместе с обработкой картинки.** С `format`, `maxWidth`, `maxHeight` или `quality`\nпоиск по хешу не выполняется: хеш считается от исходника, а хранится результат обработки.\n\n> Здесь повторно используется хеш содержимого из шага 1 — поэтому файл уже есть.",
+            "description": "The same \"Start an upload\" request, but with the hash of content the bucket already holds (from\nstep 1). The server creates the file on it at once — **without sending the bytes**.\n\n**How to tell it worked:** `chunkSize: 0`, and `file` holds a ready file with `deduplicated: true`.\nNo chunks and no completion are needed. Without such content the answer is as in step 1.\n\nWith image options the hash lookup is skipped.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"notes-copy.txt\",\n  \"size\": {{chunkSize}},\n  \"sha256\": \"{{contentHash}}\"\n}",
@@ -1710,7 +1686,7 @@
           },
           "response": [
             {
-              "name": "201 — успех",
+              "name": "201 — success",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -1749,10 +1725,10 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "587"
+                  "value": "585"
                 }
               ],
-              "body": "{\n  \"id\": \"\",\n  \"name\": \"notes-copy.txt\",\n  \"size\": 99,\n  \"offset\": 99,\n  \"chunkSize\": 0,\n  \"expiresAt\": \"\",\n  \"file\": {\n    \"id\": \"cpfGrjcXcVWiVf9T\",\n    \"name\": \"notes-copy.txt\",\n    \"folder\": null,\n    \"content\": {\n      \"size\": 99,\n      \"mime\": \"text/plain\",\n      \"extension\": \"txt\",\n      \"hash\": \"7a50930b73b8d32ded8d79804a8053610e0ce6f339ad498d68d3ed24415d47b5\"\n    },\n    \"public\": true,\n    \"deduplicated\": true,\n    \"processed\": null,\n    \"expiresAt\": null,\n    \"privateUrl\": \"https://s5.example.com/p/cpfGrjcXcVWiVf9T\",\n    \"publicUrl\": \"https://s5.example.com/o/78bf3a62-c52c-49fd-9d53-d9dc2c43bd52/cpfGrjcXcVWiVf9T\",\n    \"createdAt\": \"2026-11-07 20:31:25 +00:00\",\n    \"updatedAt\": \"2026-11-07 20:31:25 +00:00\"\n  }\n}"
+              "body": "{\n  \"id\": \"\",\n  \"name\": \"notes-copy.txt\",\n  \"size\": 66,\n  \"offset\": 66,\n  \"chunkSize\": 0,\n  \"expiresAt\": \"\",\n  \"file\": {\n    \"id\": \"YO9KHmnXB6rBOZLE\",\n    \"name\": \"notes-copy.txt\",\n    \"folder\": null,\n    \"content\": {\n      \"size\": 66,\n      \"mime\": \"text/plain\",\n      \"extension\": \"txt\",\n      \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n    },\n    \"public\": true,\n    \"deduplicated\": true,\n    \"processed\": null,\n    \"expiresAt\": null,\n    \"privateUrl\": \"https://s5.example.com/p/YO9KHmnXB6rBOZLE\",\n    \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/YO9KHmnXB6rBOZLE\",\n    \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n    \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n  }\n}"
             }
           ],
           "event": [
@@ -1761,20 +1737,18 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('ответ получен', () => pm.response.to.have.status(201));",
+                  "pm.test('answered', () => pm.response.to.have.status(201));",
                   "const json = pm.response.json();",
-                  "pm.test('байты передавать не нужно', () => pm.expect(json.chunkSize).to.eql(0));",
-                  "pm.test('файл создан на уже лежащем содержимом', () => pm.expect(json.file.deduplicated).to.eql(true));",
-                  "pm.collectionVariables.set('dedupFileId', json.file.id);",
-                  ""
+                  "pm.test('no bytes to send', () => pm.expect(json.chunkSize).to.eql(0));",
+                  "pm.test('file created on existing content', () => pm.expect(json.file.deduplicated).to.eql(true));",
+                  "pm.collectionVariables.set('dedupFileId', json.file.id);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Начать загрузку, которую отменим",
+          "name": "Start an upload to cancel",
           "request": {
             "method": "POST",
             "header": [
@@ -1793,7 +1767,7 @@
                 "uploads"
               ]
             },
-            "description": "Подготовка для следующего запроса: открывает загрузку, которую тот отменит.",
+            "description": "Setup for the next request: opens an upload for it to cancel.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"cancel-me.bin\",\n  \"size\": 10485760\n}",
@@ -1806,7 +1780,7 @@
           },
           "response": [
             {
-              "name": "201 — успех",
+              "name": "201 — success",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -1845,10 +1819,10 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "168"
+                  "value": "167"
                 }
               ],
-              "body": "{\n  \"id\": \"4945283b-f52a-419d-adb0-28ab2bd77fe2\",\n  \"name\": \"cancel-me.bin\",\n  \"size\": 10485760,\n  \"offset\": 0,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08 20:31:25 +00:00\",\n  \"file\": null\n}"
+              "body": "{\n  \"id\": \"e6385381-9365-4db1-af45-b9c791c8da24\",\n  \"name\": \"cancel-me.bin\",\n  \"size\": 10485760,\n  \"offset\": 0,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n  \"file\": null\n}"
             }
           ],
           "event": [
@@ -1857,17 +1831,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('загрузка открыта', () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set('cancelUploadId', pm.response.json().id);",
-                  ""
+                  "pm.test('upload opened', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('cancelUploadId', pm.response.json().id);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Отменить загрузку",
+          "name": "Cancel an upload",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -1882,11 +1854,11 @@
                 "{{cancelUploadId}}"
               ]
             },
-            "description": "**Что делает.** Отменяет загрузку и сразу удаляет всё, что успело дойти.\n\n**Когда.** Пользователь передумал. Если просто бросить загрузку, она удалится сама через 24 часа —\nотменять нужно, только чтобы освободить место сразу.\n\n**Ответ `204`** — без тела."
+            "description": "Cancels the upload and deletes what arrived at once. An abandoned upload is deleted by itself after 24 hours anyway.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | Upload id from `POST /v1/uploads`. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `204` | Cancelled, no body. |\n| `401` | No token, or the token is unknown. |\n| `404` | The upload does not exist or has expired. |"
           },
           "response": [
             {
-              "name": "204 — успех",
+              "name": "204 — success",
               "originalRequest": {
                 "method": "DELETE",
                 "header": [],
@@ -1924,7 +1896,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('загрузка отменена', () => pm.response.to.have.status(204));"
+                  "pm.test('upload cancelled', () => pm.response.to.have.status(204));"
                 ]
               }
             }
@@ -1933,11 +1905,11 @@
       ]
     },
     {
-      "name": "4. Скачивание",
-      "description": "Как файл получает браузер, мобильное приложение или CDN. Три адреса:\n\n| Адрес | Кому | Токен |\n|---|---|---|\n| `/o/{bucketId}/{id}` | всем — только публичные файлы | не нужен |\n| `/p/{id}` | владельцу токена — любой файл бакета | нужен, хватает `BASIC` |\n| `/t/{…}` | тому, кому дали временную ссылку | не нужен, есть срок (раздел 6) |\n\nВсе три поддерживают `Range` (докачка, перемотка), `ETag` и условные запросы.",
+      "name": "4. Delivery",
+      "description": "How a browser, an app or a CDN gets the file: publicly (`/o`), with a token (`/p`) and through\na temporary link (`/t`). All three support `Range`, `ETag` and conditional requests.",
       "item": [
         {
-          "name": "Скачать публичный файл · /o",
+          "name": "Download a public file · /o",
           "request": {
             "method": "GET",
             "header": [],
@@ -1952,14 +1924,14 @@
                 "{{fileId}}"
               ]
             },
-            "description": "**Что делает.** Отдаёт публичный файл **без токена** — это адрес из `publicUrl`. Его можно\nставить прямо в `<img src>`, отдавать пользователям и CDN.\n\n**Работает только для публичных файлов** — в корне бакета или в папке с `public: true`.\nДля остальных — `404`.\n\n**Заголовки ответа:** `Content-Type`, `Content-Length`, `ETag`, `Cache-Control` (по политике\nпапки и бакета), `Accept-Ranges: bytes`.\n\n**Открыть или скачать.** Картинки, видео, аудио, PDF и простой текст открываются в браузере,\nостальное — скачивается. HTML и SVG всегда скачиваются (защита от выполнения скриптов).",
+            "description": "Serves a public file **without a token** — the address from `publicUrl`. Put it into\n`<img src>`, hand it to users and to a CDN. Works only for public files — in the bucket root or\nin a folder with `public: true`; others answer `404`.\n\nImages, video, audio, PDF and plain text open in the browser, everything else downloads; HTML\nand SVG always download. `?download=1` asks for a download in any case.\n\n**Token:** not needed\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `bucketId` | path | yes | Bucket id. |\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n| `download` | query |  | `1` — download (`Content-Disposition: attachment`) instead of opening. |\n| `Range` | header |  | A byte range, e.g. `bytes=0-1023` — answers `206`. |\n| `If-None-Match` | header |  | An `ETag` received before: when the file has not changed — `304` with no body. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file content. Headers: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | The requested byte range; `Content-Range` header. |\n| `304` | The file has not changed since that `ETag` — no body. |\n| `404` | The file is not public or does not exist. |",
             "auth": {
               "type": "noauth"
             }
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -1984,7 +1956,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef8a9d-63\""
+                  "value": "\"6aef9649-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -2004,13 +1976,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "99"
+                  "value": "66"
                 }
               ],
               "body": ""
             },
             {
-              "name": "404 — файл не публичный или его нет",
+              "name": "404 — not public or missing",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -2047,18 +2019,16 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('файл отдан', () => pm.response.to.have.status(200));",
-                  "pm.test('есть ETag для кэша', () => pm.response.to.have.header('ETag'));",
-                  "pm.collectionVariables.set('etag', pm.response.headers.get('ETag'));",
-                  ""
+                  "pm.test('file served', () => pm.response.to.have.status(200));",
+                  "pm.test('ETag present', () => pm.response.to.have.header('ETag'));",
+                  "pm.collectionVariables.set('etag', pm.response.headers.get('ETag'));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Проверить, не изменился ли файл · ETag",
+          "name": "Check whether the file changed · ETag",
           "request": {
             "method": "GET",
             "header": [
@@ -2078,14 +2048,14 @@
                 "{{fileId}}"
               ]
             },
-            "description": "**Что делает.** Условный запрос: браузер или CDN присылает `ETag`, полученный раньше, в\nзаголовке `If-None-Match`. Если файл не менялся — ответ `304` без тела, трафик не тратится.\n\nБраузеры и CDN делают это сами; вручную это нужно, только если вы пишете свой кэш.",
+            "description": "A conditional request: the `ETag` from an earlier answer in `If-None-Match`. Unchanged file — `304` with no body, no traffic spent. Browsers and CDNs do this themselves.",
             "auth": {
               "type": "noauth"
             }
           },
           "response": [
             {
-              "name": "304 — успех",
+              "name": "304 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [
@@ -2115,7 +2085,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef8a9d-63\""
+                  "value": "\"6aef9649-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -2143,14 +2113,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('файл не менялся — 304', () => pm.response.to.have.status(304));"
+                  "pm.test('unchanged — 304', () => pm.response.to.have.status(304));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Скачать часть файла · Range",
+          "name": "Download part of a file · Range",
           "request": {
             "method": "GET",
             "header": [
@@ -2170,14 +2140,14 @@
                 "{{fileId}}"
               ]
             },
-            "description": "**Что делает.** Отдаёт только запрошенный диапазон байтов — ответ `206 Partial Content`.\n\n**Зачем.** Докачка после обрыва и перемотка видео: плееры и менеджеры загрузок делают это сами.",
+            "description": "Only the requested byte range — `206 Partial Content`. This is how resuming and video seeking work.",
             "auth": {
               "type": "noauth"
             }
           },
           "response": [
             {
-              "name": "206 — успех",
+              "name": "206 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [
@@ -2207,7 +2177,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef8a9d-63\""
+                  "value": "\"6aef9649-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -2231,10 +2201,10 @@
                 },
                 {
                   "key": "Content-Range",
-                  "value": "bytes 0-9/99"
+                  "value": "bytes 0-9/66"
                 }
               ],
-              "body": "Приве"
+              "body": "Hello from"
             }
           ],
           "event": [
@@ -2243,17 +2213,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('отдана часть — 206', () => pm.response.to.have.status(206));",
-                  "pm.test('ровно 10 байт', () => pm.expect(pm.response.stream.length).to.eql(10));",
-                  ""
+                  "pm.test('partial — 206', () => pm.response.to.have.status(206));",
+                  "pm.test('exactly 10 bytes', () => pm.expect(pm.response.stream.length).to.eql(10));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Скачать, а не открыть · ?download=1",
+          "name": "Download instead of opening · ?download=1",
           "request": {
             "method": "GET",
             "header": [],
@@ -2274,14 +2242,14 @@
                 }
               ]
             },
-            "description": "**Что делает.** Просит браузер сохранить файл, а не показать: `Content-Disposition: attachment`.\nИмя для сохранения — имя файла в S5W.\n\nРаботает на `/o` и `/p`. Для временных ссылок это задаётся при выдаче — полем `disposition`.",
+            "description": "Asks the browser to save the file: `Content-Disposition: attachment`. Works on `/o` and `/p`.",
             "auth": {
               "type": "noauth"
             }
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -2312,7 +2280,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef8a9d-63\""
+                  "value": "\"6aef9649-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -2332,7 +2300,7 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "99"
+                  "value": "66"
                 }
               ],
               "body": ""
@@ -2344,17 +2312,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('файл отдан', () => pm.response.to.have.status(200));",
-                  "pm.test('браузер сохранит файл', () => pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment'));",
-                  ""
+                  "pm.test('file served', () => pm.response.to.have.status(200));",
+                  "pm.test('the browser will save it', () => pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment'));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Скачать по токену · /p",
+          "name": "Download with a token · /p",
           "request": {
             "method": "GET",
             "header": [],
@@ -2368,11 +2334,11 @@
                 "{{fileId}}"
               ]
             },
-            "description": "**Что делает.** Отдаёт **любой** файл бакета — и публичный, и закрытый — по токену. Это адрес\nиз `privateUrl`.\n\n**Доступ.** Токен этого бакета, достаточно `BASIC`. Поэтому `BASIC`-токен можно встроить в\nклиентское приложение: перечислить файлы бакета он не сможет, только скачать те, чьи `id` знает.\n\n**Кэш.** Ответ кэшируется только браузером (`Cache-Control: private`), CDN его не сохранит.\n\n**Ошибки:** `401` — нет токена; `404` — нет такого файла в бакете токена."
+            "description": "Serves **any** file of the bucket — public or private — with a token; the address from\n`privateUrl`. A `BASIC` token is enough: such a token can ship inside a client app — it cannot\nlist files, only fetch those whose `id` it knows. The answer is cached by the browser only.\n\n**Token:** `BASIC`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n| `download` | query |  | `1` — download (`Content-Disposition: attachment`) instead of opening. |\n| `Range` | header |  | A byte range, e.g. `bytes=0-1023` — answers `206`. |\n| `If-None-Match` | header |  | An `ETag` received before: when the file has not changed — `304` with no body. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file content. Headers: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | The requested byte range; `Content-Range` header. |\n| `304` | The file has not changed since that `ETag` — no body. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |"
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -2393,7 +2359,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef8a9d-63\""
+                  "value": "\"6aef9649-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -2413,13 +2379,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "99"
+                  "value": "66"
                 }
               ],
               "body": ""
             },
             {
-              "name": "401 — нет токена",
+              "name": "401 — no token",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -2452,7 +2418,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('файл отдан по токену', () => pm.response.to.have.status(200));"
+                  "pm.test('served with the token', () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -2461,11 +2427,11 @@
       ]
     },
     {
-      "name": "5. Файлы",
-      "description": "Список, поиск и управление файлами. Удаление — в разделе «8. Уборка».",
+      "name": "5. Files",
+      "description": "List, search, rename and move. Deleting is in \"8. Cleanup\".",
       "item": [
         {
-          "name": "Список файлов",
+          "name": "List files",
           "request": {
             "method": "GET",
             "header": [],
@@ -2497,11 +2463,11 @@
                 }
               ]
             },
-            "description": "**Что делает.** Возвращает файлы бакета постранично, с поиском и сортировкой.\n\n**Параметры:**\n\n| Параметр | По умолчанию | Что это |\n|---|---|---|\n| `page`, `limit` | `1`, `25` | страница и размер, до 100 |\n| `search` | — | поиск по имени, без учёта регистра |\n| `folder` | — | имя папки; пустое значение (`folder=`) — только корень; без параметра — все файлы |\n| `sort` | `created` | `created`, `name`, `type`, `size` |\n| `dir` | `desc` | `asc` или `desc` |\n\n**Ответ `200`** — `{ \"meta\": {…}, \"data\": [ файлы ] }`."
+            "description": "Returns the files of the bucket page by page, with search and sorting.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `page` | query |  | Page number, from 1. |\n| `limit` | query |  | Records per page. |\n| `search` | query |  | Search by name, case-insensitive. |\n| `folder` | query |  | Folder name. An empty value (`folder=`) — the root only. Without it — all files. |\n| `sort` | query |  | Sort field. |\n| `dir` | query |  | Direction. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | A page of files. |\n| `401` | No token, or the token is unknown. |\n| `403` | The token is disabled, expired, or its level is too low. |"
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -2544,10 +2510,10 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "613"
+                  "value": "616"
                 }
               ],
-              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 4,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": \"cpfGrjcXcVWiVf9T\",\n      \"name\": \"notes-copy.txt\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 99,\n        \"mime\": \"text/plain\",\n        \"extension\": \"txt\",\n        \"hash\": \"7a50930b73b8d32ded8d79804a8053610e0ce6f339ad498d68d3ed24415d47b5\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/cpfGrjcXcVWiVf9T\",\n      \"publicUrl\": \"https://s5.example.com/o/78bf3a62-c52c-49fd-9d53-d9dc2c43bd52/cpfGrjcXcVWiVf9T\",\n      \"createdAt\": \"2026-11-07 20:31:25+00\",\n      \"updatedAt\": \"2026-11-07 20:31:25+00\"\n    },\n    {\n      \"id\": \"2qZpERAO3IoPsIcO\",\n      \"name\": \"notes.txt\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 99,\n        \"mime\": \"text/plain\",\n        \"extension\": \"txt\",\n        \"hash\": \"7a50930b73b8d32ded8d79804a8053610e0ce6f339ad498d68d3ed24415d47b5\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/2qZpERAO3IoPsIcO\",\n      \"publicUrl\": \"https://s5.example.com/o/78bf3a62-c52c-49fd-9d53-d9dc2c43bd52/2qZpERAO3IoPsIcO\",\n      \"createdAt\": \"2026-11-07 20:31:25+00\",\n      \"updatedAt\": \"2026-11-07 20:31:25+00\"\n    },\n    {\n      \"id\": \"PttdQ2wSxSbs7CRs\",\n      \"name\": \"photo.webp\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 2250,\n        \"mime\": \"image/webp\",\n        \"extension\": \"webp\",\n        \"hash\": \"250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/PttdQ2wSxSbs7CRs\",\n      \"publicUrl\": \"https://s5.example.com/o/78bf3a62-c52c-49fd-9d53-d9dc2c43bd52/PttdQ2wSxSbs7CRs\",\n      \"createdAt\": \"2026-11-07 20:31:25+00\",\n      \"updatedAt\": \"2026-11-07 20:31:25+00\"\n    },\n    {\n      \"id\": \"vtHXMHSKcb80e2wj\",\n      \"name\": \"photo.png\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 4654,\n        \"mime\": \"image/png\",\n        \"extension\": \"png\",\n        \"hash\": \"ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/vtHXMHSKcb80e2wj\",\n      \"publicUrl\": \"https://s5.example.com/o/78bf3a62-c52c-49fd-9d53-d9dc2c43bd52/vtHXMHSKcb80e2wj\",\n      \"createdAt\": \"2026-11-07 20:31:25+00\",\n      \"updatedAt\": \"2026-11-07 20:31:25+00\"\n    }\n  ]\n}"
+              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 4,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": \"YO9KHmnXB6rBOZLE\",\n      \"name\": \"notes-copy.txt\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 66,\n        \"mime\": \"text/plain\",\n        \"extension\": \"txt\",\n        \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/YO9KHmnXB6rBOZLE\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/YO9KHmnXB6rBOZLE\",\n      \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n    },\n    {\n      \"id\": \"V8WUp3zASsxaieR3\",\n      \"name\": \"notes.txt\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 66,\n        \"mime\": \"text/plain\",\n        \"extension\": \"txt\",\n        \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/V8WUp3zASsxaieR3\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3\",\n      \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n    },\n    {\n      \"id\": \"sTWn2gk6AbcCeRrF\",\n      \"name\": \"photo.webp\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 2250,\n        \"mime\": \"image/webp\",\n        \"extension\": \"webp\",\n        \"hash\": \"250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/sTWn2gk6AbcCeRrF\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/sTWn2gk6AbcCeRrF\",\n      \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n    },\n    {\n      \"id\": \"jxQhMDwKDDSOyGT9\",\n      \"name\": \"photo.png\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 4654,\n        \"mime\": \"image/png\",\n        \"extension\": \"png\",\n        \"hash\": \"ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/jxQhMDwKDDSOyGT9\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/jxQhMDwKDDSOyGT9\",\n      \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n    }\n  ]\n}"
             }
           ],
           "event": [
@@ -2556,14 +2522,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('список получен', () => pm.response.to.have.status(200));"
+                  "pm.test('list received', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Получить файл",
+          "name": "Get a file",
           "request": {
             "method": "GET",
             "header": [],
@@ -2578,11 +2544,11 @@
                 "{{fileId}}"
               ]
             },
-            "description": "**Что делает.** Возвращает один файл по `id`: имя, папку, размер, тип, хеш и адреса.\n\n**Ответ `200`** — файл. **Ошибки:** `404` — нет такого файла."
+            "description": "Returns one file — name, folder, size, type, hash and addresses.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |"
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -2608,13 +2574,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "483"
+                  "value": "489"
                 }
               ],
-              "body": "{\n  \"id\": \"2qZpERAO3IoPsIcO\",\n  \"name\": \"notes.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 99,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"7a50930b73b8d32ded8d79804a8053610e0ce6f339ad498d68d3ed24415d47b5\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/2qZpERAO3IoPsIcO\",\n  \"publicUrl\": \"https://s5.example.com/o/78bf3a62-c52c-49fd-9d53-d9dc2c43bd52/2qZpERAO3IoPsIcO\",\n  \"createdAt\": \"2026-11-07 20:31:25+00\",\n  \"updatedAt\": \"2026-11-07 20:31:25+00\"\n}"
+              "body": "{\n  \"id\": \"V8WUp3zASsxaieR3\",\n  \"name\": \"notes.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/V8WUp3zASsxaieR3\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3\",\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
             },
             {
-              "name": "404 — нет такого файла",
+              "name": "404 — no such file",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -2648,14 +2614,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('файл найден', () => pm.response.to.have.status(200));"
+                  "pm.test('file found', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Переименовать файл",
+          "name": "Rename a file",
           "request": {
             "method": "PUT",
             "header": [
@@ -2675,7 +2641,7 @@
                 "{{fileId}}"
               ]
             },
-            "description": "**Что делает.** Меняет имя файла. Содержимое и адреса не меняются.\n\n**Тело:**\n\n| Поле | Обязательно | Что это |\n|---|---|---|\n| `name` | да | новое имя; `/`, `\\` и управляющие символы заменятся на `-` |\n| `folder` | нет | папка, где файл должен оказаться; **без него — корень** |\n\nРасширение при переименовании не подгоняется — каким задали, таким и будет.\n\n> **Важно.** `folder` описывает, где файл будет после запроса. Чтобы только переименовать файл в\n> папке — передайте её имя, иначе файл переедет в корень.\n\n**Ответ `200`** — файл. **Ошибки:** `409` — имя в этой папке занято; `404` — нет файла;\n`422` — нет такой папки.",
+            "description": "Changes the name of the file and the folder it is in. The content and the `id` stay.\n\n`folder` says **where the file will be after the request**. To only rename a file inside a\nfolder, pass that folder's name — otherwise the file moves to the root.\n\nA moved file takes the rules of its new folder — visibility and retention; retention counts from\nthe move. **Moving to the root makes the file public**: it opens at `/o/…` without a token.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | New name. `/`, `\\` and control characters become `-`; the extension is not adjusted. |\n| `folder` | string | null |  | The folder the file should end up in. Without it — the root. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file with its new `name`, `folder`, `public` and `expiresAt`. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `409` | The name is already taken in that folder. |\n| `422` | No such folder, or the name is empty once cleaned. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"notes-renamed.txt\"\n}",
@@ -2688,7 +2654,7 @@
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "PUT",
                 "header": [
@@ -2728,13 +2694,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "495"
+                  "value": "497"
                 }
               ],
-              "body": "{\n  \"id\": \"2qZpERAO3IoPsIcO\",\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 99,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"7a50930b73b8d32ded8d79804a8053610e0ce6f339ad498d68d3ed24415d47b5\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/2qZpERAO3IoPsIcO\",\n  \"publicUrl\": \"https://s5.example.com/o/78bf3a62-c52c-49fd-9d53-d9dc2c43bd52/2qZpERAO3IoPsIcO\",\n  \"createdAt\": \"2026-11-07 20:31:25+00\",\n  \"updatedAt\": \"2026-11-07 20:31:25 +00:00\"\n}"
+              "body": "{\n  \"id\": \"V8WUp3zASsxaieR3\",\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/V8WUp3zASsxaieR3\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/V8WUp3zASsxaieR3\",\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
             },
             {
-              "name": "409 — имя занято",
+              "name": "409 — name taken",
               "originalRequest": {
                 "method": "PUT",
                 "header": [
@@ -2782,14 +2748,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('файл переименован', () => pm.response.to.have.status(200));"
+                  "pm.test('file renamed', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Перенести файл в папку",
+          "name": "Move a file into a folder",
           "request": {
             "method": "PUT",
             "header": [
@@ -2809,7 +2775,7 @@
                 "{{fileId}}"
               ]
             },
-            "description": "**Что делает.** Переносит файл в другую папку — тем же запросом, что и переименование.\n\n**При переносе файл получает правила новой папки:** её видимость и срок хранения. Срок\nсчитается **от момента переноса**.\nЗдесь файл уезжает в закрытую папку — после этого `publicUrl` станет `null`, а адрес `/o/…`\nперестанет работать.\n\n> **Перенос в корень делает файл публичным.** Приватный документ, перенесённый в корень,\n> станет доступен по `/o/…` без токена.\n\n**Ответ `200`** — файл с новыми `folder`, `public` и `expiresAt`.",
+            "description": "Changes the name of the file and the folder it is in. The content and the `id` stay.\n\n`folder` says **where the file will be after the request**. To only rename a file inside a\nfolder, pass that folder's name — otherwise the file moves to the root.\n\nA moved file takes the rules of its new folder — visibility and retention; retention counts from\nthe move. **Moving to the root makes the file public**: it opens at `/o/…` without a token.\n\nHere the file moves into a private folder: afterwards `publicUrl` is `null` and `/o/…` stops working.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `name` | string | yes | New name. `/`, `\\` and control characters become `-`; the extension is not adjusted. |\n| `folder` | string | null |  | The folder the file should end up in. Without it — the root. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file with its new `name`, `folder`, `public` and `expiresAt`. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `409` | The name is already taken in that folder. |\n| `422` | No such folder, or the name is empty once cleaned. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": \"{{folderName}}\"\n}",
@@ -2822,7 +2788,7 @@
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "PUT",
                 "header": [
@@ -2862,10 +2828,10 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "461"
+                  "value": "462"
                 }
               ],
-              "body": "{\n  \"id\": \"2qZpERAO3IoPsIcO\",\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": \"demo-1794083485605\",\n  \"content\": {\n    \"size\": 99,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"7a50930b73b8d32ded8d79804a8053610e0ce6f339ad498d68d3ed24415d47b5\"\n  },\n  \"public\": false,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": \"2026-11-14 20:31:25 +00:00\",\n  \"privateUrl\": \"https://s5.example.com/p/2qZpERAO3IoPsIcO\",\n  \"publicUrl\": null,\n  \"createdAt\": \"2026-11-07 20:31:25+00\",\n  \"updatedAt\": \"2026-11-07 20:31:25 +00:00\"\n}"
+              "body": "{\n  \"id\": \"V8WUp3zASsxaieR3\",\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": \"demo-1794086473351\",\n  \"content\": {\n    \"size\": 66,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"49394183c0710eb5912db77a0fa3e7e461fa9c9f2739c9742fd3576d4584c293\"\n  },\n  \"public\": false,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": \"2026-11-14T21:21:13+00:00\",\n  \"privateUrl\": \"https://s5.example.com/p/V8WUp3zASsxaieR3\",\n  \"publicUrl\": null,\n  \"createdAt\": \"2026-11-07T21:21:13+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:13+00:00\"\n}"
             }
           ],
           "event": [
@@ -2874,12 +2840,10 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('файл перенесён', () => pm.response.to.have.status(200));",
+                  "pm.test('file moved', () => pm.response.to.have.status(200));",
                   "const json = pm.response.json();",
-                  "pm.test('теперь закрытый', () => pm.expect(json.public).to.eql(false));",
-                  "pm.test('появился срок хранения', () => pm.expect(json.expiresAt).to.be.a('string'));",
-                  ""
+                  "pm.test('now private', () => pm.expect(json.public).to.eql(false));",
+                  "pm.test('retention applied', () => pm.expect(json.expiresAt).to.be.a('string'));"
                 ]
               }
             }
@@ -2888,11 +2852,11 @@
       ]
     },
     {
-      "name": "6. Временные ссылки",
-      "description": "Ссылка на один файл, которая открывается без токена, но только до срока и, если нужно,\nограниченное число раз. Работает и для закрытых файлов.\n\nСсылка перестаёт работать, когда истёк срок, когда её отозвали, когда кончился лимит скачиваний и\nкогда удалён сам файл.",
+      "name": "6. Temporary links",
+      "description": "A `/t/…` link to one file: opens without a token, but only until it expires and, if needed,\na limited number of times. Works for private files too.",
       "item": [
         {
-          "name": "Выдать временную ссылку",
+          "name": "Issue a temporary link",
           "request": {
             "method": "POST",
             "header": [
@@ -2913,7 +2877,7 @@
                 "link"
               ]
             },
-            "description": "**Что делает.** Выдаёт подписанную ссылку `/t/…` на файл. Она открывается **без токена**, но\nтолько до срока. Работает и для закрытых файлов — для этого она и нужна.\n\n**Тело:**\n\n| Поле | По умолчанию | Что это |\n|---|---|---|\n| `ttl` | `3600` | срок жизни, секунд: до 2592000 (30 дней) |\n| `disposition` | `0` | `0` — открыть в браузере, `1` — скачать |\n| `maxDownloads` | — | лимит скачиваний, 1–1000 |\n| `revocable` | `false` | можно отозвать по одной |\n| `note` | `\"\"` | заметка для себя, до 255 символов |\n\n**Два вида ссылок.** Без `maxDownloads` и `revocable` ссылка **подписанная**: в базе не хранится,\n`id: null`, отозвать по одной нельзя — только все ссылки бакета разом. С любым из этих полей —\n**учитываемая**: хранится, считает скачивания, отзывается по одной.\n\n**Ответ `201`** — ссылка: `url`, `expiresAt`, `id` и счётчики.\n\n**Ошибки:** `404` — нет файла; `422` — `ttl` больше 30 дней.",
+            "description": "Issues a signed `/t/…` link to the file. It opens without a token, but only until it expires.\n\n**Two kinds.** Without `maxDownloads` and `revocable` the link is **signed**: it is not stored,\n`id: null`, and cannot be revoked on its own — only all links of the bucket at once. With either\nfield it is **tracked**: stored, counts downloads, revocable on its own.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `ttl` | integer | yes | Lifetime, seconds: up to 30 days. |\n| `disposition` | `0` · `1` |  | Open in the browser or download. (`0` open in the browser, `1` download) |\n| `maxDownloads` | integer |  | Download limit. Makes the link tracked. |\n| `revocable` | boolean |  | Revocable on its own. Makes the link tracked. |\n| `note` | string |  | A note for yourself. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The link is issued. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `422` | Validation failed — for example, `ttl` over 30 days. |",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"ttl\": 3600,\n  \"disposition\": 0\n}",
@@ -2926,7 +2890,7 @@
           },
           "response": [
             {
-              "name": "201 — успех",
+              "name": "201 — success",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -2967,13 +2931,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "248"
+                  "value": "247"
                 }
               ],
-              "body": "{\n  \"id\": null,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAADau-YrQAAAAABioVHbpnu12yKRikjYxCDLw\",\n  \"expiresAt\": \"2026-11-07 21:31:25 +00:00\",\n  \"revocable\": false,\n  \"maxDownloads\": null,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 0,\n    \"name\": \"INLINE\"\n  },\n  \"note\": \"\"\n}"
+              "body": "{\n  \"id\": null,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAALau-kWQAAAAADghF5GyLaqPHXN-PzTOBrbg\",\n  \"expiresAt\": \"2026-11-07T22:21:13+00:00\",\n  \"revocable\": false,\n  \"maxDownloads\": null,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 0,\n    \"name\": \"INLINE\"\n  },\n  \"note\": \"\"\n}"
             },
             {
-              "name": "422 — срок больше 30 дней",
+              "name": "422 — ttl over 30 days",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -3022,19 +2986,17 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('ссылка выдана', () => pm.response.to.have.status(201));",
+                  "pm.test('link issued', () => pm.response.to.have.status(201));",
                   "const json = pm.response.json();",
                   "pm.collectionVariables.set('linkUrl', json.url);",
-                  "pm.test('подписанная ссылка — id нет', () => pm.expect(json.id).to.eql(null));",
-                  ""
+                  "pm.test('signed link — no id', () => pm.expect(json.id).to.eql(null));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Выдать ссылку с лимитом скачиваний",
+          "name": "Issue a link with a download limit",
           "request": {
             "method": "POST",
             "header": [
@@ -3055,10 +3017,10 @@
                 "link"
               ]
             },
-            "description": "**Что делает.** Выдаёт учитываемую ссылку: на сутки, на 3 скачивания, с возможностью отозвать.\nПодходит, чтобы передать документ подрядчику.\n\nПосле третьего скачивания ссылка перестанет открываться — ответ `404`.\n\n**Ответ `201`** — ссылка с `id`: по нему её можно отозвать.",
+            "description": "Issues a signed `/t/…` link to the file. It opens without a token, but only until it expires.\n\n**Two kinds.** Without `maxDownloads` and `revocable` the link is **signed**: it is not stored,\n`id: null`, and cannot be revoked on its own — only all links of the bucket at once. With either\nfield it is **tracked**: stored, counts downloads, revocable on its own.\n\nA tracked link for a day and 3 downloads, revocable. After the third download it answers `404`.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Request body**\n\n| Field | Type | Required | Description |\n|---|---|---|---|\n| `ttl` | integer | yes | Lifetime, seconds: up to 30 days. |\n| `disposition` | `0` · `1` |  | Open in the browser or download. (`0` open in the browser, `1` download) |\n| `maxDownloads` | integer |  | Download limit. Makes the link tracked. |\n| `revocable` | boolean |  | Revocable on its own. Makes the link tracked. |\n| `note` | string |  | A note for yourself. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `201` | The link is issued. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |\n| `422` | Validation failed — for example, `ttl` over 30 days. |",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ttl\": 86400,\n  \"disposition\": 1,\n  \"maxDownloads\": 3,\n  \"revocable\": true,\n  \"note\": \"для подрядчика\"\n}",
+              "raw": "{\n  \"ttl\": 86400,\n  \"disposition\": 1,\n  \"maxDownloads\": 3,\n  \"revocable\": true,\n  \"note\": \"for the contractor\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3068,7 +3030,7 @@
           },
           "response": [
             {
-              "name": "201 — успех",
+              "name": "201 — success",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -3091,7 +3053,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ttl\": 86400,\n  \"disposition\": 1,\n  \"maxDownloads\": 3,\n  \"revocable\": true,\n  \"note\": \"для подрядчика\"\n}",
+                  "raw": "{\n  \"ttl\": 86400,\n  \"disposition\": 1,\n  \"maxDownloads\": 3,\n  \"revocable\": true,\n  \"note\": \"for the contractor\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3109,10 +3071,10 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "282"
+                  "value": "272"
                 }
               ],
-              "body": "{\n  \"id\": 1,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAADavDcHQMAAAABAAAAAAAAAAEVfeF1wUuT0DTNzu_9j4up\",\n  \"expiresAt\": \"2026-11-08 20:31:25 +00:00\",\n  \"revocable\": true,\n  \"maxDownloads\": 3,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 1,\n    \"name\": \"ATTACHMENT\"\n  },\n  \"note\": \"для подрядчика\"\n}"
+              "body": "{\n  \"id\": 3,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavDnyQMAAAADAAAAAAAAAAOjKJibeSXM8HGQ2QCt3jts\",\n  \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n  \"revocable\": true,\n  \"maxDownloads\": 3,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 1,\n    \"name\": \"ATTACHMENT\"\n  },\n  \"note\": \"for the contractor\"\n}"
             }
           ],
           "event": [
@@ -3121,19 +3083,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('ссылка выдана', () => pm.response.to.have.status(201));",
-                  "const json = pm.response.json();",
-                  "pm.collectionVariables.set('linkId', json.id);",
-                  "pm.collectionVariables.set('countedLinkUrl', json.url);",
-                  ""
+                  "pm.test('link issued', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('linkId', pm.response.json().id);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Открыть временную ссылку · /t",
+          "name": "Open a temporary link · /t",
           "request": {
             "method": "GET",
             "header": [],
@@ -3143,14 +3101,14 @@
                 "{{linkUrl}}"
               ]
             },
-            "description": "**Что делает.** То, что сделает получатель ссылки: откроет её без токена.\n\nПосле срока, отзыва или исчерпания лимита — `404`.",
+            "description": "Serves the file through a temporary link, without a token. After expiry, revocation or the download limit — `404`. Open or download is set when issuing, by `disposition`.\n\n**Token:** not needed\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `token` | path | yes | The signed part of the link after `/t/`. |\n| `Range` | header |  | A byte range, e.g. `bytes=0-1023` — answers `206`. |\n| `If-None-Match` | header |  | An `ETag` received before: when the file has not changed — `304` with no body. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | The file content. Headers: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | The requested byte range; `Content-Range` header. |\n| `304` | The file has not changed since that `ETag` — no body. |\n| `404` | The link expired, was revoked or is used up. |",
             "auth": {
               "type": "noauth"
             }
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -3170,7 +3128,7 @@
               "header": [
                 {
                   "key": "Etag",
-                  "value": "\"6aef8a9d-63\""
+                  "value": "\"6aef9649-42\""
                 },
                 {
                   "key": "Accept-Ranges",
@@ -3190,13 +3148,13 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "99"
+                  "value": "66"
                 }
               ],
               "body": ""
             },
             {
-              "name": "404 — ссылка истекла или отозвана",
+              "name": "404 — link expired or revoked",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -3228,14 +3186,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('файл отдан по ссылке', () => pm.response.to.have.status(200));"
+                  "pm.test('served through the link', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Ссылки одного файла",
+          "name": "Links of a file",
           "request": {
             "method": "GET",
             "header": [],
@@ -3251,11 +3209,11 @@
                 "links"
               ]
             },
-            "description": "**Что делает.** Возвращает учитываемые ссылки файла: сколько раз скачивали, когда истекают, отозваны\nли. Подписанных ссылок здесь нет — они нигде не хранятся."
+            "description": "The last 20 tracked links of the file, newest first — with download counts, expiry and the revoked flag; expired and revoked ones too, until the nightly sweep deletes them. Signed links are not here — they are not stored anywhere.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | An array of links. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |"
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -3282,10 +3240,10 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "280"
+                  "value": "274"
                 }
               ],
-              "body": "[\n  {\n    \"id\": 1,\n    \"url\": \"https://s5.example.com/t/AQAAAAAAAAADavDcHQMAAAABAAAAAAAAAAEVfeF1wUuT0DTNzu_9j4up\",\n    \"expiresAt\": \"2026-11-08 20:31:25+00\",\n    \"revocable\": true,\n    \"maxDownloads\": 3,\n    \"downloads\": 0,\n    \"revoked\": false,\n    \"disposition\": {\n      \"id\": 1,\n      \"name\": \"ATTACHMENT\"\n    },\n    \"note\": \"для подрядчика\"\n  }\n]"
+              "body": "[\n  {\n    \"id\": 3,\n    \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavDnyQMAAAADAAAAAAAAAAOjKJibeSXM8HGQ2QCt3jts\",\n    \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n    \"revocable\": true,\n    \"maxDownloads\": 3,\n    \"downloads\": 0,\n    \"revoked\": false,\n    \"disposition\": {\n      \"id\": 1,\n      \"name\": \"ATTACHMENT\"\n    },\n    \"note\": \"for the contractor\"\n  }\n]"
             }
           ],
           "event": [
@@ -3294,14 +3252,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('список получен', () => pm.response.to.have.status(200));"
+                  "pm.test('list received', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Все ссылки бакета",
+          "name": "All links of the bucket",
           "request": {
             "method": "GET",
             "header": [],
@@ -3325,11 +3283,11 @@
                 }
               ]
             },
-            "description": "**Что делает.** Возвращает учитываемые ссылки всего бакета постранично."
+            "description": "Tracked links of the whole bucket page by page, newest first — expired and revoked ones included until the nightly sweep deletes them.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `page` | query |  | Page number, from 1. |\n| `limit` | query |  | Records per page. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | A page of links. |\n| `401` | No token, or the token is unknown. |"
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -3364,10 +3322,10 @@
                 },
                 {
                   "key": "Content-Length",
-                  "value": "368"
+                  "value": "362"
                 }
               ],
-              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": 1,\n      \"url\": \"https://s5.example.com/t/AQAAAAAAAAADavDcHQMAAAABAAAAAAAAAAEVfeF1wUuT0DTNzu_9j4up\",\n      \"expiresAt\": \"2026-11-08 20:31:25+00\",\n      \"revocable\": true,\n      \"maxDownloads\": 3,\n      \"downloads\": 0,\n      \"revoked\": false,\n      \"disposition\": {\n        \"id\": 1,\n        \"name\": \"ATTACHMENT\"\n      },\n      \"note\": \"для подрядчика\"\n    }\n  ]\n}"
+              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": 3,\n      \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavDnyQMAAAADAAAAAAAAAAOjKJibeSXM8HGQ2QCt3jts\",\n      \"expiresAt\": \"2026-11-08T21:21:13+00:00\",\n      \"revocable\": true,\n      \"maxDownloads\": 3,\n      \"downloads\": 0,\n      \"revoked\": false,\n      \"disposition\": {\n        \"id\": 1,\n        \"name\": \"ATTACHMENT\"\n      },\n      \"note\": \"for the contractor\"\n    }\n  ]\n}"
             }
           ],
           "event": [
@@ -3376,7 +3334,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('список получен', () => pm.response.to.have.status(200));"
+                  "pm.test('list received', () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -3385,11 +3343,11 @@
       ]
     },
     {
-      "name": "7. Примеры ошибок",
-      "description": "Запросы, которые ошибаются нарочно, — чтобы показать, как выглядит ответ.\nВсе ошибки устроены одинаково: `{ \"code\": …, \"message\": \"…\" }`, плюс `errors` при проверке параметров.",
+      "name": "7. Error examples",
+      "description": "Requests that fail on purpose. Every error looks the same: `{ \"code\", \"message\" }`, plus `errors` when validation failed.",
       "item": [
         {
-          "name": "Нет токена → 401",
+          "name": "No token → 401",
           "request": {
             "method": "GET",
             "header": [],
@@ -3403,14 +3361,14 @@
                 "check"
               ]
             },
-            "description": "Запрос без заголовка `Authorization`. Такой же ответ — на неизвестный токен.",
+            "description": "A request without `Authorization`. An unknown token gets the same.",
             "auth": {
               "type": "noauth"
             }
           },
           "response": [
             {
-              "name": "401 — нет токена",
+              "name": "401 — no token",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -3453,7 +3411,7 @@
           ]
         },
         {
-          "name": "Нет такого файла → 404",
+          "name": "No such file → 404",
           "request": {
             "method": "GET",
             "header": [],
@@ -3468,11 +3426,11 @@
                 "AAAAAAAAAAAAAAAA"
               ]
             },
-            "description": "Файла с таким `id` нет в бакете токена. Чужой файл выглядит так же — по ответу нельзя узнать,\nсуществует ли он в другом бакете."
+            "description": "No file with this `id` in the bucket of the token. Someone else's file looks the same — the answer does not reveal other buckets."
           },
           "response": [
             {
-              "name": "404 — нет такого файла",
+              "name": "404 — no such file",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -3513,7 +3471,7 @@
           ]
         },
         {
-          "name": "Неверные параметры → 422",
+          "name": "Invalid parameters → 422",
           "request": {
             "method": "POST",
             "header": [
@@ -3532,7 +3490,7 @@
                 "folders"
               ]
             },
-            "description": "Параметры не прошли проверку. В `errors` — сообщения по каждому полю: их можно показывать\nпользователю рядом с полем ввода.",
+            "description": "Validation failed. `errors` has a message per field: show them next to the input.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"/bad name\",\n  \"retention\": 99\n}",
@@ -3545,7 +3503,7 @@
           },
           "response": [
             {
-              "name": "422 — параметры не прошли проверку",
+              "name": "422 — validation failed",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -3592,10 +3550,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
                   "pm.test('422', () => pm.response.to.have.status(422));",
-                  "pm.test('ошибки по полям', () => pm.expect(pm.response.json().errors).to.have.property('name'));",
-                  ""
+                  "pm.test('per-field errors', () => pm.expect(pm.response.json().errors).to.have.property('name'));"
                 ]
               }
             }
@@ -3604,11 +3560,11 @@
       ]
     },
     {
-      "name": "8. Уборка",
-      "description": "Удаляет всё, что создал прогон, — чтобы его можно было повторить. Запросы, которым нечего\nудалять (например, файл в разделе 2 не выбирали), пропускаются сами.",
+      "name": "8. Cleanup",
+      "description": "Deletes everything the run created, so it can be repeated. Requests with nothing to delete skip themselves.",
       "item": [
         {
-          "name": "Отозвать ссылку",
+          "name": "Revoke a link",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -3623,11 +3579,11 @@
                 "{{linkId}}"
               ]
             },
-            "description": "**Что делает.** Отзывает одну учитываемую ссылку. Она сразу перестаёт открываться.\n\n**Ответ `204`.** **Ошибки:** `404` — нет такой ссылки."
+            "description": "Revokes one tracked link. It stops opening at once.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | `id` of a tracked link. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `204` | Revoked, no body. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such link. |"
           },
           "response": [
             {
-              "name": "204 — успех",
+              "name": "204 — success",
               "originalRequest": {
                 "method": "DELETE",
                 "header": [],
@@ -3659,7 +3615,7 @@
               "body": ""
             },
             {
-              "name": "404 — нет такой ссылки",
+              "name": "404 — no such link",
               "originalRequest": {
                 "method": "DELETE",
                 "header": [],
@@ -3694,7 +3650,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (!pm.collectionVariables.get('linkId')) {",
-                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    // The earlier step did not run — skip this one, the run goes on.",
                   "    pm.execution.skipRequest();",
                   "}"
                 ]
@@ -3705,14 +3661,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('ссылка отозвана', () => pm.response.to.have.status(204));"
+                  "pm.test('link revoked', () => pm.response.to.have.status(204));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Отозвать все ссылки бакета",
+          "name": "Revoke every link of the bucket",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -3726,11 +3682,11 @@
                 "links"
               ]
             },
-            "description": "**Что делает.** Отзывает **все** временные ссылки бакета, в том числе подписанные. Новые ссылки\nпосле этого выдаются как обычно.\n\n**Когда.** Ссылка утекла, а отозвать её по одной нельзя.\n\n**Ответ `200`** — `{ \"epoch\": … }`: номер новой «эпохи» подписи."
+            "description": "Revokes **every** temporary link of the bucket, signed ones included. New links are issued as usual afterwards. For a leaked link that cannot be revoked on its own.\n\n**Token:** `FULL`\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `200` | Number of the new signing epoch. |\n| `401` | No token, or the token is unknown. |"
           },
           "response": [
             {
-              "name": "200 — успех",
+              "name": "200 — success",
               "originalRequest": {
                 "method": "DELETE",
                 "header": [],
@@ -3758,7 +3714,7 @@
                   "value": "11"
                 }
               ],
-              "body": "{\n  \"epoch\": 2\n}"
+              "body": "{\n  \"epoch\": 4\n}"
             }
           ],
           "event": [
@@ -3767,16 +3723,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('ссылки отозваны', () => pm.response.to.have.status(200));",
-                  ""
+                  "pm.test('links revoked', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Проверить: ссылка больше не работает",
+          "name": "Check: the link no longer works",
           "request": {
             "method": "GET",
             "header": [],
@@ -3786,7 +3740,7 @@
                 "{{linkUrl}}"
               ]
             },
-            "description": "Та же ссылка, что открывалась в разделе 6, — после отзыва всех ссылок она отвечает `404`.",
+            "description": "The same link that opened in section 6 — after revoking every link it answers `404`.",
             "auth": {
               "type": "noauth"
             }
@@ -3798,14 +3752,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('ссылка не работает — 404', () => pm.response.to.have.status(404));"
+                  "pm.test('link is dead — 404', () => pm.response.to.have.status(404));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Удалить файл",
+          "name": "Delete a file",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -3820,11 +3774,11 @@
                 "{{fileId}}"
               ]
             },
-            "description": "**Что делает.** Удаляет файл. Его адреса и временные ссылки на него перестают работать.\n\nЕсли такое же содержимое есть у другого файла (дедупликация), оно остаётся на диске; место\nосвобождается, когда удалён последний файл с этим содержимым.\n\n**Ответ `204`.** **Ошибки:** `404` — нет такого файла."
+            "description": "Deletes the file. Its addresses and temporary links stop working.\n\nWhen another file of the bucket has the same content, the content stays on disk; space is freed\nwhen the last file with that content is deleted.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `id` | path | yes | File id from the `id` field, 16 characters. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `204` | Deleted, no body. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such file in the bucket of the token. |"
           },
           "response": [
             {
-              "name": "204 — успех",
+              "name": "204 — success",
               "originalRequest": {
                 "method": "DELETE",
                 "header": [],
@@ -3863,7 +3817,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (!pm.collectionVariables.get('fileId')) {",
-                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    // The earlier step did not run — skip this one, the run goes on.",
                   "    pm.execution.skipRequest();",
                   "}"
                 ]
@@ -3874,14 +3828,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('файл удалён', () => pm.response.to.have.status(204));"
+                  "pm.test('file deleted', () => pm.response.to.have.status(204));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Удалить копию",
+          "name": "Delete the copy",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -3896,11 +3850,11 @@
                 "{{dedupFileId}}"
               ]
             },
-            "description": "Удаляет файл, созданный запросом «Загрузить без передачи»."
+            "description": "Deletes the file from \"Skip the transfer\"."
           },
           "response": [
             {
-              "name": "204 — успех",
+              "name": "204 — success",
               "originalRequest": {
                 "method": "DELETE",
                 "header": [],
@@ -3939,7 +3893,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (!pm.collectionVariables.get('dedupFileId')) {",
-                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    // The earlier step did not run — skip this one, the run goes on.",
                   "    pm.execution.skipRequest();",
                   "}"
                 ]
@@ -3950,14 +3904,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('файл удалён', () => pm.response.to.have.status(204));"
+                  "pm.test('file deleted', () => pm.response.to.have.status(204));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Удалить загруженный файл",
+          "name": "Delete the uploaded file",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -3972,11 +3926,11 @@
                 "{{uploadedFileId}}"
               ]
             },
-            "description": "Удаляет файл из запроса «Загрузить файл» — если он был выбран и загружен."
+            "description": "Deletes the file from \"Upload a file\", if it was uploaded."
           },
           "response": [
             {
-              "name": "204 — успех",
+              "name": "204 — success",
               "originalRequest": {
                 "method": "DELETE",
                 "header": [],
@@ -4015,7 +3969,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (!pm.collectionVariables.get('uploadedFileId')) {",
-                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    // The earlier step did not run — skip this one, the run goes on.",
                   "    pm.execution.skipRequest();",
                   "}"
                 ]
@@ -4026,14 +3980,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('файл удалён', () => pm.response.to.have.status(204));"
+                  "pm.test('file deleted', () => pm.response.to.have.status(204));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Удалить загруженную картинку",
+          "name": "Delete the uploaded image",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -4048,11 +4002,11 @@
                 "{{imageFileId}}"
               ]
             },
-            "description": "Удаляет картинку из запроса «Загрузить картинку с обработкой» — если она была загружена."
+            "description": "Deletes the image from \"Upload an image with processing\", if it was uploaded."
           },
           "response": [
             {
-              "name": "204 — успех",
+              "name": "204 — success",
               "originalRequest": {
                 "method": "DELETE",
                 "header": [],
@@ -4091,7 +4045,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (!pm.collectionVariables.get('imageFileId')) {",
-                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    // The earlier step did not run — skip this one, the run goes on.",
                   "    pm.execution.skipRequest();",
                   "}"
                 ]
@@ -4102,14 +4056,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('картинка удалена', () => pm.response.to.have.status(204));"
+                  "pm.test('image deleted', () => pm.response.to.have.status(204));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Удалить папку",
+          "name": "Delete the folder",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -4124,11 +4078,11 @@
                 "{{folderName}}"
               ]
             },
-            "description": "**Что делает.** Удаляет папку **вместе со всеми файлами в ней**. Отменить нельзя.\n\n**Ответ `204`.** **Ошибки:** `404` — нет такой папки."
+            "description": "Deletes the folder **together with every file in it**. Cannot be undone.\n\n**Token:** `FULL`\n\n**Parameters**\n\n| Name | In | Required | Description |\n|---|---|---|---|\n| `name` | path | yes | Folder name. |\n\n**Responses**\n\n| Code | When |\n|---|---|\n| `204` | Deleted, no body. |\n| `401` | No token, or the token is unknown. |\n| `404` | No such folder. |"
           },
           "response": [
             {
-              "name": "204 — успех",
+              "name": "204 — success",
               "originalRequest": {
                 "method": "DELETE",
                 "header": [],
@@ -4167,7 +4121,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (!pm.collectionVariables.get('folderName')) {",
-                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    // The earlier step did not run — skip this one, the run goes on.",
                   "    pm.execution.skipRequest();",
                   "}"
                 ]
@@ -4178,11 +4132,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "",
-                  "pm.test('папка удалена', () => pm.response.to.have.status(204));",
-                  "['fileId', 'dedupFileId', 'uploadedFileId', 'imageFileId', 'linkId', 'uploadId', 'cancelUploadId']",
-                  "    .forEach((k) => pm.collectionVariables.set(k, ''));",
-                  ""
+                  "pm.test('folder deleted', () => pm.response.to.have.status(204));",
+                  "['fileId', 'dedupFileId', 'uploadedFileId', 'imageFileId', 'linkId', 'uploadId', 'cancelUploadId'].forEach((k) => pm.collectionVariables.set(k, ''));"
                 ]
               }
             }
@@ -4195,92 +4146,87 @@
     {
       "key": "baseUrl",
       "value": "http://localhost:9090",
-      "description": "Адрес API со схемой, без / в конце: https://s5.example.com"
+      "description": "API address with the scheme, no trailing /"
     },
     {
       "key": "token",
       "value": "",
-      "description": "Токен бакета с полным доступом. Вписывайте в Current value — так он не попадёт в экспорт"
+      "description": "A full-access bucket token — into Current value"
     },
     {
       "key": "bucketId",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "folderName",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "uploadedFileId",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "imageFileId",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "chunkText",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "chunkSize",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "contentHash",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "uploadId",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "uploadOffset",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "fileId",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "dedupFileId",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "cancelUploadId",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "etag",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "linkUrl",
       "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     },
     {
       "key": "linkId",
       "value": "",
-      "description": "заполняется само во время прогона"
-    },
-    {
-      "key": "countedLinkUrl",
-      "value": "",
-      "description": "заполняется само во время прогона"
+      "description": "filled in during the run"
     }
   ]
 }

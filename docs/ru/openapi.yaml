@@ -1,0 +1,2423 @@
+openapi: 3.1.0
+info:
+  title: S5W — клиентский API
+  version: '1.1'
+  summary: Загрузка, хранение и раздача файлов
+  description: |
+    Всё, что нужно приложению от S5W: положить файл, получить на него ссылку, раздать.
+
+    **Бакет определяется токеном.** Его нет ни в одном адресе API: токен выдан одному бакету и
+    работает только в нём.
+
+    **Уровни токена:** `BASIC` («только отдача» в панели) — `GET /v1/check` и скачивание
+    `/p/{id}`; `FULL` («полный доступ») — всё.
+
+    **Форматы.** Списки отвечают `{ "meta": {…}, "data": [ … ] }`. Ошибки — `{ "code", "message" }`,
+    при ошибке проверки параметров ещё `errors` по полям. Перечисления в запросах передаются
+    числом (`"retention": 3`), кроме строкового `format`; в ответах — объектом
+    `{ "id": 3, "name": "MONTH" }`. Удаление отвечает `204` без тела.
+
+    **Время** — RFC 3339 (ISO 8601) с часовым поясом: `2026-11-08T17:10:44+00:00`. Во всех
+    ответах одинаково; стандартные библиотеки разбирают его без подготовки.
+
+    Полная документация: https://winterframe.net/ru/apps/s5w/overview
+
+    | Код | Когда |
+    |---|---|
+    | `200` / `201` | успех / создано |
+    | `204` | удалено, тела нет |
+    | `400` | файл не передан; пустая или слишком маленькая часть загрузки |
+    | `401` | нет токена или он неизвестен |
+    | `403` | токен отключён, истёк или его уровня мало |
+    | `404` | нет такого файла, загрузки, ссылки или папки (в `/v1/folders/{name}`) |
+    | `409` | конфликт: имя занято, смещение части не совпало, загрузка не закончена |
+    | `413` | не хватает квоты, тело больше 32 МиБ, часть больше 16 МиБ |
+    | `422` | параметры не прошли проверку, нет указанной папки, хеш не совпал, картинку нельзя обработать |
+    | `507` | на сервере кончается место |
+servers:
+- url: '{baseUrl}'
+  description: Ваш сервер S5W
+  variables:
+    baseUrl:
+      default: http://localhost:9090
+      description: Адрес API со схемой и без / в конце — например, https://s5.example.com
+security:
+- token: []
+tags:
+- name: Проверка токена
+  description: Первый запрос — убедиться, что адрес и токен указаны верно.
+- name: Папки
+  description: |
+    Необязательная группировка файлов. Папка задаёт файлам общие правила — видимость, срок
+    хранения и кэш. **Корень бакета всегда публичный**: закрытые файлы держите в папке с
+    `public: false`.
+- name: Файлы
+  description: Загрузка одним запросом (до 32 МиБ) и управление файлами бакета.
+- name: Загрузка частями
+  description: |
+    Для больших файлов и ненадёжной сети: файл уходит частями по 4–16 МиБ, после обрыва
+    загрузка продолжается с полученного места. Порядок: начать → отправлять части → завершить.
+- name: Временные ссылки
+  description: |
+    Ссылка `/t/…` на один файл: открывается без токена, но только до срока и, если нужно,
+    ограниченное число раз. Работает и для закрытых файлов.
+- name: Раздача
+  description: |
+    Как файл получает браузер, приложение или CDN: публично (`/o`), по токену (`/p`) и по
+    временной ссылке (`/t`). Все три поддерживают `Range`, `ETag` и условные запросы.
+paths:
+  /v1/check:
+    get:
+      tags:
+      - Проверка токена
+      operationId: checkToken
+      summary: Проверить токен
+      description: |
+        Проверяет токен и показывает, к какому бакету он относится, какой у него уровень доступа и
+        сколько осталось места.
+
+        Используйте первым запросом — чтобы убедиться, что адрес и токен указаны верно. В приложении —
+        например, при старте, чтобы сразу увидеть отозванный токен.
+
+        **Токен:** `BASIC`.
+      x-token-level: BASIC
+      responses:
+        '200':
+          description: Токен принят.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Check'
+              example:
+                bucket:
+                  id: 26cf7ca6-fa2b-410a-887f-1ed75396531d
+                  name: postman
+                access:
+                  id: 2
+                  name: FULL
+                expiresAt: null
+                bytes:
+                  quota: 104857600
+                  used: 0
+                  free: 104857600
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                check:
+                  summary: неизвестный токен
+                  value:
+                    code: 401
+                    message: Access token is invalid
+        '403':
+          description: Токен отключён, истёк или его уровня не хватает.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/folders:
+    post:
+      tags:
+      - Папки
+      operationId: createFolder
+      summary: Создать папку
+      description: |
+        Создаёт папку в бакете. Вложенных папок нет.
+
+        Срок хранения считается от загрузки файла; истёкшие файлы удаляются сами, раз в 5 минут.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  pattern: ^[\p{L}\p{N}][\p{L}\p{N} ._-]*$
+                  description: Буквы, цифры, пробел, `.`, `_`, `-`; начинается с буквы или цифры.
+                public:
+                  type: boolean
+                  default: false
+                  description: '`true` — файлы папки открываются по `/o/…` без токена.'
+                retention:
+                  $ref: '#/components/schemas/Retention'
+                  default: 0
+                  description: Срок хранения файлов.
+              required:
+              - name
+      responses:
+        '201':
+          description: Папка создана.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+              example:
+                name: demo-1794086470130
+                public: false
+                retention:
+                  id: 3
+                  name: MONTH
+                cache:
+                  maxAge: null
+                  visibility: null
+                createdAt: '2026-11-07T21:21:10+00:00'
+                updatedAt: '2026-11-07T21:21:10+00:00'
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Такая папка уже есть.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: Folder "capture-dup" already exists
+        '422':
+          description: Имя не подходит.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                folder-create:
+                  summary: неверное имя
+                  value:
+                    code: 422
+                    message: Validation failed
+                    errors:
+                      name:
+                      - may contain letters, digits, space, dot, underscore, dash
+                err-422:
+                  summary: параметры не прошли проверку
+                  value:
+                    code: 422
+                    message: Validation failed
+                    errors:
+                      name:
+                      - may contain letters, digits, space, dot, underscore, dash
+                      retention:
+                      - retention must be one of [0, 1, 2, 3, 4, 5, 6], got '99'
+    get:
+      tags:
+      - Папки
+      operationId: listFolders
+      summary: Список папок
+      description: |
+        Возвращает папки бакета постранично.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: page
+        in: query
+        required: false
+        description: Номер страницы, с 1.
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        required: false
+        description: Сколько записей на странице.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 25
+      - name: search
+        in: query
+        required: false
+        description: Поиск по имени.
+        schema:
+          type: string
+          maxLength: 100
+      responses:
+        '200':
+          description: Страница папок.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Folder'
+              example:
+                meta:
+                  current: 1
+                  size: 25
+                  total: 1
+                  pages: 1
+                  previous: null
+                  next: null
+                data:
+                - name: demo-1794086470130
+                  public: false
+                  retention:
+                    id: 3
+                    name: MONTH
+                  cache:
+                    maxAge: null
+                    visibility: null
+                  createdAt: '2026-11-07T21:21:10+00:00'
+                  updatedAt: '2026-11-07T21:21:10+00:00'
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/folders/{name}:
+    get:
+      tags:
+      - Папки
+      operationId: getFolder
+      summary: Получить папку
+      description: |
+        Возвращает одну папку по имени.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: name
+        in: path
+        required: true
+        description: Имя папки.
+        schema:
+          type: string
+        example: documents
+      responses:
+        '200':
+          description: Папка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+              example:
+                name: demo-1794086470130
+                public: false
+                retention:
+                  id: 3
+                  name: MONTH
+                cache:
+                  maxAge: null
+                  visibility: null
+                createdAt: '2026-11-07T21:21:10+00:00'
+                updatedAt: '2026-11-07T21:21:10+00:00'
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Нет такой папки.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: Folder "nope" does not exist
+    put:
+      tags:
+      - Папки
+      operationId: updateFolder
+      summary: Изменить папку
+      description: |
+        Меняет имя, видимость и срок хранения. Тело — как при создании, все поля задаются заново.
+
+        Изменения сразу касаются файлов, которые уже лежат в папке:
+
+        - **видимость** меняется у всех файлов: закрыли папку — их `/o/…` перестаёт работать;
+        - **срок хранения** пересчитывается у всех файлов **от даты их загрузки**. Если сократить срок,
+          файлы старше нового срока удалятся при ближайшей очистке — в течение 5 минут.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: name
+        in: path
+        required: true
+        description: Имя папки.
+        schema:
+          type: string
+        example: documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  pattern: ^[\p{L}\p{N}][\p{L}\p{N} ._-]*$
+                  description: Буквы, цифры, пробел, `.`, `_`, `-`; начинается с буквы или цифры.
+                public:
+                  type: boolean
+                  default: false
+                  description: '`true` — файлы папки открываются по `/o/…` без токена.'
+                retention:
+                  $ref: '#/components/schemas/Retention'
+                  default: 0
+                  description: Срок хранения файлов.
+              required:
+              - name
+      responses:
+        '200':
+          description: Папка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+              example:
+                name: demo-1794086470130
+                public: false
+                retention:
+                  id: 2
+                  name: WEEK
+                cache:
+                  maxAge: null
+                  visibility: null
+                createdAt: '2026-11-07T21:21:10+00:00'
+                updatedAt: '2026-11-07T21:21:10+00:00'
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Нет такой папки.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Новое имя занято.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Параметры не прошли проверку.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+      - Папки
+      operationId: deleteFolder
+      summary: Удалить папку
+      description: |
+        Удаляет папку **вместе со всеми файлами в ней**. Отменить нельзя.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: name
+        in: path
+        required: true
+        description: Имя папки.
+        schema:
+          type: string
+        example: documents
+      responses:
+        '204':
+          description: Удалено, тела нет.
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Нет такой папки.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/folders/{name}/cache:
+    patch:
+      tags:
+      - Папки
+      operationId: setFolderCache
+      summary: Задать папке политику кэша
+      description: |
+        Задаёт заголовок `Cache-Control` для файлов папки — вместо политики бакета. `null` в поле —
+        наследовать от бакета.
+
+        Для закрытых файлов и каналов `/p`, `/t` видимость всегда не выше `PRIVATE`, а `max-age` не
+        дольше оставшегося срока файла или ссылки.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: name
+        in: path
+        required: true
+        description: Имя папки.
+        schema:
+          type: string
+        example: documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                maxAge:
+                  type:
+                  - integer
+                  - 'null'
+                  minimum: 0
+                  maximum: 31536000
+                  description: Сколько секунд кэшировать.
+                visibility:
+                  oneOf:
+                  - $ref: '#/components/schemas/CacheVisibility'
+                  - type: 'null'
+                  description: Кто кэширует.
+      responses:
+        '200':
+          description: Папка с новым `cache`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+              example:
+                name: demo-1794086470130
+                public: false
+                retention:
+                  id: 2
+                  name: WEEK
+                cache:
+                  maxAge: 604800
+                  visibility:
+                    id: 1
+                    name: SHARED
+                createdAt: '2026-11-07T21:21:10+00:00'
+                updatedAt: '2026-11-07T21:21:10+00:00'
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Нет такой папки.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/files:
+    post:
+      tags:
+      - Файлы
+      operationId: uploadFile
+      summary: Загрузить файл
+      description: |
+        Загружает файл одним запросом `multipart/form-data` и сразу возвращает его адреса. Предел —
+        **32 МиБ** на весь запрос; файлы больше — через загрузку частями.
+
+        **Имя** уникально в пределах папки: если занято, добавляется номер — `photo (1).png`. `/`, `\`
+        и управляющие символы заменяются на `-`.
+
+        **Дедупликация.** Если такое содержимое в бакете уже есть, место на диске и квота не
+        расходуются, в ответе `deduplicated: true`.
+
+        **Обработка картинки.** С полями `format`, `maxWidth`, `maxHeight`, `quality` картинка
+        уменьшается, поворачивается по EXIF и перекодируется до сохранения; хранится результат.
+        Картинка только уменьшается, анимация не трогается. При смене формата меняется и расширение:
+        `photo.png` → `photo.webp`.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Сам файл.
+                folder:
+                  type: string
+                  maxLength: 100
+                  description: Имя папки. Без него — корень бакета, и файл будет публичным.
+                name:
+                  type: string
+                  maxLength: 255
+                  description: Имя файла. Без него — имя загруженного файла.
+                format:
+                  $ref: '#/components/schemas/ImageFormat'
+                  description: Формат результата; `ORIGINAL` — не менять.
+                maxWidth:
+                  type: integer
+                  minimum: 16
+                  maximum: 10000
+                  description: Уменьшить до этой ширины, пропорции сохраняются.
+                maxHeight:
+                  type: integer
+                  minimum: 16
+                  maximum: 10000
+                  description: Уменьшить до этой высоты, пропорции сохраняются.
+                quality:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  description: 'Качество; без него — по формату: AVIF 55, PNG 60, WEBP и JPEG 82.'
+              required:
+              - file
+      responses:
+        '201':
+          description: Файл загружен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+              examples:
+                upload:
+                  summary: успех
+                  value:
+                    id: -ps4-0KkCpjsadLA
+                    name: photo.png
+                    folder: null
+                    content:
+                      size: 4654
+                      mime: image/png
+                      extension: png
+                      hash: ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572
+                    public: true
+                    deduplicated: false
+                    processed:
+                      applied: false
+                      reason: no options
+                    expiresAt: null
+                    privateUrl: https://s5.example.com/p/-ps4-0KkCpjsadLA
+                    publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/-ps4-0KkCpjsadLA
+                    createdAt: '2026-11-07T21:21:10+00:00'
+                    updatedAt: '2026-11-07T21:21:10+00:00'
+                upload-image:
+                  summary: успех
+                  value:
+                    id: wpn4AiYxv22Tks-u
+                    name: photo.webp
+                    folder: null
+                    content:
+                      size: 2250
+                      mime: image/webp
+                      extension: webp
+                      hash: 250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381
+                    public: true
+                    deduplicated: false
+                    processed:
+                      applied: true
+                      operations:
+                      - resize:800x533
+                      - encode:webp@82
+                      source:
+                        width: 1200
+                        height: 800
+                        size: 4654
+                        mime: image/png
+                      result:
+                        width: 800
+                        height: 533
+                        size: 2250
+                        mime: image/webp
+                    expiresAt: null
+                    privateUrl: https://s5.example.com/p/wpn4AiYxv22Tks-u
+                    publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/wpn4AiYxv22Tks-u
+                    createdAt: '2026-11-07T21:21:10+00:00'
+                    updatedAt: '2026-11-07T21:21:10+00:00'
+        '400':
+          description: Файл не передан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: Uploaded file 'file' is missing
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Токен отключён, истёк или его уровня не хватает.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Не хватает квоты бакета или запрос больше 32 МиБ.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Нет указанной папки, параметры не прошли проверку или картинку нельзя обработать.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                upload:
+                  summary: нет такой папки
+                  value:
+                    code: 422
+                    message: Folder "nope" does not exist
+                upload-image:
+                  summary: опции заданы, а файл не картинка
+                  value:
+                    code: 422
+                    message: Image options were given, but this file is not an image
+    get:
+      tags:
+      - Файлы
+      operationId: listFiles
+      summary: Список файлов
+      description: |
+        Возвращает файлы бакета постранично, с поиском и сортировкой.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: page
+        in: query
+        required: false
+        description: Номер страницы, с 1.
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        required: false
+        description: Сколько записей на странице.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 25
+      - name: search
+        in: query
+        required: false
+        description: Поиск по имени, без учёта регистра.
+        schema:
+          type: string
+          maxLength: 255
+      - name: folder
+        in: query
+        required: false
+        description: Имя папки. Пустое значение (`folder=`) — только корень. Без параметра — все файлы.
+        schema:
+          type: string
+          maxLength: 100
+      - name: sort
+        in: query
+        required: false
+        description: Поле сортировки.
+        schema:
+          type: string
+          enum:
+          - created
+          - name
+          - type
+          - size
+          default: created
+      - name: dir
+        in: query
+        required: false
+        description: Направление.
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+          default: desc
+      responses:
+        '200':
+          description: Страница файлов.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/File'
+              example:
+                meta:
+                  current: 1
+                  size: 25
+                  total: 4
+                  pages: 1
+                  previous: null
+                  next: null
+                data:
+                - id: Dyh-JjigglJ8whPY
+                  name: notes-copy.txt
+                  folder: null
+                  content:
+                    size: 99
+                    mime: text/plain
+                    extension: txt
+                    hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                  public: true
+                  deduplicated: false
+                  processed: null
+                  expiresAt: null
+                  privateUrl: https://s5.example.com/p/Dyh-JjigglJ8whPY
+                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/Dyh-JjigglJ8whPY
+                  createdAt: '2026-11-07T21:21:10+00:00'
+                  updatedAt: '2026-11-07T21:21:10+00:00'
+                - id: d_QSaL4bHSBG02ri
+                  name: notes.txt
+                  folder: null
+                  content:
+                    size: 99
+                    mime: text/plain
+                    extension: txt
+                    hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                  public: true
+                  deduplicated: false
+                  processed: null
+                  expiresAt: null
+                  privateUrl: https://s5.example.com/p/d_QSaL4bHSBG02ri
+                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri
+                  createdAt: '2026-11-07T21:21:10+00:00'
+                  updatedAt: '2026-11-07T21:21:10+00:00'
+                - id: wpn4AiYxv22Tks-u
+                  name: photo.webp
+                  folder: null
+                  content:
+                    size: 2250
+                    mime: image/webp
+                    extension: webp
+                    hash: 250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381
+                  public: true
+                  deduplicated: false
+                  processed: null
+                  expiresAt: null
+                  privateUrl: https://s5.example.com/p/wpn4AiYxv22Tks-u
+                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/wpn4AiYxv22Tks-u
+                  createdAt: '2026-11-07T21:21:10+00:00'
+                  updatedAt: '2026-11-07T21:21:10+00:00'
+                - id: -ps4-0KkCpjsadLA
+                  name: photo.png
+                  folder: null
+                  content:
+                    size: 4654
+                    mime: image/png
+                    extension: png
+                    hash: ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572
+                  public: true
+                  deduplicated: false
+                  processed: null
+                  expiresAt: null
+                  privateUrl: https://s5.example.com/p/-ps4-0KkCpjsadLA
+                  publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/-ps4-0KkCpjsadLA
+                  createdAt: '2026-11-07T21:21:10+00:00'
+                  updatedAt: '2026-11-07T21:21:10+00:00'
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Токен отключён, истёк или его уровня не хватает.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/files/{id}:
+    get:
+      tags:
+      - Файлы
+      operationId: getFile
+      summary: Получить файл
+      description: |
+        Возвращает один файл — имя, папку, размер, тип, хеш и адреса.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор файла из поля `id`, 16 символов.
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 16
+        example: unJpzOdDouHWFGGm
+      responses:
+        '200':
+          description: Файл.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+              example:
+                id: d_QSaL4bHSBG02ri
+                name: notes.txt
+                folder: null
+                content:
+                  size: 99
+                  mime: text/plain
+                  extension: txt
+                  hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                public: true
+                deduplicated: false
+                processed: null
+                expiresAt: null
+                privateUrl: https://s5.example.com/p/d_QSaL4bHSBG02ri
+                publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri
+                createdAt: '2026-11-07T21:21:10+00:00'
+                updatedAt: '2026-11-07T21:21:10+00:00'
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Нет такого файла в бакете токена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: File does not exist
+    put:
+      tags:
+      - Файлы
+      operationId: placeFile
+      summary: Переименовать или перенести файл
+      description: |
+        Меняет имя файла и папку, где он лежит. Содержимое и `id` не меняются.
+
+        `folder` описывает, **где файл будет после запроса**. Чтобы только переименовать файл в папке —
+        передайте её имя, иначе файл переедет в корень.
+
+        При переносе файл получает правила новой папки — её видимость и срок хранения; срок считается
+        от момента переноса. **Перенос в корень делает файл публичным**: он станет доступен по `/o/…`
+        без токена.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор файла из поля `id`, 16 символов.
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 16
+        example: unJpzOdDouHWFGGm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  description: Новое имя. `/`, `\` и управляющие символы заменятся на `-`; расширение не подгоняется.
+                folder:
+                  type:
+                  - string
+                  - 'null'
+                  maxLength: 100
+                  description: Папка, где файл должен оказаться. Без неё — корень.
+              required:
+              - name
+      responses:
+        '200':
+          description: Файл с новыми `name`, `folder`, `public` и `expiresAt`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+              examples:
+                files-rename:
+                  summary: успех
+                  value:
+                    id: d_QSaL4bHSBG02ri
+                    name: notes-renamed.txt
+                    folder: null
+                    content:
+                      size: 99
+                      mime: text/plain
+                      extension: txt
+                      hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                    public: true
+                    deduplicated: false
+                    processed: null
+                    expiresAt: null
+                    privateUrl: https://s5.example.com/p/d_QSaL4bHSBG02ri
+                    publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri
+                    createdAt: '2026-11-07T21:21:10+00:00'
+                    updatedAt: '2026-11-07T21:21:10+00:00'
+                files-move:
+                  summary: успех
+                  value:
+                    id: d_QSaL4bHSBG02ri
+                    name: notes-renamed.txt
+                    folder: demo-1794086470130
+                    content:
+                      size: 99
+                      mime: text/plain
+                      extension: txt
+                      hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                    public: false
+                    deduplicated: false
+                    processed: null
+                    expiresAt: '2026-11-14T21:21:10+00:00'
+                    privateUrl: https://s5.example.com/p/d_QSaL4bHSBG02ri
+                    publicUrl: null
+                    createdAt: '2026-11-07T21:21:10+00:00'
+                    updatedAt: '2026-11-07T21:21:10+00:00'
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Нет такого файла в бакете токена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Имя в этой папке уже занято.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: A file named "taken.txt" already exists here
+        '422':
+          description: Нет такой папки или имя пустое после очистки.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+      - Файлы
+      operationId: deleteFile
+      summary: Удалить файл
+      description: |
+        Удаляет файл. Его адреса и временные ссылки на него перестают работать.
+
+        Если такое же содержимое есть у другого файла бакета, оно остаётся на диске; место
+        освобождается, когда удалён последний файл с этим содержимым.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор файла из поля `id`, 16 символов.
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 16
+        example: unJpzOdDouHWFGGm
+      responses:
+        '204':
+          description: Удалено, тела нет.
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Нет такого файла в бакете токена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/uploads:
+    post:
+      tags:
+      - Загрузка частями
+      operationId: startUpload
+      summary: Начать загрузку
+      description: |
+        Открывает загрузку: сервер заранее проверяет квоту и место на диске и возвращает `id`
+        загрузки и рекомендуемый размер части `chunkSize`. Загрузка ждёт продолжения 24 часа.
+
+        **Дедупликация по `sha256`.** Если такое содержимое в бакете уже есть, файл создаётся сразу:
+        в ответе `chunkSize: 0` и готовый `file` с `deduplicated: true` — отправлять части и завершать
+        не нужно. С опциями обработки картинки поиск по хешу не выполняется: хеш считается от
+        исходника, а хранится результат.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  description: Имя будущего файла.
+                size:
+                  type: integer
+                  minimum: 1
+                  description: Размер файла, байт.
+                sha256:
+                  type: string
+                  minLength: 64
+                  maxLength: 64
+                  description: 'Хеш содержимого, 64 hex-символа: проверка целостности при завершении и дедупликация.'
+                folder:
+                  type: string
+                  maxLength: 100
+                  description: 'Имя папки. Проверяется сразу: если её нет — `422`.'
+                format:
+                  $ref: '#/components/schemas/ImageFormat'
+                  description: Формат результата; `ORIGINAL` — не менять.
+                maxWidth:
+                  type: integer
+                  minimum: 16
+                  maximum: 10000
+                  description: Уменьшить до этой ширины, пропорции сохраняются.
+                maxHeight:
+                  type: integer
+                  minimum: 16
+                  maximum: 10000
+                  description: Уменьшить до этой высоты, пропорции сохраняются.
+                quality:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  description: 'Качество; без него — по формату: AVIF 55, PNG 60, WEBP и JPEG 82.'
+              required:
+              - name
+              - size
+      responses:
+        '201':
+          description: Загрузка открыта — или файл создан сразу по `sha256`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+              examples:
+                up-start:
+                  summary: успех
+                  value:
+                    id: 3bc19c9a-4be5-49c8-8c2c-bc8e261461f5
+                    name: notes.txt
+                    size: 99
+                    offset: 0
+                    chunkSize: 8388608
+                    expiresAt: '2026-11-08T21:21:10+00:00'
+                    file: null
+                up-dedup:
+                  summary: успех
+                  value:
+                    id: ''
+                    name: notes-copy.txt
+                    size: 99
+                    offset: 99
+                    chunkSize: 0
+                    expiresAt: ''
+                    file:
+                      id: Dyh-JjigglJ8whPY
+                      name: notes-copy.txt
+                      folder: null
+                      content:
+                        size: 99
+                        mime: text/plain
+                        extension: txt
+                        hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                      public: true
+                      deduplicated: true
+                      processed: null
+                      expiresAt: null
+                      privateUrl: https://s5.example.com/p/Dyh-JjigglJ8whPY
+                      publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/Dyh-JjigglJ8whPY
+                      createdAt: '2026-11-07T21:21:10+00:00'
+                      updatedAt: '2026-11-07T21:21:10+00:00'
+                up-cancel-start:
+                  summary: успех
+                  value:
+                    id: 45524d32-81e3-490d-b72e-a9ee239a0da3
+                    name: cancel-me.bin
+                    size: 10485760
+                    offset: 0
+                    chunkSize: 8388608
+                    expiresAt: '2026-11-08T21:21:10+00:00'
+                    file: null
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Не хватает квоты бакета.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 413
+                message: 'Bucket quota exceeded: this upload needs 1000000000000 bytes, 104857600 of 104857600 bytes
+                  are free'
+        '422':
+          description: Нет указанной папки или параметры не прошли проверку.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '507':
+          description: На диске сервера меньше 512 МиБ запаса после этой загрузки.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/uploads/{id}:
+    get:
+      tags:
+      - Загрузка частями
+      operationId: getUpload
+      summary: Узнать, сколько дошло
+      description: |
+        Состояние загрузки: в `offset` — сколько байт сервер уже получил. После обрыва связи продолжайте с этого места.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор загрузки из `POST /v1/uploads`.
+        schema:
+          type: string
+          format: uuid
+        example: 9c10a01c-a293-438c-88ba-b48181b9cd67
+      responses:
+        '200':
+          description: Загрузка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+              example:
+                id: 3bc19c9a-4be5-49c8-8c2c-bc8e261461f5
+                name: notes.txt
+                size: 99
+                offset: 99
+                chunkSize: 8388608
+                expiresAt: '2026-11-08T21:21:10+00:00'
+                file: null
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Загрузки нет или она истекла.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: Upload does not exist or has expired
+    patch:
+      tags:
+      - Загрузка частями
+      operationId: appendChunk
+      summary: Отправить часть
+      description: |
+        Добавляет к загрузке очередную часть. **Тело — сырые байты части**, не JSON и не форма.
+        Повторяйте, пока `offset` в ответе не станет равен `size`.
+
+        Часть — от 4 до 16 МиБ; меньше можно только последнюю. Передавайте `Upload-Offset`: если часть
+        потерялась или ушла дважды, сервер ответит `409` вместо испорченного файла.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор загрузки из `POST /v1/uploads`.
+        schema:
+          type: string
+          format: uuid
+        example: 9c10a01c-a293-438c-88ba-b48181b9cd67
+      - name: Upload-Offset
+        in: header
+        required: false
+        description: С какого байта начинается часть. Необязателен, но лучше передавать.
+        schema:
+          type: integer
+          minimum: 0
+      requestBody:
+        required: true
+        description: Байты части, 4–16 МиБ (последняя — любого размера).
+        content:
+          application/offset+octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Часть принята, в `offset` — новая позиция.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+              example:
+                id: 3bc19c9a-4be5-49c8-8c2c-bc8e261461f5
+                name: notes.txt
+                size: 99
+                offset: 99
+                chunkSize: 8388608
+                expiresAt: '2026-11-08T21:21:10+00:00'
+                file: null
+        '400':
+          description: Часть пустая или меньше 4 МиБ и не последняя.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: 'Chunk is too small: 10 bytes, the minimum is 4194304'
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Загрузки нет или она истекла.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: '`Upload-Offset` не совпал с тем, что уже получено.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: Chunk offset 4096 does not continue this upload at 0
+        '413':
+          description: Часть больше 16 МиБ или выходит за объявленный `size`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+      - Загрузка частями
+      operationId: cancelUpload
+      summary: Отменить загрузку
+      description: |
+        Отменяет загрузку и сразу удаляет полученное. Брошенная загрузка удалится и сама через 24 часа.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор загрузки из `POST /v1/uploads`.
+        schema:
+          type: string
+          format: uuid
+        example: 9c10a01c-a293-438c-88ba-b48181b9cd67
+      responses:
+        '204':
+          description: Отменено, тела нет.
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Загрузки нет или она истекла.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/uploads/{id}/complete:
+    post:
+      tags:
+      - Загрузка частями
+      operationId: completeUpload
+      summary: Завершить загрузку
+      description: |
+        Закрывает загрузку и создаёт файл: проверяет хеш, обрабатывает картинку, если просили, переносит содержимое в хранилище.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор загрузки из `POST /v1/uploads`.
+        schema:
+          type: string
+          format: uuid
+        example: 9c10a01c-a293-438c-88ba-b48181b9cd67
+      responses:
+        '201':
+          description: Файл создан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+              example:
+                id: d_QSaL4bHSBG02ri
+                name: notes.txt
+                folder: null
+                content:
+                  size: 99
+                  mime: text/plain
+                  extension: txt
+                  hash: 81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4
+                public: true
+                deduplicated: false
+                processed:
+                  applied: false
+                  reason: no options
+                expiresAt: null
+                privateUrl: https://s5.example.com/p/d_QSaL4bHSBG02ri
+                publicUrl: https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri
+                createdAt: '2026-11-07T21:21:10+00:00'
+                updatedAt: '2026-11-07T21:21:10+00:00'
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Загрузки нет или она истекла.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Получено не всё.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 409
+                message: 'Upload is not finished: 0 bytes of 10485760 received'
+        '422':
+          description: Содержимое не совпало с `sha256`; загрузка удалена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: Uploaded data does not match the declared checksum
+  /v1/files/{id}/link:
+    post:
+      tags:
+      - Временные ссылки
+      operationId: issueLink
+      summary: Выдать временную ссылку
+      description: |
+        Выдаёт подписанную ссылку `/t/…` на файл. Она открывается без токена, но только до срока.
+
+        **Два вида.** Без `maxDownloads` и `revocable` ссылка **подписанная**: в базе не хранится,
+        `id: null`, отозвать по одной нельзя — только все ссылки бакета разом. С любым из этих полей —
+        **учитываемая**: хранится, считает скачивания, отзывается по одной.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор файла из поля `id`, 16 символов.
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 16
+        example: unJpzOdDouHWFGGm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ttl:
+                  type: integer
+                  minimum: 1
+                  maximum: 2592000
+                  default: 3600
+                  description: 'Срок жизни, секунд: до 30 дней.'
+                disposition:
+                  $ref: '#/components/schemas/Disposition'
+                  default: 0
+                  description: Открыть в браузере или скачать.
+                maxDownloads:
+                  type: integer
+                  minimum: 1
+                  maximum: 1000
+                  description: Лимит скачиваний. Делает ссылку учитываемой.
+                revocable:
+                  type: boolean
+                  default: false
+                  description: Можно отозвать по одной. Делает ссылку учитываемой.
+                note:
+                  type: string
+                  maxLength: 255
+                  description: Заметка для себя.
+              required:
+              - ttl
+      responses:
+        '201':
+          description: Ссылка выдана.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Link'
+              examples:
+                link-issue:
+                  summary: успех
+                  value:
+                    id: null
+                    url: https://s5.example.com/t/AQAAAAAAAAADau-kVgAAAAABzw4AyX-bHblFCyuA82mNpw
+                    expiresAt: '2026-11-07T22:21:10+00:00'
+                    revocable: false
+                    maxDownloads: null
+                    downloads: 0
+                    revoked: false
+                    disposition:
+                      id: 0
+                      name: INLINE
+                    note: ''
+                link-counted:
+                  summary: успех
+                  value:
+                    id: 1
+                    url: https://s5.example.com/t/AQAAAAAAAAADavDnxgMAAAABAAAAAAAAAAE03U_0Q532vTqsB62CC3c9
+                    expiresAt: '2026-11-08T21:21:10+00:00'
+                    revocable: true
+                    maxDownloads: 3
+                    downloads: 0
+                    revoked: false
+                    disposition:
+                      id: 1
+                      name: ATTACHMENT
+                    note: для подрядчика
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Нет такого файла в бакете токена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Параметры не прошли проверку — например, `ttl` больше 30 дней.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 422
+                message: Validation failed
+                errors:
+                  ttl:
+                  - must not exceed 2592000
+  /v1/files/{id}/links:
+    get:
+      tags:
+      - Временные ссылки
+      operationId: fileLinks
+      summary: Ссылки одного файла
+      description: |
+        Последние 20 учитываемых ссылок файла, новые первыми — с числом скачиваний, сроком и признаком отзыва; истёкшие и отозванные тоже, пока их не удалит ночная очистка. Подписанных здесь нет — они нигде не хранятся.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор файла из поля `id`, 16 символов.
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 16
+        example: unJpzOdDouHWFGGm
+      responses:
+        '200':
+          description: Массив ссылок.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Link'
+              example:
+              - id: 1
+                url: https://s5.example.com/t/AQAAAAAAAAADavDnxgMAAAABAAAAAAAAAAE03U_0Q532vTqsB62CC3c9
+                expiresAt: '2026-11-08T21:21:10+00:00'
+                revocable: true
+                maxDownloads: 3
+                downloads: 0
+                revoked: false
+                disposition:
+                  id: 1
+                  name: ATTACHMENT
+                note: для подрядчика
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Нет такого файла в бакете токена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/links:
+    get:
+      tags:
+      - Временные ссылки
+      operationId: listLinks
+      summary: Все ссылки бакета
+      description: |
+        Учитываемые ссылки всего бакета постранично, новые первыми — включая истёкшие и отозванные, пока их не удалит ночная очистка.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: page
+        in: query
+        required: false
+        description: Номер страницы, с 1.
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        required: false
+        description: Сколько записей на странице.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 25
+      responses:
+        '200':
+          description: Страница ссылок.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/PageMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Link'
+              example:
+                meta:
+                  current: 1
+                  size: 25
+                  total: 1
+                  pages: 1
+                  previous: null
+                  next: null
+                data:
+                - id: 1
+                  url: https://s5.example.com/t/AQAAAAAAAAADavDnxgMAAAABAAAAAAAAAAE03U_0Q532vTqsB62CC3c9
+                  expiresAt: '2026-11-08T21:21:10+00:00'
+                  revocable: true
+                  maxDownloads: 3
+                  downloads: 0
+                  revoked: false
+                  disposition:
+                    id: 1
+                    name: ATTACHMENT
+                  note: для подрядчика
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+      - Временные ссылки
+      operationId: revokeAllLinks
+      summary: Отозвать все ссылки бакета
+      description: |
+        Отзывает **все** временные ссылки бакета, в том числе подписанные. Новые ссылки после этого выдаются как обычно. Нужно, когда ссылка утекла, а отозвать её по одной нельзя.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      responses:
+        '200':
+          description: Номер новой эпохи подписи.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Epoch'
+              example:
+                epoch: 2
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/links/{id}:
+    delete:
+      tags:
+      - Временные ссылки
+      operationId: revokeLink
+      summary: Отозвать ссылку
+      description: |
+        Отзывает одну учитываемую ссылку. Она сразу перестаёт открываться.
+
+        **Токен:** `FULL`.
+      x-token-level: FULL
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: '`id` учитываемой ссылки.'
+        schema:
+          type: integer
+          minimum: 1
+        example: 17
+      responses:
+        '204':
+          description: Отозвана, тела нет.
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Нет такой ссылки.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: Share link does not exist
+  /o/{bucketId}/{id}:
+    get:
+      tags:
+      - Раздача
+      operationId: getPublic
+      summary: Скачать публичный файл
+      description: |
+        Отдаёт публичный файл **без токена** — адрес из `publicUrl`. Его можно ставить в `<img src>`,
+        отдавать пользователям и CDN. Работает только для публичных файлов — в корне бакета или в
+        папке с `public: true`; для остальных — `404`.
+
+        Картинки, видео, аудио, PDF и простой текст открываются в браузере, остальное — скачивается;
+        HTML и SVG всегда скачиваются. `?download=1` просит скачать в любом случае.
+      security: []
+      parameters:
+      - name: bucketId
+        in: path
+        required: true
+        description: Идентификатор бакета.
+        schema:
+          type: string
+          format: uuid
+        example: 7e8738ca-ab73-498b-9925-db9169f962f0
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор файла из поля `id`, 16 символов.
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 16
+        example: unJpzOdDouHWFGGm
+      - name: download
+        in: query
+        required: false
+        description: '`1` — скачать (`Content-Disposition: attachment`), а не открыть.'
+        schema:
+          type: string
+          enum: &id001
+          - '1'
+      - name: Range
+        in: header
+        required: false
+        description: Диапазон байтов, например `bytes=0-1023` — ответ `206`.
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        required: false
+        description: '`ETag`, полученный раньше: если файл не менялся — `304` без тела.'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 'Содержимое файла. Заголовки: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`,
+            `Content-Disposition`, `Accept-Ranges`.'
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Запрошенный диапазон байтов; заголовок `Content-Range`.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Файл не менялся с этого `ETag` — тела нет.
+        '404':
+          description: Файл не публичный или его нет.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: File not found
+  /p/{id}:
+    get:
+      tags:
+      - Раздача
+      operationId: getPrivate
+      summary: Скачать по токену
+      description: |
+        Отдаёт **любой** файл бакета — и публичный, и закрытый — по токену; адрес из `privateUrl`.
+        Достаточно токена `BASIC`: такой можно встроить в клиентское приложение — перечислить файлы
+        он не сможет, только скачать те, чьи `id` знает. Ответ кэшируется только браузером.
+
+        **Токен:** `BASIC`.
+      x-token-level: BASIC
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Идентификатор файла из поля `id`, 16 символов.
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 16
+        example: unJpzOdDouHWFGGm
+      - name: download
+        in: query
+        required: false
+        description: '`1` — скачать (`Content-Disposition: attachment`), а не открыть.'
+        schema:
+          type: string
+          enum: *id001
+      - name: Range
+        in: header
+        required: false
+        description: Диапазон байтов, например `bytes=0-1023` — ответ `206`.
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        required: false
+        description: '`ETag`, полученный раньше: если файл не менялся — `304` без тела.'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 'Содержимое файла. Заголовки: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`,
+            `Content-Disposition`, `Accept-Ranges`.'
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Запрошенный диапазон байтов; заголовок `Content-Range`.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Файл не менялся с этого `ETag` — тела нет.
+        '401':
+          description: Токена нет или он неизвестен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 401
+                message: Access token required
+        '404':
+          description: Нет такого файла в бакете токена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /t/{token}:
+    get:
+      tags:
+      - Раздача
+      operationId: getTemporary
+      summary: Открыть временную ссылку
+      description: Отдаёт файл по временной ссылке без токена. После срока, отзыва или исчерпания лимита — `404`.
+        Открыть или скачать — задаётся при выдаче полем `disposition`.
+      security: []
+      parameters:
+      - name: token
+        in: path
+        required: true
+        description: Подписанная часть ссылки после `/t/`.
+        schema:
+          type: string
+          minLength: 40
+          maxLength: 128
+      - name: Range
+        in: header
+        required: false
+        description: Диапазон байтов, например `bytes=0-1023` — ответ `206`.
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        required: false
+        description: '`ETag`, полученный раньше: если файл не менялся — `304` без тела.'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 'Содержимое файла. Заголовки: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`,
+            `Content-Disposition`, `Accept-Ranges`.'
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Запрошенный диапазон байтов; заголовок `Content-Range`.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Файл не менялся с этого `ETag` — тела нет.
+        '404':
+          description: Ссылка истекла, отозвана или исчерпана.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 404
+                message: Link is invalid or has expired
+components:
+  securitySchemes:
+    token:
+      type: http
+      scheme: bearer
+      description: Токен бакета из админ-панели, вида `s5w_…`. `BASIC` открывает `GET /v1/check` и `/p/{id}`; `FULL`
+        — всё.
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP-код ответа.
+        message:
+          type: string
+          description: Что пошло не так — по-английски, для журнала и разработчика.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: 'Только при ошибке проверки параметров: сообщения по каждому полю.'
+      required:
+      - code
+      - message
+    PageMeta:
+      type: object
+      properties:
+        current:
+          type: integer
+          description: Текущая страница.
+        size:
+          type: integer
+          description: Размер страницы.
+        total:
+          type: integer
+          description: Всего записей.
+        pages:
+          type: integer
+          description: Всего страниц.
+        previous:
+          type:
+          - integer
+          - 'null'
+          description: Предыдущая страница или `null`.
+        next:
+          type:
+          - integer
+          - 'null'
+          description: Следующая страница или `null`.
+      required:
+      - current
+      - size
+      - total
+      - pages
+      - previous
+      - next
+    Named:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Значение.
+        name:
+          type: string
+          description: Имя значения.
+      required:
+      - id
+      - name
+    Check:
+      type: object
+      properties:
+        bucket:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Идентификатор бакета.
+            name:
+              type: string
+              description: Имя бакета.
+          description: Бакет, которому выдан токен.
+        access:
+          $ref: '#/components/schemas/Named'
+          description: 'Уровень токена: `1` BASIC, `2` FULL.'
+        expiresAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Когда истекает токен; `null` — бессрочный.
+        bytes:
+          type: object
+          properties:
+            quota:
+              type: integer
+              description: Квота.
+            used:
+              type: integer
+              description: Занято.
+            free:
+              type: integer
+              description: Свободно.
+          description: Место в бакете, в байтах.
+      required:
+      - bucket
+      - access
+      - expiresAt
+      - bytes
+    File:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Идентификатор файла, 16 символов. Нужен во всех остальных запросах.
+        name:
+          type: string
+          description: Имя файла.
+        folder:
+          type:
+          - string
+          - 'null'
+          description: Имя папки; `null` — корень бакета.
+        content:
+          type: object
+          properties:
+            size:
+              type: integer
+              description: Размер в байтах.
+            mime:
+              type: string
+              description: MIME-тип.
+            extension:
+              type: string
+              description: Расширение.
+            hash:
+              type: string
+              description: SHA-256 содержимого.
+          description: Содержимое.
+        public:
+          type: boolean
+          description: Открывается ли без токена по `publicUrl`.
+        deduplicated:
+          type: boolean
+          description: '`true` — такое содержимое уже было в бакете, место не потрачено.'
+        processed:
+          oneOf:
+          - $ref: '#/components/schemas/ProcessedImage'
+          - type: 'null'
+          description: Что сделала обработка картинки; `null`, если её не просили.
+        expiresAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Когда удалится по сроку папки; `null` — бессрочно.
+        privateUrl:
+          type: string
+          description: Скачивание по токену — `/p/{id}`.
+        publicUrl:
+          type:
+          - string
+          - 'null'
+          description: Публичный адрес `/o/{bucketId}/{id}`; `null`, если файл не публичный.
+        createdAt:
+          type: string
+          format: date-time
+          description: Когда загружен.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Когда изменён.
+      required:
+      - id
+      - name
+      - folder
+      - content
+      - public
+      - deduplicated
+      - processed
+      - expiresAt
+      - privateUrl
+      - publicUrl
+      - createdAt
+      - updatedAt
+    ProcessedImage:
+      type: object
+      properties:
+        applied:
+          type: boolean
+          description: Была ли обработка.
+        reason:
+          type: string
+          description: 'Почему не было: `no options`, `animated`, `nothing to do`, `output is larger than source`.'
+        operations:
+          type: array
+          items:
+            type: string
+          description: 'Что сделано: `resize:800x533`, `exif-rotate`, `encode:webp@82`.'
+        source:
+          $ref: '#/components/schemas/ImageInfo'
+          description: Исходная картинка.
+        result:
+          $ref: '#/components/schemas/ImageInfo'
+          description: Результат.
+      required:
+      - applied
+    ImageInfo:
+      type: object
+      properties:
+        width:
+          type: integer
+          description: Ширина, px.
+        height:
+          type: integer
+          description: Высота, px.
+        size:
+          type: integer
+          description: Размер, байт.
+        mime:
+          type: string
+          description: MIME-тип.
+      required:
+      - width
+      - height
+      - size
+      - mime
+    Upload:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Идентификатор загрузки (UUID). Пустая строка, если файл создан сразу по `sha256`.
+        name:
+          type: string
+          description: Имя будущего файла.
+        size:
+          type: integer
+          description: Объявленный размер, байт.
+        offset:
+          type: integer
+          description: Сколько байт уже получено.
+        chunkSize:
+          type: integer
+          description: Рекомендуемый размер части, байт (8 МиБ). `0` — передавать ничего не нужно.
+        expiresAt:
+          type: string
+          description: Когда загрузка удалится, если её не завершить (через 24 часа). Пустая строка — при дедупликации.
+        file:
+          oneOf:
+          - $ref: '#/components/schemas/File'
+          - type: 'null'
+          description: Готовый файл, если он создан сразу по `sha256`; иначе `null`.
+      required:
+      - id
+      - name
+      - size
+      - offset
+      - chunkSize
+      - expiresAt
+      - file
+    Folder:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Имя папки.
+        public:
+          type: boolean
+          description: Файлы папки открываются без токена по `/o/…`.
+        retention:
+          $ref: '#/components/schemas/Named'
+          description: 'Срок хранения: `{ "id": 3, "name": "MONTH" }`.'
+        cache:
+          type: object
+          properties:
+            maxAge:
+              type:
+              - integer
+              - 'null'
+              description: '`max-age`, секунд; `null` — как у бакета.'
+            visibility:
+              oneOf:
+              - $ref: '#/components/schemas/Named'
+              - type: 'null'
+              description: Кто кэширует; `null` — как у бакета.
+          description: Своя политика кэша.
+        createdAt:
+          type: string
+          format: date-time
+          description: Когда создана.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Когда изменена.
+      required:
+      - name
+      - public
+      - retention
+      - cache
+      - createdAt
+      - updatedAt
+    Link:
+      type: object
+      properties:
+        id:
+          type:
+          - integer
+          - 'null'
+          description: Идентификатор учитываемой ссылки; `null` у подписанной.
+        url:
+          type: string
+          description: Адрес ссылки `/t/…`.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Когда истекает.
+        revocable:
+          type: boolean
+          description: Можно ли отозвать по одной.
+        maxDownloads:
+          type:
+          - integer
+          - 'null'
+          description: Лимит скачиваний; `null` — без лимита.
+        downloads:
+          type: integer
+          description: Сколько раз скачали.
+        revoked:
+          type: boolean
+          description: Отозвана ли.
+        disposition:
+          $ref: '#/components/schemas/Named'
+          description: 'Открыть или скачать: `{ "id": 1, "name": "ATTACHMENT" }`.'
+        note:
+          type: string
+          description: Заметка.
+      required:
+      - id
+      - url
+      - expiresAt
+      - revocable
+      - maxDownloads
+      - downloads
+      - revoked
+      - disposition
+      - note
+    Epoch:
+      type: object
+      properties:
+        epoch:
+          type: integer
+          description: 'Номер новой «эпохи» подписи: все ссылки, выданные раньше, недействительны.'
+      required:
+      - epoch
+    Retention:
+      type: integer
+      enum:
+      - 0
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      description: |
+        Срок хранения файлов папки, считая от загрузки.
+
+        - `0` — NONE — бессрочно
+        - `1` — DAY — сутки
+        - `2` — WEEK — неделя
+        - `3` — MONTH — месяц
+        - `4` — QUARTER — квартал
+        - `5` — HALF_YEAR — полгода
+        - `6` — YEAR — год
+      x-enum-varnames:
+      - NONE
+      - DAY
+      - WEEK
+      - MONTH
+      - QUARTER
+      - HALF_YEAR
+      - YEAR
+    CacheVisibility:
+      type: integer
+      enum:
+      - 1
+      - 2
+      - 3
+      description: |
+        Кто может кэшировать ответ.
+
+        - `1` — SHARED — общий кэш: браузер и CDN
+        - `2` — PRIVATE — только браузер
+        - `3` — NO_STORE — не кэшировать
+      x-enum-varnames:
+      - SHARED
+      - PRIVATE
+      - NO_STORE
+    Disposition:
+      type: integer
+      enum:
+      - 0
+      - 1
+      description: |
+        Открыть файл в браузере или скачать.
+
+        - `0` — INLINE — открыть в браузере
+        - `1` — ATTACHMENT — скачать
+      x-enum-varnames:
+      - INLINE
+      - ATTACHMENT
+    ImageFormat:
+      type: string
+      enum:
+      - ORIGINAL
+      - WEBP
+      - JPEG
+      - PNG
+      - AVIF
+      description: |
+        Формат результата обработки картинки.
+
+        - `ORIGINAL` — не менять формат
+        - `WEBP`
+        - `JPEG`
+        - `PNG`
+        - `AVIF`

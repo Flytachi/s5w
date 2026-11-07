@@ -1,0 +1,4232 @@
+{
+  "info": {
+    "_postman_id": "6c34524a-7c70-5c82-abf8-fa5a7f4ff2b2",
+    "name": "S5W — клиентский API",
+    "description": "# S5W — клиентский API\n\nВсё, что нужно приложению от S5W: положить файл, получить на него ссылку, раздать.\nПолная документация: https://winterframe.net/ru/apps/s5w/overview\n\n## Как начать — 3 шага\n\n1. **Импортируйте** этот файл в Postman — всё нужное в нём.\n2. **Заполните две переменные** коллекции: откройте коллекцию → вкладка **Variables**:\n\n| Переменная | Что это | Пример |\n|---|---|---|\n| `baseUrl` | адрес API, со схемой и без `/` в конце | `https://s5.example.com` |\n| `token` | токен бакета из админ-панели, уровень «полный доступ» | `s5w_9f3c…` |\n\n3. **Отправьте «0. Проверить токен».** Ответ `200` — всё настроено.\n\n> **Токен вписывайте в колонку «Current value»**, а «Initial value» оставьте пустым. Текущее\n> значение хранится только у вас и не попадает в экспорт — коллекцией можно делиться.\n\n## Как устроены запросы\n\nВсё, что нужно приложению от S5W: положить файл, получить на него ссылку, раздать.\n\n**Бакет определяется токеном.** Его нет ни в одном адресе API: токен выдан одному бакету и\nработает только в нём.\n\n**Уровни токена:** `BASIC` («только отдача» в панели) — `GET /v1/check` и скачивание\n`/p/{id}`; `FULL` («полный доступ») — всё.\n\n**Форматы.** Списки отвечают `{ \"meta\": {…}, \"data\": [ … ] }`. Ошибки — `{ \"code\", \"message\" }`,\nпри ошибке проверки параметров ещё `errors` по полям. Перечисления в запросах передаются\nчислом (`\"retention\": 3`), кроме строкового `format`; в ответах — объектом\n`{ \"id\": 3, \"name\": \"MONTH\" }`. Удаление отвечает `204` без тела.\n\n**Время** — RFC 3339 (ISO 8601) с часовым поясом: `2026-11-08T17:10:44+00:00`. Во всех\nответах одинаково; стандартные библиотеки разбирают его без подготовки.\n\n## Коды ответов\n\n| Код | Когда |\n|---|---|\n| `200` / `201` | успех / создано |\n| `204` | удалено, тела нет |\n| `400` | файл не передан; пустая или слишком маленькая часть загрузки |\n| `401` | нет токена или он неизвестен |\n| `403` | токен отключён, истёк или его уровня мало |\n| `404` | нет такого файла, загрузки, ссылки или папки (в `/v1/folders/{name}`) |\n| `409` | конфликт: имя занято, смещение части не совпало, загрузка не закончена |\n| `413` | не хватает квоты, тело больше 32 МиБ, часть больше 16 МиБ |\n| `422` | параметры не прошли проверку, нет указанной папки, хеш не совпал, картинку нельзя обработать |\n| `507` | на сервере кончается место |\n\n## Прогон целиком\n\nНажмите **Run** на коллекции — запросы выполнятся сверху вниз. Каждый сохраняет то, что нужно\nследующему, а раздел **«8. Уборка»** удаляет всё созданное — прогон можно повторять. Файл с диска\nнужен только двум запросам раздела 2 — выберите его во вкладке **Body**; без него упадут только они.\n\nТа же спецификация в формате OpenAPI — `openapi.yaml` рядом с этим файлом.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "0. Проверить токен",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/v1/check",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "check"
+          ]
+        },
+        "description": "Проверяет токен и показывает, к какому бакету он относится, какой у него уровень доступа и\nсколько осталось места.\n\nИспользуйте первым запросом — чтобы убедиться, что адрес и токен указаны верно. В приложении —\nнапример, при старте, чтобы сразу увидеть отозванный токен.\n\n**Токен:** `BASIC`\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Токен принят. |\n| `401` | Токена нет или он неизвестен. |\n| `403` | Токен отключён, истёк или его уровня не хватает. |"
+      },
+      "response": [
+        {
+          "name": "200 — успех",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "check"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Content-Length",
+              "value": "176"
+            }
+          ],
+          "body": "{\n  \"bucket\": {\n    \"id\": \"26cf7ca6-fa2b-410a-887f-1ed75396531d\",\n    \"name\": \"postman\"\n  },\n  \"access\": {\n    \"id\": 2,\n    \"name\": \"FULL\"\n  },\n  \"expiresAt\": null,\n  \"bytes\": {\n    \"quota\": 104857600,\n    \"used\": 0,\n    \"free\": 104857600\n  }\n}"
+        },
+        {
+          "name": "401 — нет токена",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "check"
+              ]
+            }
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"code\": 401,\n  \"message\": \"Access token required\"\n}"
+        },
+        {
+          "name": "401 — неизвестный токен",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "check"
+              ]
+            }
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"code\": 401,\n  \"message\": \"Access token is invalid\"\n}"
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('токен принят', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('bucketId', json.bucket.id);",
+              "pm.test('для прогона нужен токен FULL', () => pm.expect(json.access.name).to.eql('FULL'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Папки",
+      "description": "Необязательная группировка файлов. Папка задаёт файлам общие правила — видимость, срок\nхранения и кэш. **Корень бакета всегда публичный**: закрытые файлы держите в папке с\n`public: false`.",
+      "item": [
+        {
+          "name": "Создать папку",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/folders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "folders"
+              ]
+            },
+            "description": "Создаёт папку в бакете. Вложенных папок нет.\n\nСрок хранения считается от загрузки файла; истёкшие файлы удаляются сами, раз в 5 минут.\n\n> В этом примере имя генерируется само (`demo-…`), чтобы прогон можно было повторять.\n\n**Токен:** `FULL`\n\n**Тело запроса**\n\n| Поле | Тип | Обязательно | Описание |\n|---|---|---|---|\n| `name` | string | да | Буквы, цифры, пробел, `.`, `_`, `-`; начинается с буквы или цифры. |\n| `public` | boolean |  | `true` — файлы папки открываются по `/o/…` без токена. |\n| `retention` | `0` · `1` · `2` · `3` · `4` · `5` · `6` |  | Срок хранения файлов. (`0` бессрочно, `1` сутки, `2` неделя, `3` месяц, `4` квартал, `5` полгода, `6` год) |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `201` | Папка создана. |\n| `401` | Токена нет или он неизвестен. |\n| `409` | Такая папка уже есть. |\n| `422` | Имя не подходит. |",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{folderName}}\",\n  \"public\": false,\n  \"retention\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 — успех",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/folders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "folders"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{folderName}}\",\n  \"public\": false,\n  \"retention\": 3\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "202"
+                }
+              ],
+              "body": "{\n  \"name\": \"demo-1794086470130\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 3,\n    \"name\": \"MONTH\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n}"
+            },
+            {
+              "name": "409 — папка уже есть",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/folders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "folders"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{folderName}}\",\n  \"public\": false,\n  \"retention\": 3\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 409,\n  \"message\": \"Folder \\\"capture-dup\\\" already exists\"\n}"
+            },
+            {
+              "name": "422 — неверное имя",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/folders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "folders"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{folderName}}\",\n  \"public\": false,\n  \"retention\": 3\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 422,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"name\": [\n      \"may contain letters, digits, space, dot, underscore, dash\"\n    ]\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('folderName', 'demo-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('папка создана', () => pm.response.to.have.status(201));",
+                  "pm.test('срок хранения — месяц', () => pm.expect(pm.response.json().retention.name).to.eql('MONTH'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Список папок",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/folders?page=1&limit=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "folders"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "25"
+                }
+              ]
+            },
+            "description": "Возвращает папки бакета постранично.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `page` | запрос |  | Номер страницы, с 1. |\n| `limit` | запрос |  | Сколько записей на странице. |\n| `search` | запрос |  | Поиск по имени. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Страница папок. |\n| `401` | Токена нет или он неизвестен. |"
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/folders?page=1&limit=25",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "folders"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "25"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "292"
+                }
+              ],
+              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"name\": \"demo-1794086470130\",\n      \"public\": false,\n      \"retention\": {\n        \"id\": 3,\n        \"name\": \"MONTH\"\n      },\n      \"cache\": {\n        \"maxAge\": null,\n        \"visibility\": null\n      },\n      \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n    }\n  ]\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('список получен', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Получить папку",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/folders/{{folderName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "folders",
+                "{{folderName}}"
+              ]
+            },
+            "description": "Возвращает одну папку по имени.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `name` | путь | да | Имя папки. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Папка. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такой папки. |"
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/folders/{{folderName}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "folders",
+                    "{{folderName}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "202"
+                }
+              ],
+              "body": "{\n  \"name\": \"demo-1794086470130\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 3,\n    \"name\": \"MONTH\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n}"
+            },
+            {
+              "name": "404 — нет такой папки",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/folders/{{folderName}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "folders",
+                    "{{folderName}}"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 404,\n  \"message\": \"Folder \\\"nope\\\" does not exist\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('папка найдена', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Изменить папку",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/folders/{{folderName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "folders",
+                "{{folderName}}"
+              ]
+            },
+            "description": "Меняет имя, видимость и срок хранения. Тело — как при создании, все поля задаются заново.\n\nИзменения сразу касаются файлов, которые уже лежат в папке:\n\n- **видимость** меняется у всех файлов: закрыли папку — их `/o/…` перестаёт работать;\n- **срок хранения** пересчитывается у всех файлов **от даты их загрузки**. Если сократить срок,\n  файлы старше нового срока удалятся при ближайшей очистке — в течение 5 минут.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `name` | путь | да | Имя папки. |\n\n**Тело запроса**\n\n| Поле | Тип | Обязательно | Описание |\n|---|---|---|---|\n| `name` | string | да | Буквы, цифры, пробел, `.`, `_`, `-`; начинается с буквы или цифры. |\n| `public` | boolean |  | `true` — файлы папки открываются по `/o/…` без токена. |\n| `retention` | `0` · `1` · `2` · `3` · `4` · `5` · `6` |  | Срок хранения файлов. (`0` бессрочно, `1` сутки, `2` неделя, `3` месяц, `4` квартал, `5` полгода, `6` год) |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Папка. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такой папки. |\n| `409` | Новое имя занято. |\n| `422` | Параметры не прошли проверку. |",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{folderName}}\",\n  \"public\": false,\n  \"retention\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/folders/{{folderName}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "folders",
+                    "{{folderName}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{folderName}}\",\n  \"public\": false,\n  \"retention\": 2\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "201"
+                }
+              ],
+              "body": "{\n  \"name\": \"demo-1794086470130\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 2,\n    \"name\": \"WEEK\"\n  },\n  \"cache\": {\n    \"maxAge\": null,\n    \"visibility\": null\n  },\n  \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('папка изменена', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Задать папке политику кэша",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/folders/{{folderName}}/cache",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "folders",
+                "{{folderName}}",
+                "cache"
+              ]
+            },
+            "description": "Задаёт заголовок `Cache-Control` для файлов папки — вместо политики бакета. `null` в поле —\nнаследовать от бакета.\n\nДля закрытых файлов и каналов `/p`, `/t` видимость всегда не выше `PRIVATE`, а `max-age` не\nдольше оставшегося срока файла или ссылки.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `name` | путь | да | Имя папки. |\n\n**Тело запроса**\n\n| Поле | Тип | Обязательно | Описание |\n|---|---|---|---|\n| `maxAge` | integer | null |  | Сколько секунд кэшировать. |\n| `visibility` | `1` · `2` · `3` |  | Кто кэширует. (`1` общий кэш: браузер и CDN, `2` только браузер, `3` не кэшировать) |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Папка с новым `cache`. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такой папки. |",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"maxAge\": 604800,\n  \"visibility\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/folders/{{folderName}}/cache",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "folders",
+                    "{{folderName}}",
+                    "cache"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"maxAge\": 604800,\n  \"visibility\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "223"
+                }
+              ],
+              "body": "{\n  \"name\": \"demo-1794086470130\",\n  \"public\": false,\n  \"retention\": {\n    \"id\": 2,\n    \"name\": \"WEEK\"\n  },\n  \"cache\": {\n    \"maxAge\": 604800,\n    \"visibility\": {\n      \"id\": 1,\n      \"name\": \"SHARED\"\n    }\n  },\n  \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('политика задана', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Загрузка одним запросом",
+      "description": "Для файлов до **32 МиБ**: один запрос `multipart/form-data` — и файл готов. Файл с диска нужно\nвыбрать во вкладке **Body**; если не выбрать, запрос ответит `400`, но прогон не сломается.",
+      "item": [
+        {
+          "name": "Загрузить файл",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files"
+              ]
+            },
+            "description": "Загружает файл одним запросом `multipart/form-data` и сразу возвращает его адреса. Предел —\n**32 МиБ** на весь запрос; файлы больше — через загрузку частями.\n\n**Имя** уникально в пределах папки: если занято, добавляется номер — `photo (1).png`. `/`, `\\`\nи управляющие символы заменяются на `-`.\n\n**Дедупликация.** Если такое содержимое в бакете уже есть, место на диске и квота не\nрасходуются, в ответе `deduplicated: true`.\n\n**Обработка картинки.** С полями `format`, `maxWidth`, `maxHeight`, `quality` картинка\nуменьшается, поворачивается по EXIF и перекодируется до сохранения; хранится результат.\nКартинка только уменьшается, анимация не трогается. При смене формата меняется и расширение:\n`photo.png` → `photo.webp`.\n\n**Токен:** `FULL`\n\n**Тело запроса**\n\n| Поле | Тип | Обязательно | Описание |\n|---|---|---|---|\n| `file` | файл | да | Сам файл. |\n| `folder` | string |  | Имя папки. Без него — корень бакета, и файл будет публичным. |\n| `name` | string |  | Имя файла. Без него — имя загруженного файла. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Формат результата; `ORIGINAL` — не менять. |\n| `maxWidth` | integer |  | Уменьшить до этой ширины, пропорции сохраняются. |\n| `maxHeight` | integer |  | Уменьшить до этой высоты, пропорции сохраняются. |\n| `quality` | integer |  | Качество; без него — по формату: AVIF 55, PNG 60, WEBP и JPEG 82. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `201` | Файл загружен. |\n| `400` | Файл не передан. |\n| `401` | Токена нет или он неизвестен. |\n| `403` | Токен отключён, истёк или его уровня не хватает. |\n| `413` | Не хватает квоты бакета или запрос больше 32 МиБ. |\n| `422` | Нет указанной папки, параметры не прошли проверку или картинку нельзя обработать. |",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "description": "Файл с диска — выберите его здесь",
+                  "src": []
+                },
+                {
+                  "key": "name",
+                  "value": "report.pdf",
+                  "type": "text",
+                  "description": "Имя файла (необязательно)",
+                  "disabled": true
+                },
+                {
+                  "key": "folder",
+                  "value": "{{folderName}}",
+                  "type": "text",
+                  "description": "Имя папки (необязательно)",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "201 — успех",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "description": "Файл с диска — выберите его здесь",
+                      "src": []
+                    },
+                    {
+                      "key": "name",
+                      "value": "report.pdf",
+                      "type": "text",
+                      "description": "Имя файла (необязательно)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "folder",
+                      "value": "{{folderName}}",
+                      "type": "text",
+                      "description": "Имя папки (необязательно)",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "525"
+                }
+              ],
+              "body": "{\n  \"id\": \"-ps4-0KkCpjsadLA\",\n  \"name\": \"photo.png\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 4654,\n    \"mime\": \"image/png\",\n    \"extension\": \"png\",\n    \"hash\": \"ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": false,\n    \"reason\": \"no options\"\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/-ps4-0KkCpjsadLA\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/-ps4-0KkCpjsadLA\",\n  \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n}"
+            },
+            {
+              "name": "400 — файл не выбран",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "description": "Файл с диска — выберите его здесь",
+                      "src": []
+                    },
+                    {
+                      "key": "name",
+                      "value": "report.pdf",
+                      "type": "text",
+                      "description": "Имя файла (необязательно)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "folder",
+                      "value": "{{folderName}}",
+                      "type": "text",
+                      "description": "Имя папки (необязательно)",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 400,\n  \"message\": \"Uploaded file 'file' is missing\"\n}"
+            },
+            {
+              "name": "422 — нет такой папки",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "description": "Файл с диска — выберите его здесь",
+                      "src": []
+                    },
+                    {
+                      "key": "name",
+                      "value": "report.pdf",
+                      "type": "text",
+                      "description": "Имя файла (необязательно)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "folder",
+                      "value": "{{folderName}}",
+                      "type": "text",
+                      "description": "Имя папки (необязательно)",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 422,\n  \"message\": \"Folder \\\"nope\\\" does not exist\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('uploadedFileId', pm.response.json().id);",
+                  "pm.test('файл загружен (если выбран во вкладке Body)', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Загрузить картинку с обработкой",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files"
+              ]
+            },
+            "description": "Загружает файл одним запросом `multipart/form-data` и сразу возвращает его адреса. Предел —\n**32 МиБ** на весь запрос; файлы больше — через загрузку частями.\n\n**Имя** уникально в пределах папки: если занято, добавляется номер — `photo (1).png`. `/`, `\\`\nи управляющие символы заменяются на `-`.\n\n**Дедупликация.** Если такое содержимое в бакете уже есть, место на диске и квота не\nрасходуются, в ответе `deduplicated: true`.\n\n**Обработка картинки.** С полями `format`, `maxWidth`, `maxHeight`, `quality` картинка\nуменьшается, поворачивается по EXIF и перекодируется до сохранения; хранится результат.\nКартинка только уменьшается, анимация не трогается. При смене формата меняется и расширение:\n`photo.png` → `photo.webp`.\n\nЗдесь картинка перекодируется в `webp` и уменьшается до 800 px по ширине. В ответе поле `processed` показывает, что сделано.\n\n**Токен:** `FULL`\n\n**Тело запроса**\n\n| Поле | Тип | Обязательно | Описание |\n|---|---|---|---|\n| `file` | файл | да | Сам файл. |\n| `folder` | string |  | Имя папки. Без него — корень бакета, и файл будет публичным. |\n| `name` | string |  | Имя файла. Без него — имя загруженного файла. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Формат результата; `ORIGINAL` — не менять. |\n| `maxWidth` | integer |  | Уменьшить до этой ширины, пропорции сохраняются. |\n| `maxHeight` | integer |  | Уменьшить до этой высоты, пропорции сохраняются. |\n| `quality` | integer |  | Качество; без него — по формату: AVIF 55, PNG 60, WEBP и JPEG 82. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `201` | Файл загружен. |\n| `400` | Файл не передан. |\n| `401` | Токена нет или он неизвестен. |\n| `403` | Токен отключён, истёк или его уровня не хватает. |\n| `413` | Не хватает квоты бакета или запрос больше 32 МиБ. |\n| `422` | Нет указанной папки, параметры не прошли проверку или картинку нельзя обработать. |",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "description": "Картинка: jpeg, png, gif, webp или avif",
+                  "src": []
+                },
+                {
+                  "key": "format",
+                  "value": "WEBP",
+                  "type": "text",
+                  "description": "ORIGINAL | WEBP | JPEG | PNG | AVIF"
+                },
+                {
+                  "key": "maxWidth",
+                  "value": "800",
+                  "type": "text",
+                  "description": "Уменьшить до ширины, 16–10000"
+                },
+                {
+                  "key": "quality",
+                  "value": "80",
+                  "type": "text",
+                  "description": "Качество 1–100 (необязательно)",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "201 — успех",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "description": "Картинка: jpeg, png, gif, webp или avif",
+                      "src": []
+                    },
+                    {
+                      "key": "format",
+                      "value": "WEBP",
+                      "type": "text",
+                      "description": "ORIGINAL | WEBP | JPEG | PNG | AVIF"
+                    },
+                    {
+                      "key": "maxWidth",
+                      "value": "800",
+                      "type": "text",
+                      "description": "Уменьшить до ширины, 16–10000"
+                    },
+                    {
+                      "key": "quality",
+                      "value": "80",
+                      "type": "text",
+                      "description": "Качество 1–100 (необязательно)",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "690"
+                }
+              ],
+              "body": "{\n  \"id\": \"wpn4AiYxv22Tks-u\",\n  \"name\": \"photo.webp\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 2250,\n    \"mime\": \"image/webp\",\n    \"extension\": \"webp\",\n    \"hash\": \"250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": true,\n    \"operations\": [\n      \"resize:800x533\",\n      \"encode:webp@82\"\n    ],\n    \"source\": {\n      \"width\": 1200,\n      \"height\": 800,\n      \"size\": 4654,\n      \"mime\": \"image/png\"\n    },\n    \"result\": {\n      \"width\": 800,\n      \"height\": 533,\n      \"size\": 2250,\n      \"mime\": \"image/webp\"\n    }\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/wpn4AiYxv22Tks-u\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/wpn4AiYxv22Tks-u\",\n  \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n}"
+            },
+            {
+              "name": "422 — опции заданы, а файл не картинка",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "description": "Картинка: jpeg, png, gif, webp или avif",
+                      "src": []
+                    },
+                    {
+                      "key": "format",
+                      "value": "WEBP",
+                      "type": "text",
+                      "description": "ORIGINAL | WEBP | JPEG | PNG | AVIF"
+                    },
+                    {
+                      "key": "maxWidth",
+                      "value": "800",
+                      "type": "text",
+                      "description": "Уменьшить до ширины, 16–10000"
+                    },
+                    {
+                      "key": "quality",
+                      "value": "80",
+                      "type": "text",
+                      "description": "Качество 1–100 (необязательно)",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 422,\n  \"message\": \"Image options were given, but this file is not an image\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('imageFileId', pm.response.json().id);",
+                  "pm.test('картинка загружена (если выбрана во вкладке Body)', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Загрузка частями",
+      "description": "Для больших файлов и ненадёжной сети: файл уходит частями по 4–16 МиБ, после обрыва\nзагрузка продолжается с полученного места. Порядок: начать → отправлять части → завершить.",
+      "item": [
+        {
+          "name": "1. Начать загрузку",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/uploads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "uploads"
+              ]
+            },
+            "description": "Открывает загрузку: сервер заранее проверяет квоту и место на диске и возвращает `id`\nзагрузки и рекомендуемый размер части `chunkSize`. Загрузка ждёт продолжения 24 часа.\n\n**Дедупликация по `sha256`.** Если такое содержимое в бакете уже есть, файл создаётся сразу:\nв ответе `chunkSize: 0` и готовый `file` с `deduplicated: true` — отправлять части и завершать\nне нужно. С опциями обработки картинки поиск по хешу не выполняется: хеш считается от\nисходника, а хранится результат.\n\n**Токен:** `FULL`\n\n**Тело запроса**\n\n| Поле | Тип | Обязательно | Описание |\n|---|---|---|---|\n| `name` | string | да | Имя будущего файла. |\n| `size` | integer | да | Размер файла, байт. |\n| `sha256` | string |  | Хеш содержимого, 64 hex-символа: проверка целостности при завершении и дедупликация. |\n| `folder` | string |  | Имя папки. Проверяется сразу: если её нет — `422`. |\n| `format` | `ORIGINAL` · `WEBP` · `JPEG` · `PNG` · `AVIF` |  | Формат результата; `ORIGINAL` — не менять. |\n| `maxWidth` | integer |  | Уменьшить до этой ширины, пропорции сохраняются. |\n| `maxHeight` | integer |  | Уменьшить до этой высоты, пропорции сохраняются. |\n| `quality` | integer |  | Качество; без него — по формату: AVIF 55, PNG 60, WEBP и JPEG 82. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `201` | Загрузка открыта — или файл создан сразу по `sha256`. |\n| `401` | Токена нет или он неизвестен. |\n| `413` | Не хватает квоты бакета. |\n| `422` | Нет указанной папки или параметры не прошли проверку. |\n| `507` | На диске сервера меньше 512 МиБ запаса после этой загрузки. |",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"notes.txt\",\n  \"size\": {{chunkSize}},\n  \"sha256\": \"{{contentHash}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 — успех",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"notes.txt\",\n  \"size\": {{chunkSize}},\n  \"sha256\": \"{{contentHash}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "157"
+                }
+              ],
+              "body": "{\n  \"id\": \"3bc19c9a-4be5-49c8-8c2c-bc8e261461f5\",\n  \"name\": \"notes.txt\",\n  \"size\": 99,\n  \"offset\": 0,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:10+00:00\",\n  \"file\": null\n}"
+            },
+            {
+              "name": "413 — не хватает квоты",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"notes.txt\",\n  \"size\": {{chunkSize}},\n  \"sha256\": \"{{contentHash}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Payload Too Large",
+              "code": 413,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 413,\n  \"message\": \"Bucket quota exceeded: this upload needs 1000000000000 bytes, 104857600 of 104857600 bytes are free\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// В примере «файл» — небольшой текст, чтобы прогон работал без выбора файла.",
+                  "// В приложении это байты настоящего файла, а size и sha256 считаются от них.",
+                  "const text = 'Привет от S5W! Это содержимое загружено частями. ' + Date.now();",
+                  "const crypto = require('crypto-js');",
+                  "pm.collectionVariables.set('chunkText', text);",
+                  "pm.collectionVariables.set('chunkSize', crypto.enc.Utf8.parse(text).sigBytes);",
+                  "pm.collectionVariables.set('contentHash', crypto.SHA256(text).toString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('загрузка открыта', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('uploadId', json.id);",
+                  "pm.collectionVariables.set('uploadOffset', json.offset);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Отправить часть",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Upload-Offset",
+                "value": "{{uploadOffset}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/offset+octet-stream"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/uploads/{{uploadId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "uploads",
+                "{{uploadId}}"
+              ]
+            },
+            "description": "Добавляет к загрузке очередную часть. **Тело — сырые байты части**, не JSON и не форма.\nПовторяйте, пока `offset` в ответе не станет равен `size`.\n\nЧасть — от 4 до 16 МиБ; меньше можно только последнюю. Передавайте `Upload-Offset`: если часть\nпотерялась или ушла дважды, сервер ответит `409` вместо испорченного файла.\n\n> В примере вся «загрузка» помещается в одну часть — она последняя и может быть маленькой.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор загрузки из `POST /v1/uploads`. |\n| `Upload-Offset` | заголовок |  | С какого байта начинается часть. Необязателен, но лучше передавать. |\n\n**Тело запроса:** сырые байты — Байты части, 4–16 МиБ (последняя — любого размера).\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Часть принята, в `offset` — новая позиция. |\n| `400` | Часть пустая или меньше 4 МиБ и не последняя. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Загрузки нет или она истекла. |\n| `409` | `Upload-Offset` не совпал с тем, что уже получено. |\n| `413` | Часть больше 16 МиБ или выходит за объявленный `size`. |",
+            "body": {
+              "mode": "raw",
+              "raw": "{{chunkText}}",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Upload-Offset",
+                    "value": "{{uploadOffset}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/offset+octet-stream"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads/{{uploadId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads",
+                    "{{uploadId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{{chunkText}}",
+                  "options": {
+                    "raw": {
+                      "language": "text"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "158"
+                }
+              ],
+              "body": "{\n  \"id\": \"3bc19c9a-4be5-49c8-8c2c-bc8e261461f5\",\n  \"name\": \"notes.txt\",\n  \"size\": 99,\n  \"offset\": 99,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:10+00:00\",\n  \"file\": null\n}"
+            },
+            {
+              "name": "409 — смещение не совпало",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Upload-Offset",
+                    "value": "{{uploadOffset}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/offset+octet-stream"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads/{{uploadId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads",
+                    "{{uploadId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{{chunkText}}",
+                  "options": {
+                    "raw": {
+                      "language": "text"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 409,\n  \"message\": \"Chunk offset 4096 does not continue this upload at 0\"\n}"
+            },
+            {
+              "name": "400 — часть меньше 4 МиБ и не последняя",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Upload-Offset",
+                    "value": "{{uploadOffset}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/offset+octet-stream"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads/{{uploadId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads",
+                    "{{uploadId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{{chunkText}}",
+                  "options": {
+                    "raw": {
+                      "language": "text"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 400,\n  \"message\": \"Chunk is too small: 10 bytes, the minimum is 4194304\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('часть принята', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('uploadOffset', json.offset);",
+                  "pm.test('получено всё — можно завершать', () => pm.expect(json.offset).to.eql(json.size));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Узнать, сколько дошло",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/uploads/{{uploadId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "uploads",
+                "{{uploadId}}"
+              ]
+            },
+            "description": "Состояние загрузки: в `offset` — сколько байт сервер уже получил. После обрыва связи продолжайте с этого места.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор загрузки из `POST /v1/uploads`. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Загрузка. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Загрузки нет или она истекла. |"
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads/{{uploadId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads",
+                    "{{uploadId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "158"
+                }
+              ],
+              "body": "{\n  \"id\": \"3bc19c9a-4be5-49c8-8c2c-bc8e261461f5\",\n  \"name\": \"notes.txt\",\n  \"size\": 99,\n  \"offset\": 99,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:10+00:00\",\n  \"file\": null\n}"
+            },
+            {
+              "name": "404 — нет такой загрузки",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads/{{uploadId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads",
+                    "{{uploadId}}"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 404,\n  \"message\": \"Upload does not exist or has expired\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('состояние получено', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Завершить загрузку",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/uploads/{{uploadId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "uploads",
+                "{{uploadId}}",
+                "complete"
+              ]
+            },
+            "description": "Закрывает загрузку и создаёт файл: проверяет хеш, обрабатывает картинку, если просили, переносит содержимое в хранилище.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор загрузки из `POST /v1/uploads`. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `201` | Файл создан. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Загрузки нет или она истекла. |\n| `409` | Получено не всё. |\n| `422` | Содержимое не совпало с `sha256`; загрузка удалена. |"
+          },
+          "response": [
+            {
+              "name": "201 — успех",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads/{{uploadId}}/complete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads",
+                    "{{uploadId}}",
+                    "complete"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "524"
+                }
+              ],
+              "body": "{\n  \"id\": \"d_QSaL4bHSBG02ri\",\n  \"name\": \"notes.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 99,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": {\n    \"applied\": false,\n    \"reason\": \"no options\"\n  },\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/d_QSaL4bHSBG02ri\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri\",\n  \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n}"
+            },
+            {
+              "name": "409 — получено не всё",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads/{{uploadId}}/complete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads",
+                    "{{uploadId}}",
+                    "complete"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 409,\n  \"message\": \"Upload is not finished: 0 bytes of 10485760 received\"\n}"
+            },
+            {
+              "name": "422 — хеш не совпал",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads/{{uploadId}}/complete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads",
+                    "{{uploadId}}",
+                    "complete"
+                  ]
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 422,\n  \"message\": \"Uploaded data does not match the declared checksum\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл создан', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('fileId', json.id);",
+                  "pm.test('хеш совпал с переданным', () => pm.expect(json.content.hash).to.eql(pm.collectionVariables.get('contentHash')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Загрузить без передачи, если файл уже есть",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/uploads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "uploads"
+              ]
+            },
+            "description": "Тот же запрос «Начать загрузку», но с хешем содержимого, которое в бакете уже есть (из шага 1).\nСервер сразу создаёт файл на нём — **без передачи байтов**.\n\n**Как понять, что сработало:** `chunkSize: 0`, а в `file` — готовый файл с `deduplicated: true`.\nОтправлять части и завершать не нужно. Если такого содержимого нет — ответ как у шага 1.\n\nС опциями обработки картинки поиск по хешу не выполняется.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"notes-copy.txt\",\n  \"size\": {{chunkSize}},\n  \"sha256\": \"{{contentHash}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 — успех",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"notes-copy.txt\",\n  \"size\": {{chunkSize}},\n  \"sha256\": \"{{contentHash}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "585"
+                }
+              ],
+              "body": "{\n  \"id\": \"\",\n  \"name\": \"notes-copy.txt\",\n  \"size\": 99,\n  \"offset\": 99,\n  \"chunkSize\": 0,\n  \"expiresAt\": \"\",\n  \"file\": {\n    \"id\": \"Dyh-JjigglJ8whPY\",\n    \"name\": \"notes-copy.txt\",\n    \"folder\": null,\n    \"content\": {\n      \"size\": 99,\n      \"mime\": \"text/plain\",\n      \"extension\": \"txt\",\n      \"hash\": \"81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4\"\n    },\n    \"public\": true,\n    \"deduplicated\": true,\n    \"processed\": null,\n    \"expiresAt\": null,\n    \"privateUrl\": \"https://s5.example.com/p/Dyh-JjigglJ8whPY\",\n    \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/Dyh-JjigglJ8whPY\",\n    \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n    \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ответ получен', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('байты передавать не нужно', () => pm.expect(json.chunkSize).to.eql(0));",
+                  "pm.test('файл создан на уже лежащем содержимом', () => pm.expect(json.file.deduplicated).to.eql(true));",
+                  "pm.collectionVariables.set('dedupFileId', json.file.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Начать загрузку, которую отменим",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/uploads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "uploads"
+              ]
+            },
+            "description": "Подготовка для следующего запроса: открывает загрузку, которую тот отменит.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"cancel-me.bin\",\n  \"size\": 10485760\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 — успех",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"cancel-me.bin\",\n  \"size\": 10485760\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "167"
+                }
+              ],
+              "body": "{\n  \"id\": \"45524d32-81e3-490d-b72e-a9ee239a0da3\",\n  \"name\": \"cancel-me.bin\",\n  \"size\": 10485760,\n  \"offset\": 0,\n  \"chunkSize\": 8388608,\n  \"expiresAt\": \"2026-11-08T21:21:10+00:00\",\n  \"file\": null\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('загрузка открыта', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('cancelUploadId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Отменить загрузку",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/uploads/{{cancelUploadId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "uploads",
+                "{{cancelUploadId}}"
+              ]
+            },
+            "description": "Отменяет загрузку и сразу удаляет полученное. Брошенная загрузка удалится и сама через 24 часа.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор загрузки из `POST /v1/uploads`. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `204` | Отменено, тела нет. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Загрузки нет или она истекла. |"
+          },
+          "response": [
+            {
+              "name": "204 — успех",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/uploads/{{cancelUploadId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "uploads",
+                    "{{cancelUploadId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/html"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "0"
+                }
+              ],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('загрузка отменена', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Раздача",
+      "description": "Как файл получает браузер, приложение или CDN: публично (`/o`), по токену (`/p`) и по\nвременной ссылке (`/t`). Все три поддерживают `Range`, `ETag` и условные запросы.",
+      "item": [
+        {
+          "name": "Скачать публичный файл · /o",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/o/{{bucketId}}/{{fileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "o",
+                "{{bucketId}}",
+                "{{fileId}}"
+              ]
+            },
+            "description": "Отдаёт публичный файл **без токена** — адрес из `publicUrl`. Его можно ставить в `<img src>`,\nотдавать пользователям и CDN. Работает только для публичных файлов — в корне бакета или в\nпапке с `public: true`; для остальных — `404`.\n\nКартинки, видео, аудио, PDF и простой текст открываются в браузере, остальное — скачивается;\nHTML и SVG всегда скачиваются. `?download=1` просит скачать в любом случае.\n\n**Токен:** не нужен\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `bucketId` | путь | да | Идентификатор бакета. |\n| `id` | путь | да | Идентификатор файла из поля `id`, 16 символов. |\n| `download` | запрос |  | `1` — скачать (`Content-Disposition: attachment`), а не открыть. |\n| `Range` | заголовок |  | Диапазон байтов, например `bytes=0-1023` — ответ `206`. |\n| `If-None-Match` | заголовок |  | `ETag`, полученный раньше: если файл не менялся — `304` без тела. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Содержимое файла. Заголовки: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | Запрошенный диапазон байтов; заголовок `Content-Range`. |\n| `304` | Файл не менялся с этого `ETag` — тела нет. |\n| `404` | Файл не публичный или его нет. |",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/o/{{bucketId}}/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "o",
+                    "{{bucketId}}",
+                    "{{fileId}}"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Etag",
+                  "value": "\"6aef9646-63\""
+                },
+                {
+                  "key": "Accept-Ranges",
+                  "value": "bytes"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "public, max-age=86400, immutable"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/plain"
+                },
+                {
+                  "key": "Content-Disposition",
+                  "value": "inline; filename=\"notes.txt\"; filename*=UTF-8''notes.txt"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "99"
+                }
+              ],
+              "body": ""
+            },
+            {
+              "name": "404 — файл не публичный или его нет",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/o/{{bucketId}}/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "o",
+                    "{{bucketId}}",
+                    "{{fileId}}"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 404,\n  \"message\": \"File not found\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл отдан', () => pm.response.to.have.status(200));",
+                  "pm.test('есть ETag для кэша', () => pm.response.to.have.header('ETag'));",
+                  "pm.collectionVariables.set('etag', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Проверить, не изменился ли файл · ETag",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "If-None-Match",
+                "value": "{{etag}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/o/{{bucketId}}/{{fileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "o",
+                "{{bucketId}}",
+                "{{fileId}}"
+              ]
+            },
+            "description": "Условный запрос: `ETag` из прошлого ответа в `If-None-Match`. Файл не менялся — `304` без тела, трафик не тратится. Браузеры и CDN делают это сами.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "304 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "If-None-Match",
+                    "value": "{{etag}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/o/{{bucketId}}/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "o",
+                    "{{bucketId}}",
+                    "{{fileId}}"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Not Modified",
+              "code": 304,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Etag",
+                  "value": "\"6aef9646-63\""
+                },
+                {
+                  "key": "Accept-Ranges",
+                  "value": "bytes"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "public, max-age=86400, immutable"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/plain"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "0"
+                }
+              ],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл не менялся — 304', () => pm.response.to.have.status(304));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Скачать часть файла · Range",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Range",
+                "value": "bytes=0-9"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/o/{{bucketId}}/{{fileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "o",
+                "{{bucketId}}",
+                "{{fileId}}"
+              ]
+            },
+            "description": "Только запрошенный диапазон байтов — `206 Partial Content`. Так работают докачка и перемотка видео.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "206 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Range",
+                    "value": "bytes=0-9"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/o/{{bucketId}}/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "o",
+                    "{{bucketId}}",
+                    "{{fileId}}"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Partial Content",
+              "code": 206,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Etag",
+                  "value": "\"6aef9646-63\""
+                },
+                {
+                  "key": "Accept-Ranges",
+                  "value": "bytes"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "public, max-age=86400, immutable"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/plain"
+                },
+                {
+                  "key": "Content-Disposition",
+                  "value": "inline; filename=\"notes.txt\"; filename*=UTF-8''notes.txt"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "10"
+                },
+                {
+                  "key": "Content-Range",
+                  "value": "bytes 0-9/99"
+                }
+              ],
+              "body": "Приве"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('отдана часть — 206', () => pm.response.to.have.status(206));",
+                  "pm.test('ровно 10 байт', () => pm.expect(pm.response.stream.length).to.eql(10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Скачать, а не открыть · ?download=1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/o/{{bucketId}}/{{fileId}}?download=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "o",
+                "{{bucketId}}",
+                "{{fileId}}"
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Просит браузер сохранить файл: `Content-Disposition: attachment`. Работает на `/o` и `/p`.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/o/{{bucketId}}/{{fileId}}?download=1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "o",
+                    "{{bucketId}}",
+                    "{{fileId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "download",
+                      "value": "1"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Etag",
+                  "value": "\"6aef9646-63\""
+                },
+                {
+                  "key": "Accept-Ranges",
+                  "value": "bytes"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "public, max-age=86400, immutable"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/plain"
+                },
+                {
+                  "key": "Content-Disposition",
+                  "value": "attachment; filename=\"notes.txt\"; filename*=UTF-8''notes.txt"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "99"
+                }
+              ],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл отдан', () => pm.response.to.have.status(200));",
+                  "pm.test('браузер сохранит файл', () => pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Скачать по токену · /p",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/p/{{fileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "p",
+                "{{fileId}}"
+              ]
+            },
+            "description": "Отдаёт **любой** файл бакета — и публичный, и закрытый — по токену; адрес из `privateUrl`.\nДостаточно токена `BASIC`: такой можно встроить в клиентское приложение — перечислить файлы\nон не сможет, только скачать те, чьи `id` знает. Ответ кэшируется только браузером.\n\n**Токен:** `BASIC`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор файла из поля `id`, 16 символов. |\n| `download` | запрос |  | `1` — скачать (`Content-Disposition: attachment`), а не открыть. |\n| `Range` | заголовок |  | Диапазон байтов, например `bytes=0-1023` — ответ `206`. |\n| `If-None-Match` | заголовок |  | `ETag`, полученный раньше: если файл не менялся — `304` без тела. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Содержимое файла. Заголовки: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | Запрошенный диапазон байтов; заголовок `Content-Range`. |\n| `304` | Файл не менялся с этого `ETag` — тела нет. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такого файла в бакете токена. |"
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/p/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "p",
+                    "{{fileId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Etag",
+                  "value": "\"6aef9646-63\""
+                },
+                {
+                  "key": "Accept-Ranges",
+                  "value": "bytes"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "private, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/plain"
+                },
+                {
+                  "key": "Content-Disposition",
+                  "value": "inline; filename=\"notes.txt\"; filename*=UTF-8''notes.txt"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "99"
+                }
+              ],
+              "body": ""
+            },
+            {
+              "name": "401 — нет токена",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/p/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "p",
+                    "{{fileId}}"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 401,\n  \"message\": \"Access token required\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл отдан по токену', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Файлы",
+      "description": "Список, поиск, переименование и перенос. Удаление — в разделе «8. Уборка».",
+      "item": [
+        {
+          "name": "Список файлов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files?page=1&limit=25&sort=created&dir=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "25"
+                },
+                {
+                  "key": "sort",
+                  "value": "created"
+                },
+                {
+                  "key": "dir",
+                  "value": "desc"
+                }
+              ]
+            },
+            "description": "Возвращает файлы бакета постранично, с поиском и сортировкой.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `page` | запрос |  | Номер страницы, с 1. |\n| `limit` | запрос |  | Сколько записей на странице. |\n| `search` | запрос |  | Поиск по имени, без учёта регистра. |\n| `folder` | запрос |  | Имя папки. Пустое значение (`folder=`) — только корень. Без параметра — все файлы. |\n| `sort` | запрос |  | Поле сортировки. |\n| `dir` | запрос |  | Направление. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Страница файлов. |\n| `401` | Токена нет или он неизвестен. |\n| `403` | Токен отключён, истёк или его уровня не хватает. |"
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files?page=1&limit=25&sort=created&dir=desc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "25"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "created"
+                    },
+                    {
+                      "key": "dir",
+                      "value": "desc"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "612"
+                }
+              ],
+              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 4,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": \"Dyh-JjigglJ8whPY\",\n      \"name\": \"notes-copy.txt\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 99,\n        \"mime\": \"text/plain\",\n        \"extension\": \"txt\",\n        \"hash\": \"81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/Dyh-JjigglJ8whPY\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/Dyh-JjigglJ8whPY\",\n      \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n    },\n    {\n      \"id\": \"d_QSaL4bHSBG02ri\",\n      \"name\": \"notes.txt\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 99,\n        \"mime\": \"text/plain\",\n        \"extension\": \"txt\",\n        \"hash\": \"81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/d_QSaL4bHSBG02ri\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri\",\n      \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n    },\n    {\n      \"id\": \"wpn4AiYxv22Tks-u\",\n      \"name\": \"photo.webp\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 2250,\n        \"mime\": \"image/webp\",\n        \"extension\": \"webp\",\n        \"hash\": \"250c33b15669b8b0ceda27d301f46414e4e399ec9f85d9b5f9d34eeddb104381\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/wpn4AiYxv22Tks-u\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/wpn4AiYxv22Tks-u\",\n      \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n    },\n    {\n      \"id\": \"-ps4-0KkCpjsadLA\",\n      \"name\": \"photo.png\",\n      \"folder\": null,\n      \"content\": {\n        \"size\": 4654,\n        \"mime\": \"image/png\",\n        \"extension\": \"png\",\n        \"hash\": \"ee300dd3885906657a97edefa78057610a91570d6e594a764fab92c6db518572\"\n      },\n      \"public\": true,\n      \"deduplicated\": false,\n      \"processed\": null,\n      \"expiresAt\": null,\n      \"privateUrl\": \"https://s5.example.com/p/-ps4-0KkCpjsadLA\",\n      \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/-ps4-0KkCpjsadLA\",\n      \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n      \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n    }\n  ]\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('список получен', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Получить файл",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files/{{fileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files",
+                "{{fileId}}"
+              ]
+            },
+            "description": "Возвращает один файл — имя, папку, размер, тип, хеш и адреса.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор файла из поля `id`, 16 символов. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Файл. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такого файла в бакете токена. |"
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{fileId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "489"
+                }
+              ],
+              "body": "{\n  \"id\": \"d_QSaL4bHSBG02ri\",\n  \"name\": \"notes.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 99,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/d_QSaL4bHSBG02ri\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri\",\n  \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n}"
+            },
+            {
+              "name": "404 — нет такого файла",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{fileId}}"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 404,\n  \"message\": \"File does not exist\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл найден', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Переименовать файл",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files/{{fileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files",
+                "{{fileId}}"
+              ]
+            },
+            "description": "Меняет имя файла и папку, где он лежит. Содержимое и `id` не меняются.\n\n`folder` описывает, **где файл будет после запроса**. Чтобы только переименовать файл в папке —\nпередайте её имя, иначе файл переедет в корень.\n\nПри переносе файл получает правила новой папки — её видимость и срок хранения; срок считается\nот момента переноса. **Перенос в корень делает файл публичным**: он станет доступен по `/o/…`\nбез токена.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор файла из поля `id`, 16 символов. |\n\n**Тело запроса**\n\n| Поле | Тип | Обязательно | Описание |\n|---|---|---|---|\n| `name` | string | да | Новое имя. `/`, `\\` и управляющие символы заменятся на `-`; расширение не подгоняется. |\n| `folder` | string | null |  | Папка, где файл должен оказаться. Без неё — корень. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Файл с новыми `name`, `folder`, `public` и `expiresAt`. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такого файла в бакете токена. |\n| `409` | Имя в этой папке уже занято. |\n| `422` | Нет такой папки или имя пустое после очистки. |",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"notes-renamed.txt\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{fileId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"notes-renamed.txt\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "497"
+                }
+              ],
+              "body": "{\n  \"id\": \"d_QSaL4bHSBG02ri\",\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": null,\n  \"content\": {\n    \"size\": 99,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4\"\n  },\n  \"public\": true,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": null,\n  \"privateUrl\": \"https://s5.example.com/p/d_QSaL4bHSBG02ri\",\n  \"publicUrl\": \"https://s5.example.com/o/26cf7ca6-fa2b-410a-887f-1ed75396531d/d_QSaL4bHSBG02ri\",\n  \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n}"
+            },
+            {
+              "name": "409 — имя занято",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{fileId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"notes-renamed.txt\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 409,\n  \"message\": \"A file named \\\"taken.txt\\\" already exists here\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл переименован', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Перенести файл в папку",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files/{{fileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files",
+                "{{fileId}}"
+              ]
+            },
+            "description": "Меняет имя файла и папку, где он лежит. Содержимое и `id` не меняются.\n\n`folder` описывает, **где файл будет после запроса**. Чтобы только переименовать файл в папке —\nпередайте её имя, иначе файл переедет в корень.\n\nПри переносе файл получает правила новой папки — её видимость и срок хранения; срок считается\nот момента переноса. **Перенос в корень делает файл публичным**: он станет доступен по `/o/…`\nбез токена.\n\nЗдесь файл уезжает в закрытую папку: после этого `publicUrl` станет `null`, а `/o/…` перестанет работать.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор файла из поля `id`, 16 символов. |\n\n**Тело запроса**\n\n| Поле | Тип | Обязательно | Описание |\n|---|---|---|---|\n| `name` | string | да | Новое имя. `/`, `\\` и управляющие символы заменятся на `-`; расширение не подгоняется. |\n| `folder` | string | null |  | Папка, где файл должен оказаться. Без неё — корень. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Файл с новыми `name`, `folder`, `public` и `expiresAt`. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такого файла в бакете токена. |\n| `409` | Имя в этой папке уже занято. |\n| `422` | Нет такой папки или имя пустое после очистки. |",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": \"{{folderName}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{fileId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": \"{{folderName}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "462"
+                }
+              ],
+              "body": "{\n  \"id\": \"d_QSaL4bHSBG02ri\",\n  \"name\": \"notes-renamed.txt\",\n  \"folder\": \"demo-1794086470130\",\n  \"content\": {\n    \"size\": 99,\n    \"mime\": \"text/plain\",\n    \"extension\": \"txt\",\n    \"hash\": \"81e2bc55904154f76a08b9e7564031bf73c6015f8253fad9a51efa42e3eaabc4\"\n  },\n  \"public\": false,\n  \"deduplicated\": false,\n  \"processed\": null,\n  \"expiresAt\": \"2026-11-14T21:21:10+00:00\",\n  \"privateUrl\": \"https://s5.example.com/p/d_QSaL4bHSBG02ri\",\n  \"publicUrl\": null,\n  \"createdAt\": \"2026-11-07T21:21:10+00:00\",\n  \"updatedAt\": \"2026-11-07T21:21:10+00:00\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл перенесён', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('теперь закрытый', () => pm.expect(json.public).to.eql(false));",
+                  "pm.test('появился срок хранения', () => pm.expect(json.expiresAt).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Временные ссылки",
+      "description": "Ссылка `/t/…` на один файл: открывается без токена, но только до срока и, если нужно,\nограниченное число раз. Работает и для закрытых файлов.",
+      "item": [
+        {
+          "name": "Выдать временную ссылку",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files/{{fileId}}/link",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files",
+                "{{fileId}}",
+                "link"
+              ]
+            },
+            "description": "Выдаёт подписанную ссылку `/t/…` на файл. Она открывается без токена, но только до срока.\n\n**Два вида.** Без `maxDownloads` и `revocable` ссылка **подписанная**: в базе не хранится,\n`id: null`, отозвать по одной нельзя — только все ссылки бакета разом. С любым из этих полей —\n**учитываемая**: хранится, считает скачивания, отзывается по одной.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор файла из поля `id`, 16 символов. |\n\n**Тело запроса**\n\n| Поле | Тип | Обязательно | Описание |\n|---|---|---|---|\n| `ttl` | integer | да | Срок жизни, секунд: до 30 дней. |\n| `disposition` | `0` · `1` |  | Открыть в браузере или скачать. (`0` открыть в браузере, `1` скачать) |\n| `maxDownloads` | integer |  | Лимит скачиваний. Делает ссылку учитываемой. |\n| `revocable` | boolean |  | Можно отозвать по одной. Делает ссылку учитываемой. |\n| `note` | string |  | Заметка для себя. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `201` | Ссылка выдана. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такого файла в бакете токена. |\n| `422` | Параметры не прошли проверку — например, `ttl` больше 30 дней. |",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ttl\": 3600,\n  \"disposition\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 — успех",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{fileId}}/link",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{fileId}}",
+                    "link"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ttl\": 3600,\n  \"disposition\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "247"
+                }
+              ],
+              "body": "{\n  \"id\": null,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAADau-kVgAAAAABzw4AyX-bHblFCyuA82mNpw\",\n  \"expiresAt\": \"2026-11-07T22:21:10+00:00\",\n  \"revocable\": false,\n  \"maxDownloads\": null,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 0,\n    \"name\": \"INLINE\"\n  },\n  \"note\": \"\"\n}"
+            },
+            {
+              "name": "422 — срок больше 30 дней",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{fileId}}/link",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{fileId}}",
+                    "link"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ttl\": 3600,\n  \"disposition\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 422,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ttl\": [\n      \"must not exceed 2592000\"\n    ]\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ссылка выдана', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('linkUrl', json.url);",
+                  "pm.test('подписанная ссылка — id нет', () => pm.expect(json.id).to.eql(null));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Выдать ссылку с лимитом скачиваний",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files/{{fileId}}/link",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files",
+                "{{fileId}}",
+                "link"
+              ]
+            },
+            "description": "Выдаёт подписанную ссылку `/t/…` на файл. Она открывается без токена, но только до срока.\n\n**Два вида.** Без `maxDownloads` и `revocable` ссылка **подписанная**: в базе не хранится,\n`id: null`, отозвать по одной нельзя — только все ссылки бакета разом. С любым из этих полей —\n**учитываемая**: хранится, считает скачивания, отзывается по одной.\n\nУчитываемая ссылка на сутки и 3 скачивания, с возможностью отозвать. После третьего скачивания она отвечает `404`.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор файла из поля `id`, 16 символов. |\n\n**Тело запроса**\n\n| Поле | Тип | Обязательно | Описание |\n|---|---|---|---|\n| `ttl` | integer | да | Срок жизни, секунд: до 30 дней. |\n| `disposition` | `0` · `1` |  | Открыть в браузере или скачать. (`0` открыть в браузере, `1` скачать) |\n| `maxDownloads` | integer |  | Лимит скачиваний. Делает ссылку учитываемой. |\n| `revocable` | boolean |  | Можно отозвать по одной. Делает ссылку учитываемой. |\n| `note` | string |  | Заметка для себя. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `201` | Ссылка выдана. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такого файла в бакете токена. |\n| `422` | Параметры не прошли проверку — например, `ttl` больше 30 дней. |",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ttl\": 86400,\n  \"disposition\": 1,\n  \"maxDownloads\": 3,\n  \"revocable\": true,\n  \"note\": \"для подрядчика\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 — успех",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{fileId}}/link",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{fileId}}",
+                    "link"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ttl\": 86400,\n  \"disposition\": 1,\n  \"maxDownloads\": 3,\n  \"revocable\": true,\n  \"note\": \"для подрядчика\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "281"
+                }
+              ],
+              "body": "{\n  \"id\": 1,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAADavDnxgMAAAABAAAAAAAAAAE03U_0Q532vTqsB62CC3c9\",\n  \"expiresAt\": \"2026-11-08T21:21:10+00:00\",\n  \"revocable\": true,\n  \"maxDownloads\": 3,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 1,\n    \"name\": \"ATTACHMENT\"\n  },\n  \"note\": \"для подрядчика\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ссылка выдана', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('linkId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Открыть временную ссылку · /t",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{linkUrl}}",
+              "host": [
+                "{{linkUrl}}"
+              ]
+            },
+            "description": "Отдаёт файл по временной ссылке без токена. После срока, отзыва или исчерпания лимита — `404`. Открыть или скачать — задаётся при выдаче полем `disposition`.\n\n**Токен:** не нужен\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `token` | путь | да | Подписанная часть ссылки после `/t/`. |\n| `Range` | заголовок |  | Диапазон байтов, например `bytes=0-1023` — ответ `206`. |\n| `If-None-Match` | заголовок |  | `ETag`, полученный раньше: если файл не менялся — `304` без тела. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Содержимое файла. Заголовки: `Content-Type`, `Content-Length`, `ETag`, `Cache-Control`, `Content-Disposition`, `Accept-Ranges`. |\n| `206` | Запрошенный диапазон байтов; заголовок `Content-Range`. |\n| `304` | Файл не менялся с этого `ETag` — тела нет. |\n| `404` | Ссылка истекла, отозвана или исчерпана. |",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{linkUrl}}",
+                  "host": [
+                    "{{linkUrl}}"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Etag",
+                  "value": "\"6aef9646-63\""
+                },
+                {
+                  "key": "Accept-Ranges",
+                  "value": "bytes"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "private, max-age=3600"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/plain"
+                },
+                {
+                  "key": "Content-Disposition",
+                  "value": "inline; filename=\"notes-renamed.txt\"; filename*=UTF-8''notes-renamed.txt"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "99"
+                }
+              ],
+              "body": ""
+            },
+            {
+              "name": "404 — ссылка истекла или отозвана",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{linkUrl}}",
+                  "host": [
+                    "{{linkUrl}}"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 404,\n  \"message\": \"Link is invalid or has expired\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл отдан по ссылке', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ссылки одного файла",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files/{{fileId}}/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files",
+                "{{fileId}}",
+                "links"
+              ]
+            },
+            "description": "Последние 20 учитываемых ссылок файла, новые первыми — с числом скачиваний, сроком и признаком отзыва; истёкшие и отозванные тоже, пока их не удалит ночная очистка. Подписанных здесь нет — они нигде не хранятся.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор файла из поля `id`, 16 символов. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Массив ссылок. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такого файла в бакете токена. |"
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{fileId}}/links",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{fileId}}",
+                    "links"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "283"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 1,\n    \"url\": \"https://s5.example.com/t/AQAAAAAAAAADavDnxgMAAAABAAAAAAAAAAE03U_0Q532vTqsB62CC3c9\",\n    \"expiresAt\": \"2026-11-08T21:21:10+00:00\",\n    \"revocable\": true,\n    \"maxDownloads\": 3,\n    \"downloads\": 0,\n    \"revoked\": false,\n    \"disposition\": {\n      \"id\": 1,\n      \"name\": \"ATTACHMENT\"\n    },\n    \"note\": \"для подрядчика\"\n  }\n]"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('список получен', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Все ссылки бакета",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/links?page=1&limit=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "links"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "25"
+                }
+              ]
+            },
+            "description": "Учитываемые ссылки всего бакета постранично, новые первыми — включая истёкшие и отозванные, пока их не удалит ночная очистка.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `page` | запрос |  | Номер страницы, с 1. |\n| `limit` | запрос |  | Сколько записей на странице. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Страница ссылок. |\n| `401` | Токена нет или он неизвестен. |"
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/links?page=1&limit=25",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "links"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "25"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "371"
+                }
+              ],
+              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": 1,\n      \"url\": \"https://s5.example.com/t/AQAAAAAAAAADavDnxgMAAAABAAAAAAAAAAE03U_0Q532vTqsB62CC3c9\",\n      \"expiresAt\": \"2026-11-08T21:21:10+00:00\",\n      \"revocable\": true,\n      \"maxDownloads\": 3,\n      \"downloads\": 0,\n      \"revoked\": false,\n      \"disposition\": {\n        \"id\": 1,\n        \"name\": \"ATTACHMENT\"\n      },\n      \"note\": \"для подрядчика\"\n    }\n  ]\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('список получен', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Примеры ошибок",
+      "description": "Запросы, которые ошибаются нарочно. Все ошибки устроены одинаково: `{ \"code\", \"message\" }`, плюс `errors` при проверке параметров.",
+      "item": [
+        {
+          "name": "Нет токена → 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "check"
+              ]
+            },
+            "description": "Запрос без `Authorization`. Так же отвечает неизвестный токен.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "401 — нет токена",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/check",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "check"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 401,\n  \"message\": \"Access token required\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Нет такого файла → 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files/AAAAAAAAAAAAAAAA",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files",
+                "AAAAAAAAAAAAAAAA"
+              ]
+            },
+            "description": "Файла с таким `id` нет в бакете токена. Чужой файл выглядит так же — по ответу нельзя узнать, есть ли он в другом бакете."
+          },
+          "response": [
+            {
+              "name": "404 — нет такого файла",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/AAAAAAAAAAAAAAAA",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "AAAAAAAAAAAAAAAA"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 404,\n  \"message\": \"File does not exist\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Неверные параметры → 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/folders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "folders"
+              ]
+            },
+            "description": "Параметры не прошли проверку. В `errors` — сообщения по каждому полю: их можно показывать рядом с полем ввода.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"/bad name\",\n  \"retention\": 99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "422 — параметры не прошли проверку",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/folders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "folders"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"/bad name\",\n  \"retention\": 99\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 422,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"name\": [\n      \"may contain letters, digits, space, dot, underscore, dash\"\n    ],\n    \"retention\": [\n      \"retention must be one of [0, 1, 2, 3, 4, 5, 6], got '99'\"\n    ]\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422', () => pm.response.to.have.status(422));",
+                  "pm.test('ошибки по полям', () => pm.expect(pm.response.json().errors).to.have.property('name'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. Уборка",
+      "description": "Удаляет всё, что создал прогон, — чтобы его можно было повторить. Запросы, которым нечего удалять, пропускаются сами.",
+      "item": [
+        {
+          "name": "Отозвать ссылку",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/links/{{linkId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "links",
+                "{{linkId}}"
+              ]
+            },
+            "description": "Отзывает одну учитываемую ссылку. Она сразу перестаёт открываться.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | `id` учитываемой ссылки. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `204` | Отозвана, тела нет. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такой ссылки. |"
+          },
+          "response": [
+            {
+              "name": "204 — успех",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/links/{{linkId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "links",
+                    "{{linkId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/html"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "0"
+                }
+              ],
+              "body": ""
+            },
+            {
+              "name": "404 — нет такой ссылки",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/links/{{linkId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "links",
+                    "{{linkId}}"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 404,\n  \"message\": \"Share link does not exist\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('linkId')) {",
+                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ссылка отозвана', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Отозвать все ссылки бакета",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "links"
+              ]
+            },
+            "description": "Отзывает **все** временные ссылки бакета, в том числе подписанные. Новые ссылки после этого выдаются как обычно. Нужно, когда ссылка утекла, а отозвать её по одной нельзя.\n\n**Токен:** `FULL`\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `200` | Номер новой эпохи подписи. |\n| `401` | Токена нет или он неизвестен. |"
+          },
+          "response": [
+            {
+              "name": "200 — успех",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/links",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "links"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "11"
+                }
+              ],
+              "body": "{\n  \"epoch\": 2\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ссылки отозваны', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Проверить: ссылка больше не работает",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{linkUrl}}",
+              "host": [
+                "{{linkUrl}}"
+              ]
+            },
+            "description": "Та же ссылка, что открывалась в разделе 6, — после отзыва всех ссылок она отвечает `404`.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ссылка не работает — 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Удалить файл",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files/{{fileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files",
+                "{{fileId}}"
+              ]
+            },
+            "description": "Удаляет файл. Его адреса и временные ссылки на него перестают работать.\n\nЕсли такое же содержимое есть у другого файла бакета, оно остаётся на диске; место\nосвобождается, когда удалён последний файл с этим содержимым.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `id` | путь | да | Идентификатор файла из поля `id`, 16 символов. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `204` | Удалено, тела нет. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такого файла в бакете токена. |"
+          },
+          "response": [
+            {
+              "name": "204 — успех",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{fileId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/html"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "0"
+                }
+              ],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('fileId')) {",
+                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл удалён', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Удалить копию",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files/{{dedupFileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files",
+                "{{dedupFileId}}"
+              ]
+            },
+            "description": "Удаляет файл из «Загрузить без передачи»."
+          },
+          "response": [
+            {
+              "name": "204 — успех",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{dedupFileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{dedupFileId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/html"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "0"
+                }
+              ],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('dedupFileId')) {",
+                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл удалён', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Удалить загруженный файл",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files/{{uploadedFileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files",
+                "{{uploadedFileId}}"
+              ]
+            },
+            "description": "Удаляет файл из «Загрузить файл», если он был загружен."
+          },
+          "response": [
+            {
+              "name": "204 — успех",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{uploadedFileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{uploadedFileId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/html"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "0"
+                }
+              ],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('uploadedFileId')) {",
+                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('файл удалён', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Удалить загруженную картинку",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/files/{{imageFileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "files",
+                "{{imageFileId}}"
+              ]
+            },
+            "description": "Удаляет картинку из «Загрузить картинку с обработкой», если она была загружена."
+          },
+          "response": [
+            {
+              "name": "204 — успех",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/files/{{imageFileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "files",
+                    "{{imageFileId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/html"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "0"
+                }
+              ],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('imageFileId')) {",
+                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('картинка удалена', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Удалить папку",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/folders/{{folderName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "folders",
+                "{{folderName}}"
+              ]
+            },
+            "description": "Удаляет папку **вместе со всеми файлами в ней**. Отменить нельзя.\n\n**Токен:** `FULL`\n\n**Параметры**\n\n| Имя | Где | Обязательно | Описание |\n|---|---|---|---|\n| `name` | путь | да | Имя папки. |\n\n**Ответы**\n\n| Код | Когда |\n|---|---|\n| `204` | Удалено, тела нет. |\n| `401` | Токена нет или он неизвестен. |\n| `404` | Нет такой папки. |"
+          },
+          "response": [
+            {
+              "name": "204 — успех",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/folders/{{folderName}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "folders",
+                    "{{folderName}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/html"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "0"
+                }
+              ],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('folderName')) {",
+                  "    // Предыдущий шаг не выполнялся — этот пропускаем, прогон не ломается.",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('папка удалена', () => pm.response.to.have.status(204));",
+                  "['fileId', 'dedupFileId', 'uploadedFileId', 'imageFileId', 'linkId', 'uploadId', 'cancelUploadId'].forEach((k) => pm.collectionVariables.set(k, ''));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9090",
+      "description": "Адрес API со схемой, без / в конце"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "description": "Токен бакета с полным доступом — в Current value"
+    },
+    {
+      "key": "bucketId",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "folderName",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "uploadedFileId",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "imageFileId",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "chunkText",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "chunkSize",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "contentHash",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "uploadId",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "uploadOffset",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "fileId",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "dedupFileId",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "cancelUploadId",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "etag",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "linkUrl",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    },
+    {
+      "key": "linkId",
+      "value": "",
+      "description": "заполняется само во время прогона"
+    }
+  ]
+}

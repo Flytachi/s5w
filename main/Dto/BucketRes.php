@@ -7,6 +7,7 @@ namespace Main\Dto;
 use Main\Entities\Bucket;
 use Main\Enum\BucketStatus;
 use Main\Enum\CacheVisibility;
+use Main\Support\Time;
 
 final class BucketRes
 {
@@ -43,8 +44,8 @@ final class BucketRes
                 'maxAge' => $model->cache_max_age,
                 'visibility' => CacheVisibility::from($model->cache_visibility)->toArray(),
             ],
-            createdAt: $model->created_at,
-            updatedAt: $model->updated_at,
+            createdAt: (string) Time::iso($model->created_at),
+            updatedAt: (string) Time::iso($model->updated_at),
         );
     }
 }

@@ -18,6 +18,7 @@ use Main\Http\AdminCookie;
 use Main\Http\AdminNetwork;
 use Main\Http\Peer;
 use Main\Services\AdminAuthService;
+use Main\Support\Time;
 
 #[RequestMapping('admin/auth')]
 final class AuthController extends Controller
@@ -33,7 +34,7 @@ final class AuthController extends Controller
         AdminNetwork::guard($http);
         $session = $this->service->login($request, Peer::client($http));
 
-        return ResponseEntity::ok(['expiresAt' => date('Y-m-d H:i:s P', $session['expiresAt'])])
+        return ResponseEntity::ok(['expiresAt' => Time::isoAt($session['expiresAt'])])
             ->cookie(AdminCookie::issue($session['token']));
     }
 

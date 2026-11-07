@@ -7,6 +7,7 @@ namespace Main\Dto;
 use Main\Entities\Folder;
 use Main\Enum\CacheVisibility;
 use Main\Enum\Retention;
+use Main\Support\Time;
 
 final class FolderRes
 {
@@ -36,8 +37,8 @@ final class FolderRes
                     ? null
                     : CacheVisibility::from($model->cache_visibility)->toArray(),
             ],
-            createdAt: $model->created_at,
-            updatedAt: $model->updated_at,
+            createdAt: (string) Time::iso($model->created_at),
+            updatedAt: (string) Time::iso($model->updated_at),
         );
     }
 }

@@ -7,6 +7,7 @@ namespace Main\Dto;
 use Main\Entities\Blob;
 use Main\Entities\FileEntry;
 use Main\Image\ProcessedImage;
+use Main\Support\Time;
 
 final class FileRes
 {
@@ -52,11 +53,11 @@ final class FileRes
             public: $file->public,
             deduplicated: $deduplicated,
             processed: $processed?->toArray(),
-            expiresAt: $file->expires_at,
+            expiresAt: Time::iso($file->expires_at),
             privateUrl: $base . '/p/' . $file->slug,
             publicUrl: $file->public ? $base . '/o/' . $file->bucket_id . '/' . $file->slug : null,
-            createdAt: $file->created_at,
-            updatedAt: $file->updated_at,
+            createdAt: (string) Time::iso($file->created_at),
+            updatedAt: (string) Time::iso($file->updated_at),
         );
     }
 }

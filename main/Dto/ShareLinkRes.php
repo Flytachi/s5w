@@ -6,6 +6,7 @@ namespace Main\Dto;
 
 use Main\Entities\ShareLink;
 use Main\Enum\Disposition;
+use Main\Support\Time;
 
 final class ShareLinkRes
 {
@@ -30,7 +31,7 @@ final class ShareLinkRes
         return new self(
             id: $link->id,
             url: $url,
-            expiresAt: $link->expires_at,
+            expiresAt: (string) Time::iso($link->expires_at),
             revocable: true,
             maxDownloads: $link->max_downloads,
             downloads: $link->downloads,
@@ -45,7 +46,7 @@ final class ShareLinkRes
         return new self(
             id: null,
             url: $url,
-            expiresAt: $expiresAt,
+            expiresAt: (string) Time::iso($expiresAt),
             revocable: false,
             maxDownloads: null,
             downloads: 0,
