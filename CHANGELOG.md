@@ -10,6 +10,24 @@ data, tokens and issued links are kept. Notes marked **⚠ Upgrade** need attent
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-11-14
+
+### Added
+
+- **API:** a temporary link now carries its file — `"file": { "id", "name" }` — in every answer:
+  `POST /v1/files/{id}/link`, `GET /v1/files/{id}/links` and `GET /v1/links`. The bucket-wide list
+  used to give no way to tell which file a link leads to. The files of a page are loaded in one
+  query.
+- **API:** `GET /v1/links` now applies `search` — part of a link's note or of its file's name,
+  case-insensitive, the same as the admin panel. The parameter used to be accepted and ignored.
+
+### Fixed
+
+- **Link search** (API and panel): `%` and `_` in the query are matched literally instead of
+  working as `LIKE` wildcards — searching for `%` no longer lists every link.
+- **Link lists:** links created within the same second are ordered newest first too (ties are
+  broken by id).
+
 ## [1.1.3] — 2026-11-08
 
 ### Added

@@ -29,7 +29,7 @@ final class LinkCardRes
     public static function from(ShareLink $link, ?FileEntry $file, string $url): self
     {
         return new self(
-            link: ShareLinkRes::from($link, $url),
+            link: ShareLinkRes::from($link, $url, $file),
             file: $file === null ? null : ['slug' => $file->slug, 'name' => $file->name],
             state: self::stateOf($link),
             createdAt: (string) Time::iso($link->created_at),

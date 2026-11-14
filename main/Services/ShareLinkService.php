@@ -78,6 +78,7 @@ final class ShareLinkService
                 $this->url($baseUrl, $token),
                 $this->format($expiresAt),
                 $request->disposition,
+                $file,
             );
         }
 
@@ -91,7 +92,7 @@ final class ShareLinkService
         $link->created_at = date('Y-m-d H:i:s P');
         $link->id = $this->repo->insert($link);
 
-        return ShareLinkRes::from($link, $this->urlFor($baseUrl, $link, $bucket->link_epoch));
+        return ShareLinkRes::from($link, $this->urlFor($baseUrl, $link, $bucket->link_epoch), $file);
     }
 
     /**
@@ -141,11 +142,75 @@ final class ShareLinkService
     {
         $epoch = $this->requireBucket($bucketId)->link_epoch;
 
-        return Wrapper::paginator(
-            $this->repo->where(Qb::eq('bucket_id', $bucketId))->orderBy('created_at DESC'),
+        $where = [Qb::eq('bucket_id', $bucketId)];
+        $search = $this->searchCondition($request->search);
+        if ($search !== null) {
+            $where[] = $search;
+        }
+
+        $page = Wrapper::paginator(
+            $this->repo->where(Qb::and(...$where))->orderBy('created_at DESC, id DESC'),
             $request->limit,
             $request->page,
-            mapper: fn(ShareLink $link) => ShareLinkRes::from($link, $this->urlFor($baseUrl, $link, $epoch)),
+        );
+
+        /** @var ShareLink[] $links */
+        $links = $page->data;
+        $files = $this->filesOf($links);
+
+        // Файл удаляется вместе со своими ссылками (CASCADE), так что он есть у каждой ссылки;
+        // строка без файла — гонка с удалением прямо сейчас — в ответ не попадает.
+        $data = [];
+        foreach ($links as $link) {
+            if (isset($files[$link->file_id])) {
+                $data[] = ShareLinkRes::from($link, $this->urlFor($baseUrl, $link, $epoch), $files[$link->file_id]);
+            }
+        }
+
+        return new WrapResult($page->meta, $data);
+    }
+
+    /**
+     * Файлы ссылок одной страницы — одним запросом, а не по запросу на ссылку.
+     *
+     * @param ShareLink[] $links
+     * @return array<int, FileEntry> по внутреннему id файла
+     */
+    private function filesOf(array $links): array
+    {
+        $files = [];
+        if ($links !== []) {
+            $ids = array_values(array_unique(array_column($links, 'file_id')));
+            foreach ($this->fileRepo->findAllBy(Qb::in('id', $ids)) as $file) {
+                $files[$file->id] = $file;
+            }
+        }
+
+        return $files;
+    }
+
+    /**
+     * Поиск по ссылкам — один и для API, и для панели: подстрока заметки или имени файла,
+     * без учёта регистра. Пустая строка — без фильтра.
+     */
+    private function searchCondition(?string $search): ?Qb
+    {
+        $search = trim((string) $search);
+        if ($search === '') {
+            return null;
+        }
+        // Буквальная подстрока: % и _ из запроса не должны работать как шаблоны LIKE.
+        $needle = '%' . addcslashes($search, '%_\\') . '%';
+
+        return Qb::or(
+            Qb::like('note', $needle, true),
+            Qb::raw(
+                sprintf(
+                    'EXISTS (SELECT 1 FROM %s f WHERE f.id = file_id AND f.name ILIKE :search)',
+                    $this->fileRepo->originTable(),
+                ),
+                ['search' => $needle],
+            ),
         );
     }
 
@@ -155,20 +220,9 @@ final class ShareLinkService
     public function panelPage(string $bucketId, LinkListRequest $request, string $baseUrl = ''): array
     {
         $where = [Qb::eq('bucket_id', $bucketId)];
-
-        $search = trim((string) $request->search);
-        if ($search !== '') {
-            $needle = '%' . $search . '%';
-            $where[] = Qb::or(
-                Qb::like('note', $needle, true),
-                Qb::raw(
-                    sprintf(
-                        'EXISTS (SELECT 1 FROM %s f WHERE f.id = file_id AND f.name ILIKE :search)',
-                        $this->fileRepo->originTable(),
-                    ),
-                    ['search' => $needle],
-                ),
-            );
+        $search = $this->searchCondition($request->search);
+        if ($search !== null) {
+            $where[] = $search;
         }
 
         $page = Wrapper::paginator(
@@ -181,12 +235,7 @@ final class ShareLinkService
         $links = $page->data;
         $epoch = $this->buckets->findById($bucketId)?->link_epoch ?? 0;
 
-        $files = [];
-        if ($links !== []) {
-            foreach ($this->fileRepo->findAllBy(Qb::in('id', array_column($links, 'file_id'))) as $file) {
-                $files[$file->id] = $file;
-            }
-        }
+        $files = $this->filesOf($links);
 
         $items = array_map(
             fn(ShareLink $link) => [
@@ -241,12 +290,12 @@ final class ShareLinkService
 
         $links = $this->repo
             ->where(Qb::and(Qb::eq('bucket_id', $bucketId), Qb::eq('file_id', $file->id)))
-            ->orderBy('created_at DESC')
+            ->orderBy('created_at DESC, id DESC')
             ->limit($limit)
             ->findAll();
 
         return array_map(
-            fn(ShareLink $link) => ShareLinkRes::from($link, $this->urlFor($baseUrl, $link, $epoch)),
+            fn(ShareLink $link) => ShareLinkRes::from($link, $this->urlFor($baseUrl, $link, $epoch), $file),
             $links,
         );
     }

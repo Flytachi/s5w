@@ -2934,7 +2934,7 @@
                   "value": "247"
                 }
               ],
-              "body": "{\n  \"id\": null,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAALau-0sQAAAAADGcZfqEMAcFy4RevV_H5Vlw\",\n  \"expiresAt\": \"2026-11-07T23:30:57+00:00\",\n  \"revocable\": false,\n  \"maxDownloads\": null,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 0,\n    \"name\": \"INLINE\"\n  },\n  \"note\": \"\"\n}"
+              "body": "{\n  \"id\": null,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAALau-0sQAAAAADGcZfqEMAcFy4RevV_H5Vlw\",\n  \"file\": {\n    \"id\": \"FXOkqegbdrNRWQgc\",\n    \"name\": \"report.pdf\"\n  },\n  \"expiresAt\": \"2026-11-07T23:30:57+00:00\",\n  \"revocable\": false,\n  \"maxDownloads\": null,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 0,\n    \"name\": \"INLINE\"\n  },\n  \"note\": \"\"\n}"
             },
             {
               "name": "422 — ttl over 30 days",
@@ -3074,7 +3074,7 @@
                   "value": "272"
                 }
               ],
-              "body": "{\n  \"id\": 3,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr\",\n  \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n  \"revocable\": true,\n  \"maxDownloads\": 3,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 1,\n    \"name\": \"ATTACHMENT\"\n  },\n  \"note\": \"for the contractor\"\n}"
+              "body": "{\n  \"id\": 3,\n  \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr\",\n  \"file\": {\n    \"id\": \"FXOkqegbdrNRWQgc\",\n    \"name\": \"report.pdf\"\n  },\n  \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n  \"revocable\": true,\n  \"maxDownloads\": 3,\n  \"downloads\": 0,\n  \"revoked\": false,\n  \"disposition\": {\n    \"id\": 1,\n    \"name\": \"ATTACHMENT\"\n  },\n  \"note\": \"for the contractor\"\n}"
             }
           ],
           "event": [
@@ -3243,7 +3243,7 @@
                   "value": "274"
                 }
               ],
-              "body": "[\n  {\n    \"id\": 3,\n    \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr\",\n    \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n    \"revocable\": true,\n    \"maxDownloads\": 3,\n    \"downloads\": 0,\n    \"revoked\": false,\n    \"disposition\": {\n      \"id\": 1,\n      \"name\": \"ATTACHMENT\"\n    },\n    \"note\": \"for the contractor\"\n  }\n]"
+              "body": "[\n  {\n    \"id\": 3,\n    \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr\",\n    \"file\": {\n      \"id\": \"FXOkqegbdrNRWQgc\",\n      \"name\": \"report.pdf\"\n    },\n    \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n    \"revocable\": true,\n    \"maxDownloads\": 3,\n    \"downloads\": 0,\n    \"revoked\": false,\n    \"disposition\": {\n      \"id\": 1,\n      \"name\": \"ATTACHMENT\"\n    },\n    \"note\": \"for the contractor\"\n  }\n]"
             }
           ],
           "event": [
@@ -3280,6 +3280,12 @@
                 {
                   "key": "limit",
                   "value": "25"
+                },
+                {
+                  "key": "search",
+                  "value": "invoice",
+                  "disabled": true,
+                  "description": "Part of the note or the file name"
                 }
               ]
             },
@@ -3325,7 +3331,7 @@
                   "value": "362"
                 }
               ],
-              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": 3,\n      \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr\",\n      \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n      \"revocable\": true,\n      \"maxDownloads\": 3,\n      \"downloads\": 0,\n      \"revoked\": false,\n      \"disposition\": {\n        \"id\": 1,\n        \"name\": \"ATTACHMENT\"\n      },\n      \"note\": \"for the contractor\"\n    }\n  ]\n}"
+              "body": "{\n  \"meta\": {\n    \"current\": 1,\n    \"size\": 25,\n    \"total\": 1,\n    \"pages\": 1,\n    \"previous\": null,\n    \"next\": null\n  },\n  \"data\": [\n    {\n      \"id\": 3,\n      \"url\": \"https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr\",\n      \"file\": {\n        \"id\": \"FXOkqegbdrNRWQgc\",\n        \"name\": \"report.pdf\"\n      },\n      \"expiresAt\": \"2026-11-08T22:30:57+00:00\",\n      \"revocable\": true,\n      \"maxDownloads\": 3,\n      \"downloads\": 0,\n      \"revoked\": false,\n      \"disposition\": {\n        \"id\": 1,\n        \"name\": \"ATTACHMENT\"\n      },\n      \"note\": \"for the contractor\"\n    }\n  ]\n}"
             }
           ],
           "event": [

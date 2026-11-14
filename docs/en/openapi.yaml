@@ -1594,6 +1594,9 @@ paths:
                   value:
                     id: null
                     url: https://s5.example.com/t/AQAAAAAAAAALau-0sQAAAAADGcZfqEMAcFy4RevV_H5Vlw
+                    file:
+                      id: FXOkqegbdrNRWQgc
+                      name: report.pdf
                     expiresAt: '2026-11-07T23:30:57+00:00'
                     revocable: false
                     maxDownloads: null
@@ -1608,6 +1611,9 @@ paths:
                   value:
                     id: 3
                     url: https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr
+                    file:
+                      id: FXOkqegbdrNRWQgc
+                      name: report.pdf
                     expiresAt: '2026-11-08T22:30:57+00:00'
                     revocable: true
                     maxDownloads: 3
@@ -1674,6 +1680,9 @@ paths:
               example:
               - id: 3
                 url: https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr
+                file:
+                  id: FXOkqegbdrNRWQgc
+                  name: report.pdf
                 expiresAt: '2026-11-08T22:30:57+00:00'
                 revocable: true
                 maxDownloads: 3
@@ -1724,6 +1733,13 @@ paths:
           minimum: 1
           maximum: 100
           default: 25
+      - name: search
+        in: query
+        required: false
+        description: "Part of the link's note or of its file's name, case-insensitive; `%` and `_` are literal."
+        schema:
+          type: string
+          maxLength: 100
       responses:
         '200':
           description: A page of links.
@@ -1749,6 +1765,9 @@ paths:
                 data:
                 - id: 3
                   url: https://s5.example.com/t/AQAAAAAAAAALavD4IQMAAAADAAAAAAAAAANNMm_jgUcKZtGosvmbCaJr
+                  file:
+                    id: FXOkqegbdrNRWQgc
+                    name: report.pdf
                   expiresAt: '2026-11-08T22:30:57+00:00'
                   revocable: true
                   maxDownloads: 3
@@ -2368,6 +2387,19 @@ components:
         url:
           type: string
           description: Link address `/t/…`.
+        file:
+          type: object
+          description: "The file the link leads to."
+          properties:
+            id:
+              type: string
+              description: "File id, as in `/v1/files/{id}`."
+            name:
+              type: string
+              description: "File name."
+          required:
+          - id
+          - name
         expiresAt:
           type: string
           format: date-time
@@ -2395,6 +2427,7 @@ components:
       required:
       - id
       - url
+      - file
       - expiresAt
       - revocable
       - maxDownloads

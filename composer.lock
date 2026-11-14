@@ -230,16 +230,16 @@
         },
         {
             "name": "flytachi/winter-di",
-            "version": "v2.2.0",
+            "version": "v2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Flytachi/winter-di.git",
-                "reference": "bfcedfbc0e578e05d641511d661004485883b83e"
+                "reference": "c29f93b9a8a558fe3fa287647e6973a20072c18c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Flytachi/winter-di/zipball/bfcedfbc0e578e05d641511d661004485883b83e",
-                "reference": "bfcedfbc0e578e05d641511d661004485883b83e",
+                "url": "https://api.github.com/repos/Flytachi/winter-di/zipball/c29f93b9a8a558fe3fa287647e6973a20072c18c",
+                "reference": "c29f93b9a8a558fe3fa287647e6973a20072c18c",
                 "shasum": ""
             },
             "require": {
@@ -285,21 +285,21 @@
                 "issues": "https://github.com/flytachi/winter-di/issues",
                 "source": "https://github.com/flytachi/winter-di"
             },
-            "time": "2026-08-20T09:13:01+00:00",
-            "published-time": "2026-08-20T09:13:51+00:00"
+            "time": "2026-11-11T11:30:31+00:00",
+            "published-time": "2026-11-11T11:33:50+00:00"
         },
         {
             "name": "flytachi/winter-kernel",
-            "version": "v4.4.0",
+            "version": "v4.4.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Flytachi/winter-kernel.git",
-                "reference": "a6f74a997d14646e07e64c2d78b3313c4726e60c"
+                "reference": "23ea127610a4abb67b2ff3ee6977beebeb7506a9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Flytachi/winter-kernel/zipball/a6f74a997d14646e07e64c2d78b3313c4726e60c",
-                "reference": "a6f74a997d14646e07e64c2d78b3313c4726e60c",
+                "url": "https://api.github.com/repos/Flytachi/winter-kernel/zipball/23ea127610a4abb67b2ff3ee6977beebeb7506a9",
+                "reference": "23ea127610a4abb67b2ff3ee6977beebeb7506a9",
                 "shasum": ""
             },
             "require": {
@@ -309,7 +309,7 @@
                 "flytachi/file-store": "^2.0",
                 "flytachi/winter-base": "^3.0",
                 "flytachi/winter-cdo": "^4.0",
-                "flytachi/winter-di": "^2.0",
+                "flytachi/winter-di": "^2.3",
                 "flytachi/winter-logger": "^1.0",
                 "flytachi/winter-thread": "^3.0",
                 "php": ">=8.4",
@@ -379,8 +379,8 @@
                 "issues": "https://github.com/flytachi/winter-kernel/issues",
                 "source": "https://github.com/flytachi/winter-kernel"
             },
-            "time": "2026-10-30T12:58:54+00:00",
-            "published-time": "2026-10-30T13:50:55+00:00"
+            "time": "2026-11-13T13:34:46+00:00",
+            "published-time": "2026-11-13T13:52:05+00:00"
         },
         {
             "name": "flytachi/winter-logger",
@@ -755,7 +755,8 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-29T19:21:12+00:00"
+            "time": "2026-09-29T19:21:12+00:00",
+            "published-time": "2026-09-29T19:21:44+00:00"
         },
         {
             "name": "opis/closure",
